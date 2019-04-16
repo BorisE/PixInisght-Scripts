@@ -5,6 +5,10 @@
 
 /*
                      Version History
+   v1.0  16/04/2019     Boris Emchenko
+                        Пора давать релизный номер версии :)
+                        + исключения каталогов из поиска
+
 
 
    v0.5  11/04/2019    Boris Emchenko:
@@ -114,7 +118,11 @@ searchDirectory(cfgInputPath);
 
 
 //Finish working
+console.noteln( "<end><cbr><br>",
+                "************************************************************" );
 console.noteln('Finished ' + FileTotalCount + ' file(s) processing in '+  T.text + ' sec');
+console.noteln( "************************************************************" );
+
 
 //sleep(10);
 //////////////////////////////////////////////////////
@@ -151,7 +159,7 @@ function searchDirectory(searchPath)
             {
                // if this is Directory and recursion is enabled
                if ( objFileFind.isDirectory ) {
-                  if (cfgSearchInSubDirs )
+                  if (cfgSearchInSubDirs && objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith)
                   {
                      //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
 
@@ -181,12 +189,14 @@ function searchDirectory(searchPath)
                         Console.noteln( '* ' + DirCount + '.' + FileCount + '. Start file processings: '+ searchPath +'/'+ objFileFind.name);
                         console.noteln( "************************************************************" );
 
-                        registerFits(
-                           debayerSplitFit(
-                              cosmeticFit(
-                                 calibrateFITSFile(searchPath +'/'+ objFileFind.name)
-                              )
-                           )
+                        localNormalization (
+							registerFits(
+							   debayerSplitFit(
+								  cosmeticFit(
+									 calibrateFITSFile(searchPath +'/'+ objFileFind.name)
+								  )
+							   )
+							)
                         )
 
 /*                        registerFits(
@@ -1054,7 +1064,7 @@ function registerFits(files)
 
       // return new file name
       var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-      var newFileName = files[i].replace(/_c_cc\.fit$/, '_c_cc_r.fit');
+      var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_r.fit');
       newFiles[i] = RegisteredOutputPath + '/' + newFileName;
    }
 
@@ -1124,9 +1134,11 @@ function getNormalizationReferenceFile (objectname, filtername, exposure)
  */
 function localNormalization(files)
 {
-	if (fileName==false) {
+	if (files==false) {
+      debug("Skipping Normalization", dbgNormal);
       return false;
 	}
+
    if (!cfgNeedNormalization) {
       debug ("Normalization is off");
       return true;
@@ -1213,7 +1225,7 @@ function localNormalization(files)
 
       // return new file name
       var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-      var newFileName = files[i].replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
+      var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
       newFiles[i] = RegisteredOutputPath + '/' + newFileName;
 
    }
