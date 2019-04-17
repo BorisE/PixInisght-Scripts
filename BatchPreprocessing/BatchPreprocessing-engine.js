@@ -1290,7 +1290,7 @@ StackEngine.prototype.doIntegrate = function( frameGroup )
    //Add temp info if dark or bias
    if (imageType == ImageType.BIAS || imageType == ImageType.DARK)
    {
-		postfix += "_TEMP_" + (temperatureSum / frameSet.length)+"deg";
+		postfix += "_TEMP_" + parseInt(temperatureSum / frameSet.length)+"deg";
    }
    
    if ( !frameGroup.filter.isEmpty() )
@@ -2169,8 +2169,9 @@ StackEngine.prototype.runDiagnostics = function()
             this.error( "The " + F.name + " format cannot store 32-bit floating point image data." );
          if ( !F.canStoreKeywords )
             this.warning( "The " + F.name + " format does not support keywords." );
-         if ( !F.canStoreProperties || !F.supportsViewProperties )
-            this.warning( "The " + F.name + " format does not support image properties." );
+// Не проверять поклепы на FITS :)
+//         if ( !F.canStoreProperties || !F.supportsViewProperties )
+//            this.warning( "The " + F.name + " format does not support image properties." );
 //         if ( F.isDeprecated )
 //            this.warning( "Using a deprecated output file format: " + F.name );
       }

@@ -50,7 +50,8 @@
 #feature-id    Batch Processing > BatchPreprocessing
 
 #feature-info  A script for calibration and alignment of light frames.<br/>\
-               Original script written by Kai Wiechen (c) 2012
+               Original script written by Kai Wiechen (c) 2012<br/>\
+			   Edited by Oleg Milantiev and Boris Emchenko
 
 #iflt __PI_BUILD__ 1321
 #error This script requires PixInsight 1.8.5.1321 or higher.
