@@ -1287,10 +1287,10 @@ StackEngine.prototype.doIntegrate = function( frameGroup )
 
    var postfix = ""
 
-   //Add temp info if dark or bias
+   //Add temp info if dark or bias (positive integer)
    if (imageType == ImageType.BIAS || imageType == ImageType.DARK)
    {
-		postfix += "_TEMP_" + parseInt(temperatureSum / frameSet.length)+"deg";
+		postfix += "_TEMP_" + Math.abs(parseInt(temperatureSum / frameSet.length))+"deg"; 
    }
    
    if ( !frameGroup.filter.isEmpty() )
