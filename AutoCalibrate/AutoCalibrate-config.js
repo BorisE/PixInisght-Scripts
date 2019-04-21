@@ -103,23 +103,34 @@ var cfgNeedRegister  = true;
 // НОРМАЛИЗОВАТЬ ФОН?
 var cfgNeedNormalization  = true;
 
+// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ?
+var cfgNeedApproving = true;
+
+//ИСПОЛЬЗОВАТЬ ВТОРОЙ ПРОХОД
+var cfgUseSecnodPass = true;
+
+//Переделывать ли найденные файлы
+var cfgOverwriteAllFiles = true;
+
+
+
 
 //Пути к файлам
 //Папка с исходными фитами
-var cfgInputPath = 'e:/DSlrRemote/-LeoTrio1'; // без финального "/" (@todo убрать. если есть)
+var cfgInputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
 //Искать в подпапках? В комбинации с cfgUseRelativeOutputPath будет просматривать все вложенные папки с калиброванными фитами!
 var cfgSearchInSubDirs = true;
 //Пропускать каталоги, начинающиеся с ...
 var cfgSkipDirsBeginWith = "_";
 
 //Папка с библиотекой мастеров
-var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
+var cfgCalibratationMastersPath = 'c:/Users/bemchenko/Documents/DSlrRemote/Vedrus'; // без финального "/" (@todo убрать. если есть)
 
 //Папка с библиотекой референсов для выравнивания по звездам
-var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
+var cfgRegistrationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/RegistrationReferences'; // без финального "/" 
 
 //Папка с библиотекой референсов для выравнивания фона
-var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
+var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/NormalizationReferences'; // без финального "/" 
 
 
 
@@ -134,15 +145,17 @@ var cfgCreateObjectFolder = true;
 var cfgOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
 
 //Подпапка с калиброванными фитами 
-var cfgCalibratedFolderName = 'calibrated'; // без финального "/" 
+var cfgCalibratedFolderName = 'calibrated'; 	// без финального "/" 
 //Подпапка с фитами после косметики
-var cfgCosmetizedFolderName = 'cosmetized'; // без финального "/" 
+var cfgCosmetizedFolderName = 'cosmetized'; 	// без финального "/" 
 //Префикс названия процесса косметики
 var cfgCosmetizedProcessName = 'Cosmetic';
 //Подпапка с фитами после выравнивания
-var cfgRegisteredFolderName="registered";	// без финального "/" 
+var cfgRegisteredFolderName="registered";		// без финального "/" 
 //Подпапка с фитами после нормализации
-var cfgNormilizedFolderName="rnormilized";	// без финального "/" 
+var cfgNormilizedFolderName="rnormilized";		// без финального "/" 
+//Подпапка с отобранными фитами 
+var cfgApprovedFolderName="approved";			// без финального "/" 
 
 // Использовать имя наблюдателя в иерархии папок?
 // Для меня не нужно, Олегу пригодиться
@@ -155,17 +168,16 @@ var cgfUseExposureInCosmeticsIcons = false;	// Для меня не нужно, 
 var cfgDarkExposureLenghtTolerance = 30; // В секундах; MasterDark  всегда подбирается самый ближайший их тех, которые длиннее экспозиции кадра. 
 										 // Данный параметр разрешае ему быть на 30 сек короче! если задать 0, то будут рассматриваться только те дарки, которые длинее
 
-										 
-var busy = false;
-var needRefresh = true;
-
+// Выражение для фильтрации кадров
+var cfgApprovedExpression = 'FWHM > 4.5';
+	  
 
 //////////////////////////////////////////////////////
 /* 
-					Константы
+					Продвинутые настройки
 */
 //////////////////////////////////////////////////////
-	  
+
 //Filters dictionary
 	var filters = {
       'LUMINANCE': 'L',
@@ -179,12 +191,6 @@ var needRefresh = true;
       'GREEN': 'G',
       'RED': 'R'
       };
-
-//////////////////////////////////////////////////////
-/* 
-					Продвинутые настройки
-*/
-//////////////////////////////////////////////////////
 
 // Паттерны для поиска нужных мастер калибровочных файлов
 
@@ -208,66 +214,8 @@ var flats_dir_pattern = new RegExp('masterflats[_ -]*(\\d+)','i'); // [...master
 var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-','i'); 	// +? non-greedy modifier; 
 																	// [flat...filter_Sii-...] - начинается со слова flat и дальше должно быть FILTER_названиефильтра-
 																	// Примеры: flat-FILTER_B-BINNING_1.xisf, flat-FILTER_B-BINNING_1_20190201, masterflatimakesomedayFILETER_R-
-
+// Настройки для отладчика
 																	
-// for FITS HEADER parsing
-   var headers = {
-      'XBINNING': null,
-      'OBSERVER': null,
-      'TELESCOP': null,
-	  'INSTRUME': null,
-      'DATE-OBS': null,
-      'EXPTIME':  null,
-      'CCD-TEMP': null,
-      'FILTER':   null,
-      'OBJECT':   null,
-      'OBJCTRA':  null,
-      'OBJCTDEC': null
-      };
-	 
-// DEBUG	 
-var dbgNormal = 1; 	//  минимальное количество сообщений
-var dbgNotice = 2;	// максимальное количество сообщений 
-
 var cfgDebugEnabled = true;
-var cfgDebugLevel = dbgNotice; 
-
-////////////////////////////////////////////////////////////////////////////////
-var BaseCalibratedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var CalibratedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var CosmetizedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var RegisteredOutputPath= ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var NormalizedOutputPath= ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-
-var CosmeticsIconTemperature = 0; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var CosmeticsIconExposure  = 0;// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-
-
-
-var FITS_ARRAY = {};
-
-function fitsfullname (fitsfilename)
-{
-	
-}
-/*
-var FITSel = {
-  fits: "John",
-  fullfits: "John",
-  calibrated : "Doe",
-  cosmetized : "Doe",
-  registered : "Doe",
-  normalized : "Doe",
-};
-
-function FITSObj(fitsname, fitsfullname, calibrated, cosmetized, registered, normalized){
-  this.fitsname = fitsname;
-  this.fitsfullname = fitsfullname;
-  this.calibrated = calibrated;
-  this.cosmetized = cosmetized;
-  this.registered = registered;
-  this.normalized = normalized;
-}
-fitsel= new FITSObj();
-FITS_ARRAY.push(fitsel); 
-*/
+var cfgDebugLevel = dbgNormal; 
+//////////////////////////////////////////////////////
