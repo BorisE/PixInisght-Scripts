@@ -6,7 +6,7 @@
   
 																	
 // for FITS HEADER parsing
-   var headers = {
+var headers = {
       'XBINNING': null,
       'OBSERVER': null,
       'TELESCOP': null,
@@ -25,6 +25,7 @@
 // DEBUG	 
 var dbgNormal = 1; 	//  минимальное количество сообщений
 var dbgNotice = 2;	// максимальное количество сообщений 
+var dbgCurrent = 0;	// максимальное количество сообщений 
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -43,8 +44,11 @@ var needRefresh = true;				// Осталась от Олега
 
 
 ////////////////////////////////////////////////////////////////////////////////
-var FITS = { UNKNOWN : -1, ORIGINAL : 0, CALIBRATED : 1, COSMETIZED : 2, REGISTERED : 3, NORMALIZED : 4, APPROVED: 5 };
-var FILEARRAY = [];
+var PATHMODE = { UNSET : -1, AUTO : 0, PUT_IN_ROOT_SUBFOLDER : 1, PUT_IN_OBJECT_SUBFOLDER : 2, ABSOLUTE : 3, RECURSIVE : 4, RECURSIVE_WITH_OBJECT_FOLDER : 5 };// Типы расположения файлов
+
+
+var FITS = { UNKNOWN : -1, ORIGINAL : 0, CALIBRATED : 1, COSMETIZED : 2, REGISTERED : 3, NORMALIZED : 4, APPROVED: 5 }; // Типы файлов
+var FILEARRAY = [];	// базовый массив хранения файлов, куда вносятся результаты сканирования
 /*      FILEARRAY.push({
             fits: signaturename,
             fullname:   (type == FITS.ORIGINAL     ? fullname : null),
@@ -55,6 +59,8 @@ var FILEARRAY = [];
             approved:   (type == FITS.APPROVED     ? fullname : null),
          });
 */
+
+
 
 /**
  * Вернуть название поле для объекта FILEARRAY по типу
@@ -113,6 +119,14 @@ function getFILEARRPrecedingName(property)
       return getFILEARRPropertyName (FITS.ORIGINAL);
      
 }
+
+
+function debug(st, level = dbgCurrent)
+{
+   if (cfgDebugEnabled && level <= cfgDebugLevel)
+      console.writeln (st);
+}
+
 
 /*
 ////////////////////////////////////////////////////////////////////////////////

@@ -1,97 +1,29 @@
 /*
-******************************************************************************************************
-*   Documentation
-******************************************************************************************************
-
-******************************************************************************************************
-* 	1. MASTER FILES LIB
-******************************************************************************************************
-СХЕМА 1:
-
-calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/bias.fit';
-calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/dark-'+ file.duration +'.fit';
-calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/flat-'+ file.filter +'.fit';
-
- ... / Vitar / MakF10 / bin1 / 	dark-300.fit
- ... / Vitar / MakF10 / bin2 / 	bias.fit
- ... / Vitar / MakF10 / bin2 / 	flat-L.fit
-
- 
-
-СХЕМА 2:
-
- ... / [Vitar /] SW250 [ / bin1] / Darks -20 / 	bias-TEMP_25deg_n117.xisf
-							dark-TEMP_20deg-EXPTIME_1200_n55.xisf
-							dark-TEMP_20deg-EXPTIME_600.fit
-							dark-TEMP_20deg-EXPTIME_60.xisf
-							
- ... / [Vitar /] SW250 [ / bin1] / flats20180803 / flat-FILTER_B-BINNING_1_20180803.xisf
-
-Важные замечания:
-	1) В иерархии две папки необязательны: имя обсерватории и бининг. Этим управляют параметры cgfUseObserverName и cgfUseBiningFolder соответственно. 
-	2) Папки и файлы подбираются на основании их имен папок/файлов, определяемых шаблонами ниже в конфигурации. Содержимое файлов не проверяется! Расширение файлов не проверяется (может быть любым!)
-	3) Если будет найдено несколько папок/файлов подходящих под шаблон, будет использован первый найденый. Нужно следить, чтобы папки/файлы были уникальными в части ключевых эелментов, определяемых шаблонами
- 
-
- 
-******************************************************************************************************
-* 	2. OUTPUT OF CALIBRATED FILES 
-******************************************************************************************************
-Возможны 3 схемы.
-Опредедяется параметром cfgUseRelativeOutputPath и cfgCreateObjectFolder
-
-Схема 1. Относительная
-
-В случае ее файлы на выходехранятся так:
-
- path to file 	/ input FITS file
-				/ calibrated 	/ calibrated FITS file
-				/ cosmetics 	/ cosmetics corrected FITS file
-				/ debayered 	/ debayered file (if СFA)
-				/ registered 	/ registered files
-
-Схема 2. Относительная с группировкой по объекту
-			Разновидность схемы 1, когда включен параметр cfgCreateObjectFolder	= true
-			
- path to file 	/ input FITS file
-				/ objectname 	/ calibrated 	/ calibrated FITS file
-								/ cosmetics 	/ cosmetics corrected FITS file
-								/ debayered 	/ debayered file (if СFA)
-								/ registered 	/ registered files
-				
-Схема 3. Абсолютная, старая (НЕ ФАКТ, ЧТО РАБОТАЕТ!!!)
-
-	calibrated FITS file -	будет храниться в той же папке, где и исходный
-	cosmetics corrected FITS file - будет хранитсья в папке cfgOutputPath/calibrated
-	debayerd corrected FITS file - будет хранитсья в папке cfgOutputPath/debayered 
-
-******************************************************************************************************
-* 	3. COSMETIC CORRECTION ICONS 
-******************************************************************************************************
-Для каждого инструмента (и, если задано в конфигурации, обсерватории), бининга (если не отключено в конфигурации) и имеющейся длительности дарокв, нужно создать набор процессов Cosmetic Correction
-
-Они должны назывтаь в следующем формате: 
-	'cosmetic_наблюдатель_телескоп_bin1_длинаэкспозиции' (Сosmetic_Vitar_SW250_bin1_600)
-
-если отключено cgfUseObserverName и cgfUseBiningFolder:
-	'cosmetic_телескоп_длинаэкспозиции' (Сosmetic_SW250_600)
-
-если отключено cgfUseExposureInCosmeticsIcons то вообще будет:
-	'Сosmetic_телескоп_' (Сosmetic_SW250)
-Использую именно такую конфигурацию
-
-******************************************************************************************************
-* 	4. INPUT PATH
-******************************************************************************************************
-Или только в указанном каталоге
-Или если установлен параметр cfgSearchInSubDirs, то и в подкаталогах. Кроме тех, что начинаются со знака подчеркивания!
-*/
-
 //////////////////////////////////////////////////////
 /*
-			Конфигурацию задавать здесь
+			Конфигурация
 */
 //////////////////////////////////////////////////////
+
+//ПАПКА С ИСХОДНЫМИ ФИТАМИ
+var cfgInputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test mode1'; // без финального "/" (@todo убрать. если есть)
+
+//КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
+var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
+
+//ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
+//В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
+if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO) {
+	var cfgOutputPath = 'calibrated'; // без финального "/" (@todo убрать. если есть)
+//В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
+}else if (cfgPathMode == PATHMODE.ABSOLUTE) {
+	var cfgOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
+//Иначе - можно игнорировать
+}else {
+	var cfgOutputPath = '';
+}
+
+
 
 // КАЛИБРОВАТЬ?
 var cfgNeedCalibration = true;
@@ -110,14 +42,12 @@ var cfgNeedApproving = true;
 var cfgUseSecnodPass = true;
 
 //Переделывать ли найденные файлы
-var cfgOverwriteAllFiles = true;
+var cfgSkipExistingFiles = true; //Перед запуском процесса проверять, существует ли файл и пропускать если да
+var cfgOverwriteAllFiles = true; //НИКОГДА НЕ ВКЛЮЧАТЬ!!! иначе PI будет создавать дубли по кругу пока место не закончится
 
 
 
 
-//Пути к файлам
-//Папка с исходными фитами
-var cfgInputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
 //Искать в подпапках? В комбинации с cfgUseRelativeOutputPath будет просматривать все вложенные папки с калиброванными фитами!
 var cfgSearchInSubDirs = true;
 //Пропускать каталоги, начинающиеся с ...
@@ -139,10 +69,8 @@ var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/No
 //	false: абсолютная; фиты на выходе будут в папке, заданном в cfgOutputPath
 var cfgUseRelativeOutputPath = true;
 // Все обработанные файлы будут помещаться в папку с именем объекта
-var cfgCreateObjectFolder = true;
+var cfgCreateObjectFolder = true; //OBSOLETE
 
-//Папка с калиброванными фитами на выходе (в случае использования абсолютного способа адресации)
-var cfgOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
 
 //Подпапка с калиброванными фитами 
 var cfgCalibratedFolderName = 'calibrated'; 	// без финального "/" 
@@ -217,5 +145,5 @@ var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-','i'); 	// +? non-greed
 // Настройки для отладчика
 																	
 var cfgDebugEnabled = true;
-var cfgDebugLevel = dbgNormal; 
+var cfgDebugLevel = dbgCurrent; 
 //////////////////////////////////////////////////////
