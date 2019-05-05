@@ -44,7 +44,7 @@ var needRefresh = true;				// Осталась от Олега
 
 
 ////////////////////////////////////////////////////////////////////////////////
-var PATHMODE = { UNSET : -1, AUTO : 0, PUT_IN_ROOT_SUBFOLDER : 1, PUT_IN_OBJECT_SUBFOLDER : 2, ABSOLUTE : 3, RECURSIVE : 4, RECURSIVE_WITH_OBJECT_FOLDER : 5 };// Типы расположения файлов
+var PATHMODE = { UNSET : -1, AUTO : 0, PUT_IN_ROOT_SUBFOLDER : 1, PUT_IN_OBJECT_SUBFOLDER : 2, ABSOLUTE : 3, RELATIVE : 4, RELATIVE_WITH_OBJECT_FOLDER : 5 };// Типы расположения файлов
 
 
 var FITS = { UNKNOWN : -1, ORIGINAL : 0, CALIBRATED : 1, COSMETIZED : 2, REGISTERED : 3, NORMALIZED : 4, APPROVED: 5 }; // Типы файлов

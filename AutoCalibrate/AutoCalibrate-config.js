@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////
 
 //ПАПКА С ИСХОДНЫМИ ФИТАМИ
-var cfgInputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test mode1'; // без финального "/" (@todo убрать. если есть)
+var cfgInputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration201904'; // без финального "/" (@todo убрать. если есть)
 
 //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;

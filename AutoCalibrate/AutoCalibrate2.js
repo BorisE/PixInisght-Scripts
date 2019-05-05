@@ -4,11 +4,21 @@
 */
 
 /*
-                     Version History
-   v2.0 19/04/2019     Boris Emchenko
-                        Добавлен второй режим работы - пересканирование имеющегося набора файла и запуск недостаяющих процессов
-                        Переструктурированы файлы
-                        Добавлен этап "отфильтровка лучших"
+Version History
+
+   v 2.0 beta3 [2019/05/05](все еще тестируется)
+      - bug fixes
+
+   v 2.0 beta2 [2019/05/01] (почти работает!)
+      - Переделана логика работа с подкаталогами (5 режимов работы, прямо задаваемых или авто)
+      - Опция по пропуску уже существующих файлов
+      - Вывод данных (новый принцип debug)
+      - Файл документации
+
+   v2.0 beta1 [2019/04/19]
+      - Добавлен второй режим работы - пересканирование имеющегося набора файла и запуск недостаяющих процессов
+      - Переструктурированы файлы
+      - Добавлен этап "отфильтровка лучших" (не работает - bug PI?)
 
    v1.0  16/04/2019     Boris Emchenko
                         Пора давать релизный номер версии :)
@@ -52,8 +62,8 @@
 #feature-icon  BatchChannelExtraction.xpm
 
 #define TITLE "AutoCalibration"
-#define VERSION "1.1"
-#define COMPILE_DATE "2019/04/19"
+#define VERSION "2.0b3"
+#define COMPILE_DATE "2019/05/05"
 
 #define DEFAULT_EXTENSION     ".fit"
 
@@ -136,7 +146,7 @@ exit;
 
 var DirCount=0; var FileTotalCount=0;
 var ProcessesCompleted=0; FilesProcessed=0;
-var CalibratedCount = 0; var CosmetizedCount=0; var RegisteredCount = 0; var NormilizedCount = 0; var ApprovedCount = 0;
+var CalibratedCount = 0; var CosmetizedCount=0; var RegisteredCount = 0; var NormalizedCount = 0; var ApprovedCount = 0;
 
 searchDirectory(  cfgInputPath   );
 
@@ -148,7 +158,7 @@ console.noteln( "************************************************************" )
 console.noteln( "Calibrated: " + CalibratedCount );
 console.noteln( "Cosmetized: " + CosmetizedCount );
 console.noteln( "Registered: " + RegisteredCount );
-console.noteln( "Normalized: " + NormilizedCount );
+console.noteln( "Normalized: " + NormalizedCount );
 console.noteln( "************************************************************" );
 console.noteln( "<end><cbr><br>");
 
@@ -243,7 +253,7 @@ function searchDirectory(searchPath)
                      {
                         BaseCalibratedOutputPath = cfgOutputPath ;
                      }
-                     else if (cfgPathMode == PATHMODE.RECURSIVE || cfgPathMode == PATHMODE.RECURSIVE_WITH_OBJECT_FOLDER)
+                     else if (cfgPathMode == PATHMODE.RELATIVE || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
                      {
                         BaseCalibratedOutputPath = searchPath ;
                      }
@@ -889,7 +899,7 @@ function calibrateFITSFile(fileName)
 
    //Set calibrated output path
    CalibratedOutputPath = BaseCalibratedOutputPath;
-   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RECURSIVE_WITH_OBJECT_FOLDER)
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
    {
       CalibratedOutputPath = CalibratedOutputPath + "/" + fileData.object;
    }
@@ -1038,7 +1048,7 @@ function cosmeticFit(fileName)
 
    //Set cosmetized output path
    CosmetizedOutputPath = BaseCalibratedOutputPath;
-   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RECURSIVE_WITH_OBJECT_FOLDER)
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
    {
       CosmetizedOutputPath = CosmetizedOutputPath + "/" + fileData.object;
    }
@@ -1204,7 +1214,7 @@ function registerFits(files)
 
    // Create registration folder
    RegisteredOutputPath = BaseCalibratedOutputPath;
-   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RECURSIVE_WITH_OBJECT_FOLDER)
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
    {
       RegisteredOutputPath = RegisteredOutputPath + "/" + fileData.object;
    }
@@ -1452,7 +1462,7 @@ function localNormalization(files)
 
    // Create normalization folder
    NormalizedOutputPath = BaseCalibratedOutputPath;
-   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RECURSIVE_WITH_OBJECT_FOLDER)
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
    {
       NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
    }
@@ -1585,7 +1595,7 @@ function approvingFiles (files)
 
    // Create normalization folder
    ApprovedOutputPath = BaseCalibratedOutputPath;
-   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RECURSIVE_WITH_OBJECT_FOLDER)
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
    {
       ApprovedOutputPath = ApprovedOutputPath + "/" + fileData.object;
    }
