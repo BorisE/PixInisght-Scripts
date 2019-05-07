@@ -6,10 +6,10 @@
 /*
 Version History
 
-
-   v 2.0 beta4 [2019/05/07](все еще тестируется)
+ v 2.0 beta4 [2019/05/07](все еще тестируется)
 	  - bug fix: при калибровке и выравнивании проверять, существует ли файл на выходе (так как иногда выравнивание не проходит и соотв. файл не создается)
-	  
+     - bug fix: не проверял при нормализации, нет ли уже готового файла (всегда пересоздавал заново(
+
    v 2.0 beta3 [2019/05/05](все еще тестируется)
       - bug fixes
 
@@ -1391,7 +1391,7 @@ function getNormalizationReferenceFile (objectname, filtername, exposure)
 
    console.writeln();
    console.noteln("Searching for matching Normalization Reference file for object <b>", objectname, "</b>, filter <b>" + filtername + "</b> and exposure <b>" + exposure + "s</b>");
-   console.writeln();
+   //console.writeln();
 
    //1. Search lib dir for folders
 	var objFileFind = new FileFind;
@@ -1419,7 +1419,7 @@ function getNormalizationReferenceFile (objectname, filtername, exposure)
                   if ( matches )
                   {
                      referenceFile = objFileFind.name;
-                     console.note("Reference file for <b>" + objectname + "</b>filter, <b>" + filtername + "</b>, exposure <b>" + exposure + "s</b>");
+                     console.note("Reference file is: ");
                      console.writeln(referenceFile);
                   }
                }
@@ -1492,62 +1492,72 @@ function localNormalization(files)
 
    // Start registration for all files
    var newFiles=[]; //empty array
-   for (var i = 0; i < files.length; i++) {
-
-      if (files.length > 1)
-         Console.noteln ("Normalization of " + files[i]);
-
-      var P = new LocalNormalization;
-      P.scale = 256;
-      P.noScale = true;
-      P.rejection = true;
-      P.backgroundRejectionLimit = 0.050;
-      P.referenceRejectionThreshold = 0.500;
-      P.targetRejectionThreshold = 0.500;
-      P.hotPixelFilterRadius = 2;
-      P.noiseReductionFilterRadius = 0;
-      P.referencePathOrViewId = referenceFile;
-      P.referenceIsView = false;
-      P.targetItems = [ // enabled, image
-         [true, files[i]]
-      ];
-      P.inputHints = "";
-      P.outputHints = "";
-      P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_Always;
-      P.generateNormalizationData = false;
-      P.showBackgroundModels = false;
-      P.showRejectionMaps = false;
-      P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
-      P.noGUIMessages = false;
-      P.outputDirectory = NormalizedOutputPath;
-      P.outputExtension = ".fit";
-      P.outputPrefix = "";
-      P.outputPostfix = "_n";
-      P.overwriteExistingFiles = cfgOverwriteAllFiles;
-      P.onError = LocalNormalization.prototype.OnError_Continue;
-      P.useFileThreads = true;
-      P.fileThreadOverload = 1.20;
-      P.maxFileReadThreads = 1;
-      P.maxFileWriteThreads = 1;
-      P.graphSize = 800;
-      P.graphTextSize = 12;
-      P.graphTitleSize = 18;
-      P.graphTransparent = false;
-      P.graphOutputDirectory = "";
-
-      var status = P.executeGlobal();
-      ProcessesCompleted++;
-      NormalizedCount++;
-
-      console.noteln( "<end><cbr><br>",
-                      "************************************************************" );
-      console.noteln( "* [" + FileTotalCount + "] End of normalization " );
-      console.noteln( "************************************************************" );
+   for (var i = 0; i < files.length; i++)
+   {
 
       // return new file name
       var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
       var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
-      newFiles[i] = RegisteredOutputPath + '/' + newFileName;
+      newFiles[i] = NormalizedOutputPath + '/' + newFileName;
+
+      //Проверить - существует ли файл и стоит ли перезаписывать его
+      if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+      {
+         Console.warningln('File '+ newFileName + ' already exists, skipping normalization' );
+      }
+      else
+      {
+
+         if (files.length > 1)
+            Console.noteln ("Normalization of " + files[i]);
+
+         var P = new LocalNormalization;
+         P.scale = 256;
+         P.noScale = true;
+         P.rejection = true;
+         P.backgroundRejectionLimit = 0.050;
+         P.referenceRejectionThreshold = 0.500;
+         P.targetRejectionThreshold = 0.500;
+         P.hotPixelFilterRadius = 2;
+         P.noiseReductionFilterRadius = 0;
+         P.referencePathOrViewId = referenceFile;
+         P.referenceIsView = false;
+         P.targetItems = [ // enabled, image
+            [true, files[i]]
+         ];
+         P.inputHints = "";
+         P.outputHints = "";
+         P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_Always;
+         P.generateNormalizationData = false;
+         P.showBackgroundModels = false;
+         P.showRejectionMaps = false;
+         P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
+         P.noGUIMessages = false;
+         P.outputDirectory = NormalizedOutputPath;
+         P.outputExtension = ".fit";
+         P.outputPrefix = "";
+         P.outputPostfix = "_n";
+         P.overwriteExistingFiles = cfgOverwriteAllFiles;
+         P.onError = LocalNormalization.prototype.OnError_Continue;
+         P.useFileThreads = true;
+         P.fileThreadOverload = 1.20;
+         P.maxFileReadThreads = 1;
+         P.maxFileWriteThreads = 1;
+         P.graphSize = 800;
+         P.graphTextSize = 12;
+         P.graphTitleSize = 18;
+         P.graphTransparent = false;
+         P.graphOutputDirectory = "";
+
+         var status = P.executeGlobal();
+         ProcessesCompleted++;
+         NormalizedCount++;
+
+         console.noteln( "<end><cbr><br>",
+                         "************************************************************" );
+         console.noteln( "* [" + FileTotalCount + "] End of normalization " );
+         console.noteln( "************************************************************" );
+      }
 
       // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
       var fn="";
