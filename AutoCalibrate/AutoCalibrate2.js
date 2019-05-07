@@ -11,7 +11,7 @@ Version History
 
    v 2.0 beta2 [2019/05/01] (почти работает!)
       - Переделана логика работа с подкаталогами (5 режимов работы, прямо задаваемых или авто)
-      - Опция по пропуску уже существующих файлов
+      - Опция не обрабатывать повторно (если соотв. файл на выходе уже существующует)
       - Вывод данных (новый принцип debug)
       - Файл документации
 
@@ -23,7 +23,6 @@ Version History
    v1.0  16/04/2019     Boris Emchenko
                         Пора давать релизный номер версии :)
                         + исключения каталогов из поиска
-
 
 
    v0.5  11/04/2019    Boris Emchenko:
@@ -57,7 +56,7 @@ Version History
    <br/> \
    @todo \
    <br/> \
-   Copyright &copy; 2016 Oleg Milantiev
+   Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko
 
 #feature-icon  BatchChannelExtraction.xpm
 
