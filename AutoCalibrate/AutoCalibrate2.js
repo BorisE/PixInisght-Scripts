@@ -6,6 +6,10 @@
 /*
 Version History
 
+
+   v 2.0 beta4 [2019/05/07](все еще тестируется)
+	  - bug fix: при калибровке и выравнивании проверять, существует ли файл на выходе (так как иногда выравнивание не проходит и соотв. файл не создается)
+	  
    v 2.0 beta3 [2019/05/05](все еще тестируется)
       - bug fixes
 
@@ -61,8 +65,8 @@ Version History
 #feature-icon  BatchChannelExtraction.xpm
 
 #define TITLE "AutoCalibration"
-#define VERSION "2.0b3"
-#define COMPILE_DATE "2019/05/05"
+#define VERSION "2.0b4"
+#define COMPILE_DATE "2019/05/07"
 
 #define DEFAULT_EXTENSION     ".fit"
 
@@ -92,9 +96,9 @@ console.noteln( "************************************************************" )
 console.noteln('  Search path: ' + cfgInputPath);
 console.noteln('  Path Mode: ' + cfgPathMode);
 
-console.noteln('  Output to relative path: ' + cfgUseRelativeOutputPath);
-console.noteln('  Create Object Folder: ' + cfgCreateObjectFolder);
-if (!cfgUseRelativeOutputPath) console.writeln('  Output path: ' + cfgOutputPath);
+//console.noteln('  Output to relative path: ' + cfgUseRelativeOutputPath);
+//console.noteln('  Create Object Folder: ' + cfgCreateObjectFolder);
+//if (!cfgUseRelativeOutputPath) console.writeln('  Output path: ' + cfgOutputPath);
 console.noteln('  Calibrate Images: ' + cfgNeedCalibration);
 if (cfgNeedCalibration) console.writeln('  Masters library path: ' + cfgCalibratationMastersPath);
 console.noteln('  Register Images: ' + cfgNeedRegister);
@@ -474,7 +478,7 @@ function AddFileToArray (type, fullname, signaturename, pathtofile)
    {
       if ( FILEARRAY[i].fits == signaturename)
       {
-         debug("FOUND!");
+         debug("FOUND!", dbgNotice);
          fnd=true;
          fndpos=i;
       }
@@ -1002,22 +1006,29 @@ function calibrateFITSFile(fileName)
 
    }
 
-   // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
-   var fn="";
-   if ((fn=newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null)
+   if (File.exists( newFileName ))
    {
-      debug("path: " +fn[1]);
-      debug("matched: " +fn[2]);
-      debug("file is calibrated of " +fn[2]);
+      // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
+      var fn="";
+      if ((fn=newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null)
+      {
+         debug("path: " +fn[1], dbgNotice);
+         debug("matched: " +fn[2], dbgNotice);
+         debug("file is calibrated of " +fn[2], dbgNotice);
 
-      AddFileToArray(FITS.CALIBRATED, newFileName,fn[2],fn[1]); //type, full name, signature, path
+         AddFileToArray(FITS.CALIBRATED, newFileName,fn[2],fn[1]); //type, full name, signature, path
+      }
+      else
+      {
+         debug ("NOT FOUND PATTERN");
+      }
+      return newFileName;
    }
    else
    {
-      debug ("NOT FOUND PATTERN");
+      return false;
    }
 
-   return newFileName;
 }
 
 
@@ -1113,9 +1124,9 @@ function cosmeticFit(fileName)
    var fn="";
    if ((fn=newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null)
    {
-      debug("path: " +fn[1]);
-      debug("matched: " +fn[2]);
-      debug("file is calibrated of " +fn[2]);
+      debug("path: " +fn[1], dbgNotice);
+      debug("matched: " +fn[2], dbgNotice);
+      debug("file is cosmetized of " +fn[2], dbgNotice);
 
       AddFileToArray(FITS.COSMETIZED, newFileName,fn[2],fn[1]); //type, full name, signature, path
    }else{
@@ -1233,7 +1244,8 @@ function registerFits(files)
    if (!referenceFile)
    {
       Console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
-      return files;
+      //return files; // мне кажется, тут лучше вернуть false. Проверим
+      return false;
    }
 
    // Start registration for all files
@@ -1341,18 +1353,24 @@ function registerFits(files)
 
       }
 
-
-      // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делал
-      var fn="";
-      if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
+      if (File.exists( newFiles[i] ))
       {
-         debug("path: " +fn[1]);
-         debug("matched: " +fn[2]);
-         debug("file is registered of " +fn[2]);
+         // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
+         var fn="";
+         if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
+         {
+            debug("path: " +fn[1], dbgNotice);
+            debug("matched: " +fn[2], dbgNotice);
+            debug("file is registered of " +fn[2], dbgNotice);
 
-         AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
-      }else{
-         debug ("PATTERN NOT FOUND");
+            AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
+         }else{
+            debug ("PATTERN NOT FOUND");
+         }
+      }
+      else
+      {
+         return false;
       }
 
    }
@@ -1535,9 +1553,9 @@ function localNormalization(files)
       var fn="";
       if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null)
       {
-         debug("path: " +fn[1]);
-         debug("matched: " +fn[2]);
-         debug("file is normalized of " +fn[2]);
+         debug("path: " +fn[1], dbgNotice);
+         debug("matched: " +fn[2], dbgNotice);
+         debug("file is normalized of " +fn[2], dbgNotice);
 
          AddFileToArray(FITS.NORMALIZED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
       }else{

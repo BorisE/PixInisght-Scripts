@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////
 
 //ПАПКА С ИСХОДНЫМИ ФИТАМИ
-var cfgInputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration201904'; // без финального "/" (@todo убрать. если есть)
+var cfgInputPath = 'e:/DSlrRemote/-LeoTrio1'; // без финального "/" (@todo убрать. если есть)
 
 //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
@@ -14,7 +14,7 @@ var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
 //ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
 //В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
 if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO) {
-	var cfgOutputPath = 'calibrated'; // без финального "/" (@todo убрать. если есть)
+	var cfgOutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
 //В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
 }else if (cfgPathMode == PATHMODE.ABSOLUTE) {
 	var cfgOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
@@ -55,19 +55,22 @@ var cfgSkipDirsBeginWith = "_";
 
 //Папка с библиотекой мастеров
 var cfgCalibratationMastersPath = 'c:/Users/bemchenko/Documents/DSlrRemote/Vedrus'; // без финального "/" (@todo убрать. если есть)
+var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
 
 //Папка с библиотекой референсов для выравнивания по звездам
 var cfgRegistrationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/RegistrationReferences'; // без финального "/" 
+var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
 
 //Папка с библиотекой референсов для выравнивания фона
 var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/NormalizationReferences'; // без финального "/" 
+var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
 
 
 
 // Настройка схемы, где должны храниться фиты на выходе:
 //	true: относительная; фиты на выходе будут в подпапках в той же папке, где и исходные фиты 
 //	false: абсолютная; фиты на выходе будут в папке, заданном в cfgOutputPath
-var cfgUseRelativeOutputPath = true;
+var cfgUseRelativeOutputPath = true; //OBSOLETE
 // Все обработанные файлы будут помещаться в папку с именем объекта
 var cfgCreateObjectFolder = true; //OBSOLETE
 
