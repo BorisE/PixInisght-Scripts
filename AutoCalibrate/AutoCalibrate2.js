@@ -1211,7 +1211,7 @@ function registerFits(files)
    }
 
    // Прервый всегда будет "файлом", даже если их много
-   file = files[0];
+   var file = files[0];
 
    // Start registation
    console.noteln( "<end><cbr><br>",
