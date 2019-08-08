@@ -1512,8 +1512,8 @@ function localNormalization(files)
             Console.noteln ("Normalization of " + files[i]);
 
          var P = new LocalNormalization;
-         P.scale = 256;
-         P.noScale = true;
+         P.scale = cfgNormalizationScale;
+         P.noScale = cfgNormalizationNoScaleFlag;
          P.rejection = true;
          P.backgroundRejectionLimit = 0.050;
          P.referenceRejectionThreshold = 0.500;

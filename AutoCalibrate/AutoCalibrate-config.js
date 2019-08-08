@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////
 
 //ПАПКА С ИСХОДНЫМИ ФИТАМИ
-var cfgInputPath = 'e:/DSlrRemote/-LeoTrio1'; // без финального "/" (@todo убрать. если есть)
+var cfgInputPath = 'e:/DSlrRemote/+M100'; // без финального "/" (@todo убрать. если есть)
 
 //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
@@ -98,6 +98,11 @@ var cgfUseExposureInCosmeticsIcons = false;	// Для меня не нужно, 
 
 var cfgDarkExposureLenghtTolerance = 30; // В секундах; MasterDark  всегда подбирается самый ближайший их тех, которые длиннее экспозиции кадра. 
 										 // Данный параметр разрешае ему быть на 30 сек короче! если задать 0, то будут рассматриваться только те дарки, которые длинее
+
+// Параметры для Local Normalization
+var cfgNormalizationScale=256;
+var cfgNormalizationNoScaleFlag=true;
+
 
 // Выражение для фильтрации кадров
 var cfgApprovedExpression = 'FWHM > 4.5';
