@@ -6,6 +6,11 @@
 /*
 Version History
 
+ v 2.0 beta5 [2019/08/08](все еще тестируется)
+	  - bug fix: название фильтра при чтении из библиотеки не переводилось в UPPERCASE, что для Ha, Oiii и т.д. не находило флеты
+	  - при сканировании не заходит в подкаталоги, заданные в конфигурации как "output" (все типы, включая сам output)
+
+   
  v 2.0 beta4 [2019/05/07](все еще тестируется)
 	  - bug fix: при калибровке и выравнивании проверять, существует ли файл на выходе (так как иногда выравнивание не проходит и соотв. файл не создается)
      - bug fix: не проверял при нормализации, нет ли уже готового файла (всегда пересоздавал заново(
@@ -65,8 +70,8 @@ Version History
 #feature-icon  BatchChannelExtraction.xpm
 
 #define TITLE "AutoCalibration"
-#define VERSION "2.0b4"
-#define COMPILE_DATE "2019/05/07"
+#define VERSION "2.0b5"
+#define COMPILE_DATE "2019/08/08"
 
 #define DEFAULT_EXTENSION     ".fit"
 
@@ -228,7 +233,14 @@ function searchDirectory(searchPath)
             {
                // if this is Directory and recursion is enabled
                if ( objFileFind.isDirectory ) {
-                  if (cfgSearchInSubDirs && objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith)
+                  if (cfgSearchInSubDirs && objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
+                                 objFileFind.name.substring(0,cfgCalibratedFolderName.length) != cfgCalibratedFolderName &&
+                                 objFileFind.name.substring(0,cfgCosmetizedFolderName.length) != cfgCosmetizedFolderName &&
+                                 objFileFind.name.substring(0,cfgRegisteredFolderName.length) != cfgRegisteredFolderName &&
+                                 objFileFind.name.substring(0,cfgNormilizedFolderName.length) != cfgNormilizedFolderName &&
+                                 objFileFind.name.substring(0,cfgApprovedFolderName.length) != cfgApprovedFolderName &&
+                                 objFileFind.name.substring(0,cfgOutputPath.length) != cfgOutputPath
+                     )
                   {
                      //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
 
@@ -810,7 +822,7 @@ function matchMasterCalibrationFiles(pathMasterLib, fileData)
                   var matches = objFileFind.name.match(flats_file_pattern);
                   if ( matches )
                   {
-                     flatsfileslib[flatsfileslib.length]=matches[1];
+                     flatsfileslib[flatsfileslib.length]=String.toUpperCase(matches[1]); //upcase filter name
                      flatsfileslib_filename[flatsfileslib_filename.length] = objFileFind.name;
                      debug(flatsfileslib[flatsfileslib.length-1], dbgNotice);
                   }
@@ -896,9 +908,9 @@ function calibrateFITSFile(fileName)
 
    // Start calibration
    console.noteln( "<end><cbr><br>",
-                   "************************************************************" );
-   console.noteln( "* [" + FileTotalCount + "] Begin calibration of ", fileName );
-   console.noteln( "************************************************************" );
+                   "-------------------------------------------------------------" );
+   console.noteln( "| [" + FileTotalCount + "] Begin calibration of ", fileName );
+   console.noteln( "-------------------------------------------------------------" );
 
    //Set calibrated output path
    CalibratedOutputPath = BaseCalibratedOutputPath;
@@ -1000,9 +1012,9 @@ function calibrateFITSFile(fileName)
       ProcessesCompleted++;
 
       console.noteln( "<end><cbr><br>",
-                      "************************************************************" );
-      console.noteln( "* [" + FileTotalCount + "] End of calibration" );
-      console.noteln( "************************************************************" );
+                      "-------------------------------------------------------------" );
+      console.noteln( " [" + FileTotalCount + "] End of calibration" );
+      console.noteln( "-------------------------------------------------------------" );
 
    }
 
@@ -1051,9 +1063,9 @@ function cosmeticFit(fileName)
 
    // Start cosmetic correction
    console.noteln( "<end><cbr><br>",
-                   "************************************************************" );
-   console.noteln( "* [" + FileTotalCount + "] Begin cosmetic correction of ", fileName );
-   console.noteln( "************************************************************" );
+                   "-------------------------------------------------------------" );
+   console.noteln( "| [" + FileTotalCount + "] Begin cosmetic correction of ", fileName );
+   console.noteln( "-------------------------------------------------------------" );
 
 
    //Set cosmetized output path
@@ -1114,9 +1126,9 @@ function cosmeticFit(fileName)
       CosmetizedCount++;
 
       console.noteln( "<end><cbr><br>",
-                      "************************************************************" );
-      console.noteln( "* [" + FileTotalCount + "] End of cosmetic correction " );
-      console.noteln( "************************************************************" );
+                      "-------------------------------------------------------------" );
+      console.noteln( " [" + FileTotalCount + "] End of cosmetic correction " );
+      console.noteln( "-------------------------------------------------------------" );
    }
 
 
@@ -1215,9 +1227,9 @@ function registerFits(files)
 
    // Start registation
    console.noteln( "<end><cbr><br>",
-                   "************************************************************" );
-   console.noteln( "* [" + FileTotalCount + "] Begin registration of ", (files.length != 1 ? files.length + " files" : file) );
-   console.noteln( "************************************************************" );
+                   "-------------------------------------------------------------" );
+   console.noteln( "| [" + FileTotalCount + "] Begin registration of ", (files.length != 1 ? files.length + " files" : file) );
+   console.noteln( "-------------------------------------------------------------" );
 
    // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
    debug ("Need to register " + files.length + " file(s)", dbgNotice);
@@ -1347,9 +1359,9 @@ function registerFits(files)
          RegisteredCount++;
 
          console.noteln( "<end><cbr><br>",
-                         "************************************************************" );
-         console.noteln( "* [" + FileTotalCount + "] End of registration " );
-         console.noteln( "************************************************************" );
+                         "-------------------------------------------------------------" );
+         console.noteln( " [" + FileTotalCount + "] End of registration " );
+         console.noteln( "-------------------------------------------------------------" );
 
       }
 
@@ -1456,9 +1468,9 @@ function localNormalization(files)
 
    // Start normalization
    console.noteln( "<end><cbr><br>",
-                   "************************************************************" );
-   console.noteln( "* [" + FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file) );
-   console.noteln( "************************************************************" );
+                   "-------------------------------------------------------------" );
+   console.noteln( "| [" + FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file) );
+   console.noteln( "-------------------------------------------------------------" );
 
    // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
    debug ("Need to normilize " + files.length + " file(s)", dbgNotice);
@@ -1554,9 +1566,9 @@ function localNormalization(files)
          NormalizedCount++;
 
          console.noteln( "<end><cbr><br>",
-                         "************************************************************" );
-         console.noteln( "* [" + FileTotalCount + "] End of normalization " );
-         console.noteln( "************************************************************" );
+                         "-------------------------------------------------------------" );
+         console.noteln( " [" + FileTotalCount + "] End of normalization " );
+         console.noteln( "-------------------------------------------------------------" );
       }
 
       // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
@@ -1613,9 +1625,9 @@ function approvingFiles (files)
 
    // Start approving
    console.noteln( "<end><cbr><br>",
-                   "************************************************************" );
-   console.noteln( "* Begin approving of ", (files.length != 1 ? files.length + " files" : file) );
-   console.noteln( "************************************************************" );
+                   "-------------------------------------------------------------" );
+   console.noteln( "| Begin approving of ", (files.length != 1 ? files.length + " files" : file) );
+   console.noteln( "-------------------------------------------------------------" );
 
    // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
    debug ("Need to measure " + files.length + " file(s)", dbgNotice);

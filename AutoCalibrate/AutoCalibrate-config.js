@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////
 
 //ПАПКА С ИСХОДНЫМИ ФИТАМИ
-var cfgInputPath = 'e:/DSlrRemote/+M100'; // без финального "/" (@todo убрать. если есть)
+var cfgInputPath = 'e:/DSlrRemote/-IC10'; // без финального "/" (@todo убрать. если есть)
 
 //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
@@ -153,5 +153,5 @@ var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-','i'); 	// +? non-greed
 // Настройки для отладчика
 																	
 var cfgDebugEnabled = true;
-var cfgDebugLevel = dbgCurrent; 
+var cfgDebugLevel = dbgNormal; //dbgNormal, dbgNotice  dbgCurrent
 //////////////////////////////////////////////////////
