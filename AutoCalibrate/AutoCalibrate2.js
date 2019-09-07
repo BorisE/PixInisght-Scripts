@@ -6,11 +6,23 @@
 /*
 Version History
 
- v 2.0 beta5 [2019/08/08](все еще тестируется)
+TODO:
+      - в последующих процессах проверять имена файлов для случая, если ABE был отключен
+      - отделить ENGINE от запускаемого модуля; конфигурация для каждого запускаемого модуля м.б. своя + глобальная конфигурация
+
+
+ v 2.1 [2019/09/06](ABE еще тестируется)
+	  - обязательно использовать BINNING в именах калибровочных файлов
+     - в конфигурации задается формат сохраняемого фалйа (f32, i16, etc)
+     - ABE processing всех файлов (после дебайеризации)
+      - перечень каталогов исключения в виде массива
+	  - bug fix название фильтров в мастерфлетах тоже приводится к единому по словарю
+
+v 2.0 beta5 [2019/08/08](все еще тестируется)
 	  - bug fix: название фильтра при чтении из библиотеки не переводилось в UPPERCASE, что для Ha, Oiii и т.д. не находило флеты
 	  - при сканировании не заходит в подкаталоги, заданные в конфигурации как "output" (все типы, включая сам output)
 
-   
+
  v 2.0 beta4 [2019/05/07](все еще тестируется)
 	  - bug fix: при калибровке и выравнивании проверять, существует ли файл на выходе (так как иногда выравнивание не проходит и соотв. файл не создается)
      - bug fix: не проверял при нормализации, нет ли уже готового файла (всегда пересоздавал заново(
@@ -70,8 +82,8 @@ Version History
 #feature-icon  BatchChannelExtraction.xpm
 
 #define TITLE "AutoCalibration"
-#define VERSION "2.0b5"
-#define COMPILE_DATE "2019/08/08"
+#define VERSION "2.1"
+#define COMPILE_DATE "2019/09/07"
 
 #define DEFAULT_EXTENSION     ".fit"
 
@@ -116,12 +128,27 @@ console.writeln();
 console.noteln('Starting script...');
 console.noteln();
 
+
 /*
-// for debug
-var fileName = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M46_20180316_L_120s_1x1_-30degC_0.0degN_000006503.FIT';
+//for debug
+var fileName = 'd:/Test this/2019-09-03/190903-II-3_20190903_Lum_350s_2x2_-25degC_0.0degN_000000319.FIT';
 var fileData= getFileHeaderData(fileName) ;
 
+var BaseCalibratedOutputPath = 'd:/Test this/2019-09-03';
+
+ABEprocess (
+debayerSplitFit(
+   cosmeticFit(
+      calibrateFITSFile( fileName )
+   )
+)
+);
+
+exit;
+
 mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath + (cgfUseBiningFolder? "/bin" + fileData.bin : "")  + "/" + fileData.instrument, fileData);
+exit;
+
 registerFits(['c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M63_20190407_B_600s_1x1_-30degC_0.0degN_000011919.FIT']);
 
 //var fileData = getFileHeaderData(filenametest);
@@ -154,7 +181,7 @@ exit;
 
 var DirCount=0; var FileTotalCount=0;
 var ProcessesCompleted=0; FilesProcessed=0;
-var CalibratedCount = 0; var CosmetizedCount=0; var RegisteredCount = 0; var NormalizedCount = 0; var ApprovedCount = 0;
+var CalibratedCount = 0; var CosmetizedCount=0; var RegisteredCount = 0; var NormalizedCount = 0; var ApprovedCount = 0; var ABECount=0;
 
 searchDirectory(  cfgInputPath   );
 
@@ -165,6 +192,7 @@ console.noteln('Finished 1st pass ("original fits scan"). Processed ' + Processe
 console.noteln( "************************************************************" );
 console.noteln( "Calibrated: " + CalibratedCount );
 console.noteln( "Cosmetized: " + CosmetizedCount );
+console.noteln( "ABE: " + ABECount );
 console.noteln( "Registered: " + RegisteredCount );
 console.noteln( "Normalized: " + NormalizedCount );
 console.noteln( "************************************************************" );
@@ -234,12 +262,15 @@ function searchDirectory(searchPath)
                // if this is Directory and recursion is enabled
                if ( objFileFind.isDirectory ) {
                   if (cfgSearchInSubDirs && objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
-                                 objFileFind.name.substring(0,cfgCalibratedFolderName.length) != cfgCalibratedFolderName &&
-                                 objFileFind.name.substring(0,cfgCosmetizedFolderName.length) != cfgCosmetizedFolderName &&
-                                 objFileFind.name.substring(0,cfgRegisteredFolderName.length) != cfgRegisteredFolderName &&
-                                 objFileFind.name.substring(0,cfgNormilizedFolderName.length) != cfgNormilizedFolderName &&
-                                 objFileFind.name.substring(0,cfgApprovedFolderName.length) != cfgApprovedFolderName &&
-                                 objFileFind.name.substring(0,cfgOutputPath.length) != cfgOutputPath
+                                 cfgSkipDirs.indexOf(objFileFind.name) === -1 &&
+                                 objFileFind.name.substring(0,cfgCalibratedFolderName.length)   != cfgCalibratedFolderName &&
+                                 objFileFind.name.substring(0,cfgCosmetizedFolderName.length)   != cfgCosmetizedFolderName &&
+                                 objFileFind.name.substring(0,cfgDebayerdFolderName.length)     != cfgDebayerdFolderName &&
+                                 objFileFind.name.substring(0,cfgABEFolderName.length)          != cfgABEFolderName &&
+                                 objFileFind.name.substring(0,cfgRegisteredFolderName.length)   != cfgRegisteredFolderName &&
+                                 objFileFind.name.substring(0,cfgNormilizedFolderName.length)   != cfgNormilizedFolderName &&
+                                 objFileFind.name.substring(0,cfgApprovedFolderName.length)     != cfgApprovedFolderName &&
+                                 objFileFind.name.substring(0,cfgOutputPath.length)             != cfgOutputPath
                      )
                   {
                      //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
@@ -293,9 +324,11 @@ function searchDirectory(searchPath)
                         approvingFiles (
                            localNormalization (
                               registerFits(
-                                 debayerSplitFit(
-                                    cosmeticFit(
-                                       calibrateFITSFile( searchPath +'/'+ objFileFind.name )
+                                 ABEprocess(
+                                    debayerSplitFit(
+                                       cosmeticFit(
+                                          calibrateFITSFile( searchPath +'/'+ objFileFind.name )
+                                       )
                                     )
                                  )
                               )
@@ -653,7 +686,7 @@ function matchMasterCalibrationFiles(pathMasterLib, fileData)
                   var matches = objFileFind.name.match(darks_dir_pattern);
                   if ( matches )
                   {
-                     templib[templib.length]=matches[1];
+                     templib[templib.length]=matches[2];
                      templib_dirname[templib_dirname.length] = objFileFind.name;
                      debug("Found bias/dark folder for temp " + templib[templib.length-1] + " deg",dbgNormal);
                   }
@@ -706,17 +739,35 @@ function matchMasterCalibrationFiles(pathMasterLib, fileData)
                   var matches = objFileFind.name.match(bias_file_pattern);
                   if ( matches )
                   {
-                     bias_file_name=objFileFind.name;
-                     debug("Bias file found: " + bias_file_name, dbgNormal);
+                     debug("Found bin: " + matches[4],dbgNotice);
+                     //Use only target bin
+                     if (matches[4] == fileData.bin)
+                     {
+                        bias_file_name=objFileFind.name;
+                        debug("Bias file for targeted bin found: " + bias_file_name, dbgNormal);
+                     }
+                     else
+                     {
+                        debug("Skipping bias file because of bin" + matches[2]+ " instead of targeted bin" +fileData.bin , dbgNotice);
+                     }
                   }
 
                   //Test if this is dark
                   var matches = objFileFind.name.match(darks_file_pattern);
                   if ( matches )
                   {
-                     darkexplib[darkexplib.length]=matches[1];
-                     darkexplib_filename[darkexplib_filename.length] = objFileFind.name;
-                     debug("Dark file found for exposure " + darkexplib[darkexplib.length-1] + "s" , dbgNormal);
+                     debug("Found bin: " + matches[4],dbgNotice);
+                     //Use only target bin
+                     if (matches[4] == fileData.bin)
+                     {
+                        darkexplib[darkexplib.length]=matches[7];
+                        darkexplib_filename[darkexplib_filename.length] = objFileFind.name;
+                        debug("Dark file found for exposure " + darkexplib[darkexplib.length-1] + "s" , dbgNormal);
+                     }
+                     else
+                     {
+                        debug("Skipping dark file because of bin" + matches[4]+ " instead of targeted bin" +fileData.bin , dbgNotice);
+                     }
                   }
                }
             }
@@ -822,9 +873,18 @@ function matchMasterCalibrationFiles(pathMasterLib, fileData)
                   var matches = objFileFind.name.match(flats_file_pattern);
                   if ( matches )
                   {
-                     flatsfileslib[flatsfileslib.length]=String.toUpperCase(matches[1]); //upcase filter name
-                     flatsfileslib_filename[flatsfileslib_filename.length] = objFileFind.name;
-                     debug(flatsfileslib[flatsfileslib.length-1], dbgNotice);
+                     debug("Found bin: " + matches[5],dbgNotice);
+                     //Use only target bin
+                     if (matches[5] == fileData.bin)
+                     {
+                        flatsfileslib[flatsfileslib.length]=String.toUpperCase(matches[1]); //upcase filter name
+                        flatsfileslib_filename[flatsfileslib_filename.length] = objFileFind.name;
+                        debug(flatsfileslib[flatsfileslib.length-1], dbgNotice);
+                     }
+                     else
+                     {
+                        debug("Skipping flat file because of bin" + matches[5]+ " instead of targeted bin" +fileData.bin , dbgNotice);
+                     }
                   }
                }
             }
@@ -837,10 +897,10 @@ function matchMasterCalibrationFiles(pathMasterLib, fileData)
    var filtername="", filterfilename="";
    for (i = 0; i < flatsfileslib.length; i++)
    {
-      debug(flatsfileslib[i], dbgNotice);
-      if ( fileData.filter == flatsfileslib[i] )
+      debug(filters[flatsfileslib[i]], dbgNotice);
+      if ( fileData.filter == filters[flatsfileslib[i]] )
       {
-         filtername = flatsfileslib[i];
+         filtername = filters[flatsfileslib[i]];
          filterfilename = flatsfileslib_filename[i];
       }
    }
@@ -938,7 +998,7 @@ function calibrateFITSFile(fileName)
          return false;
 
       // Get Masters files names
-      mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath + (cgfUseBiningFolder? "/bin" + fileData.bin : "")+ "/" + fileData.instrument, fileData);
+      mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
       if (! mastersFiles)
       {
          Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
@@ -1000,7 +1060,7 @@ function calibrateFITSFile(fileName)
       P.outputExtension = ".fit";
       P.outputPrefix = "";
       P.outputPostfix = "_c";
-      P.outputSampleFormat =  ImageCalibration.prototype.f32;
+      P.outputSampleFormat =  cfgOutputFormatIC;
       P.outputPedestal = 0; // Нужно поискать
 
       P.overwriteExistingFiles = cfgOverwriteAllFiles;
@@ -1234,17 +1294,6 @@ function registerFits(files)
    // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
    debug ("Need to register " + files.length + " file(s)", dbgNotice);
 
-   // Create registration folder
-   RegisteredOutputPath = BaseCalibratedOutputPath;
-   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-   {
-      RegisteredOutputPath = RegisteredOutputPath + "/" + fileData.object;
-   }
-   RegisteredOutputPath =  RegisteredOutputPath + "/" + cfgRegisteredFolderName;
-
-   // Check if folder exists
-   if ( !File.directoryExists(RegisteredOutputPath) )
-      File.createDirectory(RegisteredOutputPath, true);
 
    // Search for reference file
    var fileData = getFileHeaderData (file);
@@ -1259,6 +1308,19 @@ function registerFits(files)
       //return files; // мне кажется, тут лучше вернуть false. Проверим
       return false;
    }
+
+   // Create registration folder
+   RegisteredOutputPath = BaseCalibratedOutputPath;
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+   {
+      RegisteredOutputPath = RegisteredOutputPath + "/" + fileData.object;
+   }
+   RegisteredOutputPath =  RegisteredOutputPath + "/" + cfgRegisteredFolderName;
+
+   // Check if folder exists
+   if ( !File.directoryExists(RegisteredOutputPath) )
+      File.createDirectory(RegisteredOutputPath, true);
+
 
    // Start registration for all files
    var newFiles=[]; //empty array
@@ -1338,7 +1400,7 @@ function registerFits(files)
          P.outputPrefix = "";
          P.outputPostfix = "_r";
          P.maskPostfix = "_m";
-         P.outputSampleFormat = StarAlignment.prototype.i16; //StarAlignment.prototype.SameAsTarget
+         P.outputSampleFormat = StarAlignment.prototype.SameAsTarget; //StarAlignment.prototype.SameAsTarget
          P.overwriteExistingFiles = cfgOverwriteAllFiles;
          P.onError = StarAlignment.prototype.Continue;
          P.useFileThreads = true;      //новое?
@@ -1748,6 +1810,175 @@ function approvingFiles (files)
 
 }
 
+
+function ABEprocess (files)
+{
+	if (files==false) {
+      debug("Skipping ABE processing", dbgNormal);
+      return false;
+	}
+
+   if (!cfgNeedABE) {
+      debug ("ABE processing is off", dbgNormal);
+      return files;
+   }
+
+   // Прервый всегда будет "файлом", даже если их много
+   var file = files[0];
+
+   // Start ABE
+   console.noteln( "<end><cbr><br>",
+                   "-------------------------------------------------------------" );
+   console.noteln( "| [" + FileTotalCount + "] Begin processing ABE of ", (files.length != 1 ? files.length + " files" : file) );
+   console.noteln( "-------------------------------------------------------------" );
+
+   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+   debug ("Need to ABE " + files.length + " file(s)", dbgNotice);
+
+   // Create registration folder
+   ABEOutputPath = BaseCalibratedOutputPath;
+   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+   {
+      ABEOutputPath  = ABEOutputPath  + "/" + fileData.object;
+   }
+   ABEOutputPath  =  ABEOutputPath  + "/" + cfgABEFolderName;
+
+   // Check if folder exists
+   if ( !File.directoryExists(ABEOutputPath ) )
+      File.createDirectory(ABEOutputPath , true);
+
+   // Start registration for all files
+   var newFiles=[]; //empty array
+   for (var i = 0; i < files.length; i++)
+   {
+
+      // return new file name
+      var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
+      var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_b.fit');
+      newFiles[i] = ABEOutputPath  + '/' + newFileName;
+
+      //Проверить - существует ли файл и стоит ли перезаписывать его
+      if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+      {
+         Console.warningln('File '+ newFileName + ' already exists, skipping ABE' );
+      }
+      else
+      {
+
+         if (files.length > 1)
+            Console.noteln ("Processing ABE " + files[i]);
+
+         //Open file
+         ImageWindow.open( files[i] );
+         var w = ImageWindow.openWindows[ImageWindow.openWindows.length-1];
+
+         if (!w || w.isNull)
+         {
+            Console.criticalln("Error opening file: " + files[i]);
+            return;
+         }
+
+
+         var ABEproc;
+
+         var ProcessIconName = cfgABEProcessName;
+         debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
+
+         //Try to use saved process
+         ABEproc = ProcessInstance.fromIcon(ProcessIconName);
+
+         if ( ABEproc == null || !(ABEproc instanceof AutomaticBackgroundExtractor))
+         {
+            debug ("The specified icon does not exists or instance of AutomaticBackgroundExtractor: " + ProcessIconName,dbgNormal);
+
+            //Using default
+
+            ABEproc = new AutomaticBackgroundExtractor;
+            with (ABEproc)
+            {
+               tolerance = 1.000;
+               deviation = 0.800;
+               unbalance = 1.800;
+               minBoxFraction = 0.050;
+               maxBackground = 1.0000;
+               minBackground = 0.0000;
+               useBrightnessLimits = false;
+               polyDegree = 5;
+               boxSize = 5;
+               boxSeparation = 5;
+               modelImageSampleFormat = AutomaticBackgroundExtractor.prototype.f32;
+               abeDownsample = 2.00;
+               writeSampleBoxes = false;
+               justTrySamples = false;
+               targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
+               normalize = true;
+               discardModel = true;
+               replaceTarget = true;
+               correctedImageId = "";
+               correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
+               verboseCoefficients = false;
+               compareModel = false;
+               compareFactor = 10.00;
+            }
+         }
+         else
+         {
+            with (ABEproc)
+            {
+               writeSampleBoxes = false;
+               justTrySamples = false;
+               replaceTarget = true;
+               correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
+            }
+         }
+
+         //Запустить
+         with (ABEproc)
+         {
+            executeOn(w.mainView);
+            //
+            // save
+            //
+            w.saveAs(newFiles[i], false, false, true, !cfgOverwriteAllFiles);
+         }
+         w.purge();
+         w.close();
+
+         ProcessesCompleted++;
+         ABECount++;
+
+         console.noteln( "<end><cbr><br>",
+                         "-------------------------------------------------------------" );
+         console.noteln( " [" + FileTotalCount + "] End of ABE " );
+         console.noteln( "-------------------------------------------------------------" );
+
+      }
+
+      /*
+      if (File.exists( newFiles[i] ))
+      {
+         // Добавим в массив файлов информацию о создании регистрируемого файла, что бы второй раз не делать
+         var fn="";
+         if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
+         {
+            debug("path: " +fn[1], dbgNotice);
+            debug("matched: " +fn[2], dbgNotice);
+            debug("file is registered of " +fn[2], dbgNotice);
+
+            AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
+         }else{
+            debug ("PATTERN NOT FOUND");
+         }
+      }
+      else
+      {
+         return false;
+      }
+      */
+   }
+
+   return newFiles;
+}
 
 
 /*
