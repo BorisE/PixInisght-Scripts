@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////
 
 //ПАПКА С ИСХОДНЫМИ ФИТАМИ
-var cfgInputPath = 'd:/Test this'; // без финального "/" (@todo убрать. если есть)
+var cfgInputPath = 'e:/DSlrRemote/+M77'; // без финального "/" (@todo убрать. если есть)
 
 //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
@@ -30,7 +30,7 @@ var cfgNeedCalibration = true;
 //var cfgNeedCalibrate = false;
 
 // РОВНЯТЬ ФОН ABE?
-var cfgNeedABE  = true;
+var cfgNeedABE  = false;
 
 
 // ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
@@ -56,19 +56,19 @@ var cfgOverwriteAllFiles = true; //НИКОГДА НЕ ВКЛЮЧАТЬ!!! ин�
 var cfgSearchInSubDirs = true;
 //Пропускать каталоги, начинающиеся с ...
 var cfgSkipDirsBeginWith = "_";
-var cfgSkipDirs = [ 'asteroids' ];
+var cfgSkipDirs = [ 'asteroids', 'bad' ];
 
 //Папка с библиотекой мастеров
-var cfgCalibratationMastersPath = 'c:/Users/bemchenko/Documents/DSlrRemote/Vedrus'; // без финального "/" (@todo убрать. если есть)
-//var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
+//var cfgCalibratationMastersPath = 'c:/Users/bemchenko/Documents/DSlrRemote/Vedrus'; // без финального "/" (@todo убрать. если есть)
+var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
 
 //Папка с библиотекой референсов для выравнивания по звездам
-var cfgRegistrationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/RegistrationReferences'; // без финального "/" 
-//var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
+//var cfgRegistrationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/RegistrationReferences'; // без финального "/" 
+var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
 
 //Папка с библиотекой референсов для выравнивания фона
-var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/NormalizationReferences'; // без финального "/" 
-//var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
+//var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/NormalizationReferences'; // без финального "/" 
+var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
 
 
 
@@ -131,7 +131,14 @@ var cfgApprovedExpression = 'FWHM > 4.5';
 
 //Filters dictionary
 	var filters = {
-      'LUMINANCE': 'L',
+      'L': 'L',
+      'R': 'R',
+      'G': 'G',
+      'B': 'B',
+      'Ha': 'Ha',
+      'Sii': 'Sii',
+      'Oiii': 'Oiii',
+	  'LUMINANCE': 'L',
       'LIGHT': 'L',
       'LUM': 'L',
       'H-ALPHA': 'Ha', 	//HA
