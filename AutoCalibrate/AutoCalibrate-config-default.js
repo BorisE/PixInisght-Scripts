@@ -16,7 +16,7 @@ var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
 
 //ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
 //В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
-if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO) {
+if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO || PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
 	var cfgOutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
 //В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
 }else if (cfgPathMode == PATHMODE.ABSOLUTE) {
@@ -25,7 +25,7 @@ if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUT
 }else {
 	var cfgOutputPath = '';
 }
-
+cfgFinalsDirName = "Results";
 
 
 // КАЛИБРОВАТЬ?
@@ -79,7 +79,7 @@ var cfgApprovedFolderName="approved";			// без финального "/"
 //Пропускать каталоги, начинающиеся с ...
 var cfgSkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
-var cfgSkipDirs = [  cfgCalibratedFolderName, cfgCosmetizedFolderName, cfgDebayerdFolderName, cfgABEFolderName, cfgRegisteredFolderName, cfgNormilizedFolderName, cfgApprovedFolderName, cfgOutputPath ]; //стандартные каталоги
+var cfgSkipDirs = [  cfgCalibratedFolderName, cfgCosmetizedFolderName, cfgDebayerdFolderName, cfgABEFolderName, cfgRegisteredFolderName, cfgNormilizedFolderName, cfgApprovedFolderName, cfgOutputPath, cfgFinalsDirName]; //стандартные каталоги
 cfgSkipDirs.push( 'asteroids', 'bad' ); //User
 // Пропустить каталоги, если имя каталога содержит одну из строк
 var cfgSkipDirsContains = [ '.data', '.pxiproject' ]; 

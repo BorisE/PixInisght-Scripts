@@ -64,8 +64,8 @@ Images	/ M63	/ calibrated
 			/ bad	/ *
 
 Выход:
-2019-04-28	/ M63	/ * normalized fits
-			/ M92	/ * normalized fits
+2019-04-28 / Results / M63	/ * normalized fits
+		   / Results / M92	/ * normalized fits
 			/ M63	/ calibrated
 					/ cosmetized
 			/ M92	/ calibrated

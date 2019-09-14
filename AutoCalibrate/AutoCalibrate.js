@@ -7,9 +7,11 @@
 Version History
 
 TODO:
-   - перемещение в папку объекта наиболее "продвинутые" файлы (без промежуточных)
-   - добавить ABE в мониторинг второго прохода
+    - добавить ABE в мониторинг второго прохода (надо ли это второй проход?!)
    - графическая оболочка и сохранение параметров в PI
+
+ v 3.1 [2019/09/15]
+	- новый режим: перемещение в отдельную папку объекта наиболее "продвинутые" (самой высокой степени обработки) файлы
 
  v 3.0 [2019/09/14]
 	- разделение на Engine
@@ -88,8 +90,8 @@ v 2.0 beta5 [2019/08/08](все еще тестируется)
 #feature-icon  BatchChannelExtraction.xpm
 
 #define TITLE "AutoCalibration"
-#define VERSION "3.0"
-#define COMPILE_DATE "2019/09/14"
+#define VERSION "3.1"
+#define COMPILE_DATE "2019/09/15"
 
 #define DEFAULT_EXTENSION     ".fit"
 
@@ -109,9 +111,9 @@ v 2.0 beta5 [2019/08/08](все еще тестируется)
 cfgInputPath = 'e:/DSlrRemote/+M77/test'; // без финального "/" (@todo убрать. если есть)
 cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
-cfgPathMode = PATHMODE.PUT_IN_OBJECT_SUBFOLDER;
+cfgPathMode = PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER;
 cfgUseSecnodPass = false;
-
+cfgNeedABE=true;
 
 //////////////////////////////////////////
 var Engine = new AutoCalibrateEngine();

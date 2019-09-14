@@ -55,7 +55,10 @@ function AutoCalibrateEngine()
 		console.show();
 
 		//Dispay current config
-		console.noteln( "<end><cbr><br>",
+      console.noteln( TITLE, " script started. Version: ", VERSION, " Date: ", COMPILE_DATE );
+      console.noteln( "PixInsight Version: ", coreId, ", ", coreVersionBuild, ", ", coreVersionMajor,
+                      ", ", coreVersionMinor, ", ", coreVersionRelease );
+      console.noteln( "<end><cbr><br>",
 						"************************************************************" );
 		console.noteln( "* Configuration ");
 		console.noteln( "************************************************************" );
@@ -127,9 +130,10 @@ function AutoCalibrateEngine()
 		 * Производит поиск исходных (необработанных) FITS файлов и их обработка по цепочке калибровки.
 		 * Также является 1ым проходом перед поиском недостающих файлов в цепочке калибровки (если включено)
 		 * **************************************************************************************************************/
-
-
 		this.searchDirectory(  cfgInputPath   );
+
+      if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+         this.MoveMostAdvanced();
 
 		//Finish 1st pass
 		console.noteln( "<end><cbr><br>",
@@ -204,7 +208,7 @@ function AutoCalibrateEngine()
 					  if (	cfgSearchInSubDirs &&
 							objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
 							cfgSkipDirs.indexOf(objFileFind.name) === -1 &&
-							DirNameContains(objFileFind.name) !==true
+							DirNameContains(objFileFind.name, cfgSkipDirsContains) !==true
 						 )
 					  {
 						 //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
@@ -226,7 +230,7 @@ function AutoCalibrateEngine()
 					  {
 
 						 // Set output folders (depends on config)
-						 if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER)
+						 if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 						 {
 							BaseCalibratedOutputPath = cfgInputPath + "/" + cfgOutputPath;
 						 }
@@ -254,6 +258,7 @@ function AutoCalibrateEngine()
 							Console.noteln( '* ['  + this.FileTotalCount + '] (Dir ' + this.DirCount + '|File ' + FileCount + ') Start file processings: '+ searchPath +'/'+ objFileFind.name);
 							console.noteln( "************************************************************" );
 
+                     NeedToCopyToFinalDirFlag = true;
 
 							//Process by full pipeline
 							approvingFiles (
@@ -268,7 +273,8 @@ function AutoCalibrateEngine()
 									 )
 								  )
 							   )
-							)
+							);
+
 
 						 }
 					  }
@@ -452,6 +458,45 @@ function AutoCalibrateEngine()
 	*/
 	this.MoveMostAdvanced = function(searchPath)
 	{
+      print_array(requestToCopy);
+
+      requestToCopy.forEach( function(element) {
+
+            if (typeof element == 'string')
+            {
+               objelement[0] = element;
+            }
+            else
+            {
+               objelement = element;
+            }
+
+	         for (var i = 0; i < objelement.length; i++)
+      	   {
+               var fileName = objelement[i].toString();
+
+               //Get ObjFolderName
+               var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
+               fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
+               FinalsOutputPath = cfgInputPath + "/"  + cfgFinalsDirName + "/" + fileData.object;
+
+               var DestinationFileName = FinalsOutputPath + '/' + File.extractNameAndExtension(fileName);
+
+
+               console.writeln("Copying result file " + fileName + " to " + DestinationFileName );
+
+               if ( !File.directoryExists(FinalsOutputPath) )
+                  File.createDirectory(FinalsOutputPath, true);
+
+               if (! File.exists( DestinationFileName ) )
+                  File.copyFile(
+                     DestinationFileName,
+                     fileName
+                  );
+            }
+			}
+		)
+
    }
 
 
@@ -601,7 +646,844 @@ function AutoCalibrateEngine()
 	}
 
 
-	/**
+	/************************************************************************************************************
+	 * Калибровка фита
+	 *
+	 * @param fileName string  полное имя файла.fit включая путь
+	 * @return string          полное имя файла_c.fit включая путь
+	 */
+	this.calibrateFITSFile = function (fileName)
+	{
+		if (fileName==false) {
+		  debug("Skipping Calibration", dbgNormal);
+		  return false;
+		}
+
+	   if (!cfgNeedCalibration) {
+		  debug("Calibration is off", dbgNormal);
+		  return fileName;
+		}
+
+	   // Start calibration
+	   console.noteln( "<end><cbr><br>",
+					   "-------------------------------------------------------------" );
+	   console.noteln( "| [" + this.FileTotalCount + "] Begin calibration of ", fileName );
+	   console.noteln( "-------------------------------------------------------------" );
+
+	   //Set calibrated output path
+	   CalibratedOutputPath = BaseCalibratedOutputPath;
+	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   {
+		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
+		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
+		  CalibratedOutputPath = CalibratedOutputPath + "/" + fileData.object;
+	   }
+	   CalibratedOutputPath =  CalibratedOutputPath + "/" + cfgCalibratedFolderName;
+
+	   // make new file name
+	   var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
+	   var newFileName = FileName.replace(/\.fit$/i, '_c.fit')
+	   newFileName  = CalibratedOutputPath + '/' + newFileName
+
+	   //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
+	   if ( cfgSkipExistingFiles && File.exists( newFileName ) )
+	   {
+		  Console.warningln('File '+ newFileName + ' already exists, skipping calibration' );
+	   }
+	   else
+	   {
+
+		  if (!fileData)
+			 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
+		  if (!fileData) {
+			 console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
+			 return false;
+		  }
+
+		  // Get Masters files names
+		  mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
+		  if (! mastersFiles)
+		  {
+			 Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
+			 return fileName;
+		  }
+
+		  // Check if folder for calibrated files exists
+		  if ( !File.directoryExists(CalibratedOutputPath) )
+			 File.createDirectory(CalibratedOutputPath, true);
+
+
+		  var P = new ImageCalibration;
+		  P.targetFrames = [ // enabled, path
+			 [true, fileName]
+		  ];
+		  P.inputHints = "";
+		  P.outputHints = "";
+		  P.pedestal = 0;
+		  P.pedestalMode = ImageCalibration.prototype.Keyword;
+		  P.pedestalKeyword = "";
+		  P.overscanEnabled = false;
+		  P.overscanImageX0 = 0;
+		  P.overscanImageY0 = 0;
+		  P.overscanImageX1 = 0;
+		  P.overscanImageY1 = 0;
+		  P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
+			 [false, 0, 0, 0, 0, 0, 0, 0, 0],
+			 [false, 0, 0, 0, 0, 0, 0, 0, 0],
+			 [false, 0, 0, 0, 0, 0, 0, 0, 0],
+			 [false, 0, 0, 0, 0, 0, 0, 0, 0]
+		  ];
+
+		  P.masterBiasEnabled = true;
+		  P.masterBiasPath = mastersFiles.masterbias;
+
+		  P.masterDarkEnabled = true;
+		  P.masterDarkPath = mastersFiles.masterdark;
+
+		  P.masterFlatEnabled = true;
+		  P.masterFlatPath = mastersFiles.masterflat;
+
+		  P.calibrateBias = false;
+		  P.calibrateDark = true;    // понять бы - нужно или нет?!
+		  P.calibrateFlat = false;   // понять бы - нужно или нет?!
+
+		  P.optimizeDarks = true;
+		  P.darkOptimizationThreshold = 0.00000;
+		  P.darkOptimizationLow = 3.0000;
+		  P.darkOptimizationWindow = 1024;
+
+		  P.darkCFADetectionMode = (fileData.cfa)
+			 ? ImageCalibration.prototype.ForceCFA
+			 : ImageCalibration.prototype.IgnoreCFA;
+
+		  P.evaluateNoise = true;
+		  P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+
+		  P.outputDirectory = CalibratedOutputPath;
+		  P.outputExtension = ".fit";
+		  P.outputPrefix = "";
+		  P.outputPostfix = "_c";
+		  P.outputSampleFormat =  cfgOutputFormatIC;
+		  P.outputPedestal = 0; // Нужно поискать
+
+		  P.overwriteExistingFiles = cfgOverwriteAllFiles;
+		  P.onError = ImageCalibration.prototype.Continue;
+		  P.noGUIMessages = true;
+
+		  var status = P.executeGlobal();
+		  this.CalibratedCount++;
+		  this.ProcessesCompleted++;
+
+		  console.noteln( "<end><cbr><br>",
+						  "-------------------------------------------------------------" );
+		  console.noteln( " [" + this.FileTotalCount + "] End of calibration" );
+		  console.noteln( "-------------------------------------------------------------" );
+
+	   }
+
+	   if (File.exists( newFileName ))
+	   {
+		  // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
+		  var fn="";
+		  if ((fn=newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null)
+		  {
+			 debug("path: " +fn[1], dbgNotice);
+			 debug("matched: " +fn[2], dbgNotice);
+			 debug("file is calibrated of " +fn[2], dbgNotice);
+
+			 AddFileToArray(FITS.CALIBRATED, newFileName,fn[2],fn[1]); //type, full name, signature, path
+		  }
+		  else
+		  {
+			 debug ("PATTERN NOT FOUND");
+		  }
+		  return newFileName;
+	   }
+	   else
+	   {
+		  return false;
+	   }
+
+	}
+
+
+	/************************************************************************************************************
+	 * Косметика фита
+	 *
+	 * @param fileName string  Полное Имя файла_c.fit включая путь
+	 * @return string          Полное имя файла_c_cc.fit включая путь
+	 */
+	this.cosmeticFit = function (fileName)
+	{
+		if (fileName==false || !fileName.match(/_c.fit$/)) {
+		  debug("Skipping Cosmetic Correction", dbgNormal);
+		  return fileName;
+		}
+	   if (!cfgNeedCalibration) {
+		  return fileName;
+		  debug("Cosmetic correction is off (with calibration)", dbgNormal);
+	   }
+
+	   // Start cosmetic correction
+	   console.noteln( "<end><cbr><br>",
+					   "-------------------------------------------------------------" );
+	   console.noteln( "| [" + this.FileTotalCount + "] Begin cosmetic correction of ", fileName );
+	   console.noteln( "-------------------------------------------------------------" );
+
+
+	   //Set cosmetized output path
+	   CosmetizedOutputPath = BaseCalibratedOutputPath;
+	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   {
+		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
+		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
+		  CosmetizedOutputPath = CosmetizedOutputPath + "/" + fileData.object;
+	   }
+	   CosmetizedOutputPath =  CosmetizedOutputPath + "/" + cfgCosmetizedFolderName;
+
+	   // return new file name
+	   var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
+	   var newFileName = FileName.replace(/_c\.fit$/, '_c_cc.fit');
+	   newFileName = CosmetizedOutputPath + '/' + newFileName;
+
+
+	   //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
+	   if ( cfgSkipExistingFiles && File.exists( newFileName ) )
+	   {
+		  Console.warningln('File '+ newFileName + ' already exists, skipping cosmetic correction' );
+	   }
+	   else
+	   {
+		  if (!fileData)
+			 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
+		  if (!fileData) {
+			 console.criticalln("Can't get File Header for Cosmetic Correction for " + fileName + "!");
+			 return false;
+		  }
+
+
+		  // Get CosmeticCorrection Process Icon
+		  var ProcessIconName = cfgCosmetizedProcessName+ '_'+ fileData.instrument.replace('/', '_') + (cgfUseBiningFolder ? '_bin'+ file.bin : '') + (cgfUseExposureInCosmeticsIcons? '_'+ fileData.duration : '');
+		  debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
+
+		  // Check if folder for cosmetics files exists
+		  if ( !File.directoryExists(CosmetizedOutputPath) )
+			 File.createDirectory(CosmetizedOutputPath, true);
+
+
+		  var CC = ProcessInstance.fromIcon( ProcessIconName );
+		  if ( CC == null )
+        {
+			 console.criticalln( "No such process icon: " + ProcessIconName);
+          return fileName;
+        }
+		  if ( !(CC instanceof CosmeticCorrection) )
+        {
+			 console.criticalln("The specified icon does not an instance of CosmeticCorrection: " + ProcessIconName);
+          return fileName;
+        }
+
+		  CC.targetFrames = [ // enabled, path
+			 [true, fileName]
+		  ];
+		  CC.outputDir       = CosmetizedOutputPath;
+		  CC.outputExtension = ".fit";
+		  CC.prefix          = "";
+		  CC.postfix         = "_cc";
+		  CC.overwrite       = cfgOverwriteAllFiles;
+		  //CC.cfa             = false;
+
+		  CC.executeGlobal();
+		  this.ProcessesCompleted++;
+		  this.CosmetizedCount++;
+
+		  console.noteln( "<end><cbr><br>",
+						  "-------------------------------------------------------------" );
+		  console.noteln( " [" + this.FileTotalCount + "] End of cosmetic correction " );
+		  console.noteln( "-------------------------------------------------------------" );
+	   }
+
+
+	   // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
+	   var fn="";
+	   if ((fn=newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null)
+	   {
+		  debug("path: " +fn[1], dbgNotice);
+		  debug("matched: " +fn[2], dbgNotice);
+		  debug("file is cosmetized of " +fn[2], dbgNotice);
+
+		  AddFileToArray(FITS.COSMETIZED, newFileName,fn[2],fn[1]); //type, full name, signature, path
+	   }else{
+		  debug ("PATTERN NOT FOUND");
+	   }
+
+
+
+	   return newFileName;
+	}
+
+	/************************************************************************************************************
+	 * Выравнивание фона через ABE у фитов на входе (1-3 в зависимости от был ли чб или цвет)
+	 *
+	 * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
+	 * @return string | array of strings        полное имя файла_c_сс_b.fit включая путь
+	 *
+	 */
+	this.ABEprocess = function (files)
+	{
+		if (files==false) {
+		  debug("Skipping ABE processing", dbgNormal);
+		  return false;
+		}
+
+	   if (!cfgNeedABE) {
+		  debug ("ABE processing is off", dbgNormal);
+		  return files;
+	   }
+
+	   // Прервый всегда будет "файлом", даже если их много
+	   var file = files[0];
+
+	   // Start ABE
+	   console.noteln( "<end><cbr><br>",
+					   "-------------------------------------------------------------" );
+	   console.noteln( "| [" + this.FileTotalCount + "] Begin processing ABE of ", (files.length != 1 ? files.length + " files" : file) );
+	   console.noteln( "-------------------------------------------------------------" );
+
+	   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+	   debug ("Need to ABE " + files.length + " file(s)", dbgNotice);
+
+	   // Set folder path
+	   ABEOutputPath = BaseCalibratedOutputPath;
+	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   {
+		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
+		  ABEOutputPath  = ABEOutputPath  + "/" + fileData.object;
+	   }
+	   ABEOutputPath  =  ABEOutputPath  + "/" + cfgABEFolderName;
+
+
+	   // Start registration for all files
+	   var newFiles=[]; //empty array
+	   for (var i = 0; i < files.length; i++)
+	   {
+
+		  // return new file name
+		  var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
+		  var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_b.fit');
+		  newFiles[i] = ABEOutputPath  + '/' + newFileName;
+
+		  //Проверить - существует ли файл и стоит ли перезаписывать его
+		  if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+		  {
+			 Console.warningln('File '+ newFileName + ' already exists, skipping ABE' );
+		  }
+		  else
+		  {
+
+         // Check if folder exists
+         if ( !File.directoryExists(ABEOutputPath ) )
+            File.createDirectory(ABEOutputPath , true);
+
+          if (files.length > 1)
+				Console.noteln ("Processing ABE " + files[i]);
+
+			 //Open file
+			 ImageWindow.open( files[i] );
+			 var w = ImageWindow.openWindows[ImageWindow.openWindows.length-1];
+
+			 if (!w || w.isNull)
+			 {
+				Console.criticalln("Error opening image file: " + files[i]);
+				return false;
+			 }
+
+
+			 var ABEproc;
+
+			 var ProcessIconName = cfgABEProcessName;
+			 debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
+
+			 //Try to use saved process
+			 ABEproc = ProcessInstance.fromIcon(ProcessIconName);
+
+			 if ( ABEproc == null || !(ABEproc instanceof AutomaticBackgroundExtractor))
+			 {
+				debug ("The specified icon does not exists or instance of AutomaticBackgroundExtractor: " + ProcessIconName,dbgNormal);
+
+				//Using default
+
+				ABEproc = new AutomaticBackgroundExtractor;
+				with (ABEproc)
+				{
+				   tolerance = 1.000;
+				   deviation = 0.800;
+				   unbalance = 1.800;
+				   minBoxFraction = 0.050;
+				   maxBackground = 1.0000;
+				   minBackground = 0.0000;
+				   useBrightnessLimits = false;
+				   polyDegree = 5;
+				   boxSize = 5;
+				   boxSeparation = 5;
+				   modelImageSampleFormat = AutomaticBackgroundExtractor.prototype.f32;
+				   abeDownsample = 2.00;
+				   writeSampleBoxes = false;
+				   justTrySamples = false;
+				   targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
+				   normalize = true;
+				   discardModel = true;
+				   replaceTarget = true;
+				   correctedImageId = "";
+				   correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
+				   verboseCoefficients = false;
+				   compareModel = false;
+				   compareFactor = 10.00;
+				}
+			 }
+			 else
+			 {
+				with (ABEproc)
+				{
+				   writeSampleBoxes = false;
+				   justTrySamples = false;
+				   replaceTarget = true;
+				   correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
+				}
+			 }
+
+			 //Запустить
+			 with (ABEproc)
+			 {
+				executeOn(w.mainView);
+				//
+				// save
+				//
+				w.saveAs(newFiles[i], false, false, true, !cfgOverwriteAllFiles);
+			 }
+			 w.purge();
+			 w.forceClose(); //w.close();
+
+			 this.ProcessesCompleted++;
+			 this.ABECount++;
+
+			 console.noteln( "<end><cbr><br>",
+							 "-------------------------------------------------------------" );
+			 console.noteln( " [" + this.FileTotalCount + "] End of ABE " );
+			 console.noteln( "-------------------------------------------------------------" );
+
+		  }
+
+		  /*
+		  if (File.exists( newFiles[i] ))
+		  {
+			 // Добавим в массив файлов информацию о создании регистрируемого файла, что бы второй раз не делать
+			 var fn="";
+			 if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
+			 {
+				debug("path: " +fn[1], dbgNotice);
+				debug("matched: " +fn[2], dbgNotice);
+				debug("file is registered of " +fn[2], dbgNotice);
+
+				AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
+			 }else{
+				debug ("PATTERN NOT FOUND");
+			 }
+		  }
+		  else
+		  {
+			 return false;
+		  }
+		  */
+	   }
+
+	   return newFiles;
+	}
+
+
+	/************************************************************************************************************
+	 * Регистрация (выравнивание) фитов (1-3 в зависимости от был ли чб или цвет)
+	 *
+	 * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
+	 * @return string | array of strings        полное имя файла_c_сс_r.fit включая путь
+	 *
+	 */
+	this.registerFits = function (files)
+	{
+		if (files==false) {
+		  debug("Skipping Registration", dbgNormal);
+		  return false;
+		}
+
+	   if (!cfgNeedRegister) {
+		   debug ("Registration is off", dbgNormal);
+
+			if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag) {
+            requestToCopy.push(files);
+            NeedToCopyToFinalDirFlag = false;
+			}
+
+        return files;
+	   }
+
+	   // Прервый всегда будет "файлом", даже если их много
+	   var file = files[0];
+
+	   // Start registation
+	   console.noteln( "<end><cbr><br>",
+					   "-------------------------------------------------------------" );
+	   console.noteln( "| [" + this.FileTotalCount + "] Begin registration of ", (files.length != 1 ? files.length + " files" : file) );
+	   console.noteln( "-------------------------------------------------------------" );
+
+	   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+	   debug ("Need to register " + files.length + " file(s)", dbgNotice);
+
+
+	   // Set registration folder
+	   RegisteredOutputPath = BaseCalibratedOutputPath;
+	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   {
+         var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+         fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
+         RegisteredOutputPath = RegisteredOutputPath + "/" + fileData.object;
+	   }
+	   RegisteredOutputPath =  RegisteredOutputPath + "/" + cfgRegisteredFolderName;
+
+
+	   // Start registration for all files
+	   var newFiles=[]; //empty array
+	   for (var i = 0; i < files.length; i++)
+	   {
+
+         // return new file name
+         var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
+         var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_r.fit');
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c_cc_b\.fit$/, '_c_cc_b_r.fit'); //if ABE was run before
+         newFiles[i] = RegisteredOutputPath + '/' + newFileName;
+
+         //Проверить - существует ли файл и стоит ли перезаписывать его
+         if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+         {
+            Console.warningln('File '+ newFileName + ' already exists, skipping Registration' );
+         }
+         else
+         {
+            // Search for reference file
+			  if (!fileData)
+				 var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
+			  if (!fileData) {
+               console.criticalln("Can't get File Header for Registration for " + files[i] + "!");
+				   return false;
+			  }
+
+            // Get reference for Registration
+            var referenceFile = getRegistrationReferenceFile( fileData.object );
+            if (!referenceFile)
+            {
+               Console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
+
+               if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag) {
+                  requestToCopy.push(files); //mark as final, because no further processing would be
+                  NeedToCopyToFinalDirFlag = false;
+               }
+               //return files; // мне кажется, тут лучше вернуть false. Проверим
+               return false;
+            }
+
+            // Check if folder exists
+            if ( !File.directoryExists(RegisteredOutputPath) )
+               File.createDirectory(RegisteredOutputPath, true);
+
+            if (files.length > 1)
+               Console.noteln ("Registering " + files[i]);
+
+            var P = new StarAlignment;
+
+            P.structureLayers = 5;
+            P.noiseLayers = 0;
+            P.hotPixelFilterRadius = 1;
+            P.noiseReductionFilterRadius = 0;
+            P.sensitivity = 0.100;
+            P.peakResponse = 0.80;
+            P.maxStarDistortion = 0.500;
+            P.upperLimit = 1.000;
+            P.invert = false;
+
+            P.distortionModel = "";
+            P.undistortedReference = false;
+            P.distortionCorrection = true;
+            P.distortionMaxIterations = 100; // I use 20
+            P.distortionTolerance = 0.001;   // i use 0.005
+
+            P.matcherTolerance = 0.0500;
+            P.ransacTolerance = 2.00;
+            P.ransacMaxIterations = 2000;
+            P.ransacMaximizeInliers = 1.00;
+            P.ransacMaximizeOverlapping = 1.00;
+            P.ransacMaximizeRegularity = 1.00;
+            P.ransacMinimizeError = 1.00;
+            P.maxStars = 0;
+            P.useTriangles = false;
+            P.polygonSides = 5;
+            P.descriptorsPerStar = 20;
+            P.restrictToPreviews = true;
+            P.intersection = StarAlignment.prototype.MosaicOnly;
+            P.useBrightnessRelations = false;
+            P.useScaleDifferences = false;
+            P.scaleTolerance = 0.100;
+            P.referenceImage = referenceFile;
+            P.referenceIsFile = true;
+            P.targets = [ // enabled, isFile, image
+            [true, true, files[i]]
+            ];
+            P.inputHints = "";
+            P.outputHints = "";
+            P.mode = StarAlignment.prototype.RegisterMatch;
+            P.writeKeywords = true;
+            P.generateMasks = false;
+            P.generateDrizzleData = false;
+            P.frameAdaptation = false;
+            P.noGUIMessages = true;
+            P.useSurfaceSplines = false;
+            P.splineSmoothness = 0.00; //i use 0.25, но не уверен, что это на что-то влияет :)
+            P.pixelInterpolation = StarAlignment.prototype.Auto;
+            P.clampingThreshold = 0.30;
+
+            P.outputDirectory = RegisteredOutputPath;
+            P.outputExtension = ".fit";
+            P.outputPrefix = "";
+            P.outputPostfix = "_r";
+            P.maskPostfix = "_m";
+            P.outputSampleFormat = StarAlignment.prototype.SameAsTarget; //StarAlignment.prototype.SameAsTarget
+            P.overwriteExistingFiles = cfgOverwriteAllFiles;
+            P.onError = StarAlignment.prototype.Continue;
+            P.useFileThreads = true;      //новое?
+            P.fileThreadOverload = 1.20;  //новое?
+            P.maxFileReadThreads = 1;     //новое?
+            P.maxFileWriteThreads = 1;    //новое?
+
+            /*
+            * Read-only properties
+            *
+            P.outputData = [ // outputImage, outputMask, pairMatches, inliers, overlapping, regularity, quality, rmsError, rmsErrorDev, peakErrorX, peakErrorY, H11, H12, H13, H21, H22, H23, H31, H32, H33, frameAdaptationBiasRK, frameAdaptationBiasG, frameAdaptationBiasB, frameAdaptationSlopeRK, frameAdaptationSlopeG, frameAdaptationSlopeB, frameAdaptationAvgDevRK, frameAdaptationAvgDevG, frameAdaptationAvgDevB, referenceStarX, referenceStarY, targetStarX, targetStarY
+            ];
+            */
+
+            var status = P.executeGlobal();
+
+            this.ProcessesCompleted++;
+            this.RegisteredCount++;
+
+            console.noteln( "<end><cbr><br>",
+                      "-------------------------------------------------------------" );
+            console.noteln( " [" + this.FileTotalCount + "] End of registration " );
+            console.noteln( "-------------------------------------------------------------" );
+
+         }
+
+         if (File.exists( newFiles[i] ))
+         {
+            // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
+            var fn="";
+            if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
+            {
+               debug("path: " +fn[1], dbgNotice);
+               debug("matched: " +fn[2], dbgNotice);
+               debug("file is registered of " +fn[2], dbgNotice);
+
+               AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
+            }else{
+               debug ("PATTERN NOT FOUND");
+            }
+         }
+         else
+         {
+            return false;
+         }
+
+	   }
+
+	   return newFiles;
+	}
+
+	/************************************************************************************************************
+	 * Нормализация фитов (1-3 в зависимости от был ли чб или цвет)
+	 *
+	 * @param
+	 * @return
+	 * @todo пачку фитов в одном процессе регистрировать
+	 */
+	this.localNormalization = function (files)
+	{
+		if (files==false) {
+		  debug("Skipping Normalization", dbgNormal);
+		  return false;
+		}
+
+		if (!cfgNeedNormalization) {
+			debug ("Normalization is off", dbgNormal);
+			if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag) {
+            requestToCopy.push(files);
+            NeedToCopyToFinalDirFlag = false;
+			}
+		   return true;
+	   }
+
+	   // Прервый всегда будет "файлом", даже если их много
+	   var file = files[0];
+
+	   // Start normalization
+	   console.noteln( "<end><cbr><br>",
+					   "-------------------------------------------------------------" );
+	   console.noteln( "| [" + this.FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file) );
+	   console.noteln( "-------------------------------------------------------------" );
+
+	   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+	   debug ("Need to normilize " + files.length + " file(s)", dbgNotice);
+
+      // Set normalization folder
+      NormalizedOutputPath = BaseCalibratedOutputPath;
+      if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+      {
+         var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+         fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
+         NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
+      }
+      NormalizedOutputPath =  NormalizedOutputPath + "/" + cfgNormilizedFolderName;
+
+
+	   // Start normalization for all files
+	   var newFiles=[]; //empty array
+	   for (var i = 0; i < files.length; i++)
+	   {
+
+         // return new file name
+         var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
+         var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c_cc_b_r\.fit$/, '_c_cc_b_r_n.fit'); //if ABE was run before
+
+         newFiles[i] = NormalizedOutputPath + '/' + newFileName;
+
+         //Проверить - существует ли файл и стоит ли перезаписывать его
+         if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+         {
+             Console.warningln('File '+ newFileName + ' already exists, skipping normalization' );
+         }
+         else
+         {
+            // Search for reference file
+            if (!fileData)
+               var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
+            if (!fileData) {
+               console.criticalln("Can't get File Header for Normalization for " + fileName + "!");
+               return false;
+            }
+
+            // Get reference for Normalization
+            var referenceFile = getNormalizationReferenceFile( fileData.object, fileData.filter, fileData.exposure );
+            if (!referenceFile)
+            {
+               Console.warningln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + fileData.filter + "</b> and exposure <b>" + fileData.exposure + "s</b>. Skipping LocalNormalization");
+               if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag)
+               {
+                  requestToCopy.push(files);
+                  NeedToCopyToFinalDirFlag = false; //this is final
+               }
+
+              return files;
+            }
+
+            // Check if folder exists
+            if ( !File.directoryExists(NormalizedOutputPath) )
+              File.createDirectory(NormalizedOutputPath, true);
+
+            if (files.length > 1)
+            Console.noteln ("Normalization of " + files[i]);
+
+            var P = new LocalNormalization;
+            P.scale = cfgNormalizationScale;
+            P.noScale = cfgNormalizationNoScaleFlag;
+            P.rejection = true;
+            P.backgroundRejectionLimit = 0.050;
+            P.referenceRejectionThreshold = 0.500;
+            P.targetRejectionThreshold = 0.500;
+            P.hotPixelFilterRadius = 2;
+            P.noiseReductionFilterRadius = 0;
+            P.referencePathOrViewId = referenceFile;
+            P.referenceIsView = false;
+            P.targetItems = [ // enabled, image
+            [true, files[i]]
+            ];
+            P.inputHints = "";
+            P.outputHints = "";
+            P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_Always;
+            P.generateNormalizationData = false;
+            P.showBackgroundModels = false;
+            P.showRejectionMaps = false;
+            P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
+            P.noGUIMessages = false;
+            P.outputDirectory = NormalizedOutputPath;
+            P.outputExtension = ".fit";
+            P.outputPrefix = "";
+            P.outputPostfix = "_n";
+            P.overwriteExistingFiles = cfgOverwriteAllFiles;
+            P.onError = LocalNormalization.prototype.OnError_Continue;
+            P.useFileThreads = true;
+            P.fileThreadOverload = 1.20;
+            P.maxFileReadThreads = 1;
+            P.maxFileWriteThreads = 1;
+            P.graphSize = 800;
+            P.graphTextSize = 12;
+            P.graphTitleSize = 18;
+            P.graphTransparent = false;
+            P.graphOutputDirectory = "";
+
+            var status = P.executeGlobal();
+            this.ProcessesCompleted++;
+            this.NormalizedCount++;
+
+            console.noteln( "<end><cbr><br>",
+                      "-------------------------------------------------------------" );
+            console.noteln( " [" + this.FileTotalCount + "] End of normalization " );
+            console.noteln( "-------------------------------------------------------------" );
+         }
+
+         // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
+         var fn="";
+         if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null)
+         {
+            debug("path: " +fn[1], dbgNotice);
+            debug("matched: " +fn[2], dbgNotice);
+            debug("file is normalized of " +fn[2], dbgNotice);
+
+            AddFileToArray(FITS.NORMALIZED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
+         }else{
+            debug ("PATTERN NOT FOUND");
+         }
+	   }
+
+      if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag)
+      {
+         requestToCopy.push(newFiles);
+         NeedToCopyToFinalDirFlag = false; //Normalization is final
+      }
+
+	   return false;
+	}
+
+
+
+
+
+
+
+
+
+
+	/*********************************************************
 	 * Найти подходящие мастера для текущего кадра
 	 *
 	 * @param pathMasterLib string  путь к библиотеке мастеров
@@ -896,279 +1778,6 @@ function AutoCalibrateEngine()
 	   };
 	}
 
-
-	/************************************************************************************************************
-	 * Калибровка фита
-	 *
-	 * @param fileName string  полное имя файла.fit включая путь
-	 * @return string          полное имя файла_c.fit включая путь
-	 */
-	this.calibrateFITSFile = function (fileName)
-	{
-		if (fileName==false) {
-		  debug("Skipping Calibration", dbgNormal);
-		  return false;
-		}
-
-	   if (!cfgNeedCalibration) {
-		  debug("Calibration is off", dbgNormal);
-		  return fileName;
-		}
-
-	   // Start calibration
-	   console.noteln( "<end><cbr><br>",
-					   "-------------------------------------------------------------" );
-	   console.noteln( "| [" + this.FileTotalCount + "] Begin calibration of ", fileName );
-	   console.noteln( "-------------------------------------------------------------" );
-
-	   //Set calibrated output path
-	   CalibratedOutputPath = BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-	   {
-		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
-		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
-		  CalibratedOutputPath = CalibratedOutputPath + "/" + fileData.object;
-	   }
-	   CalibratedOutputPath =  CalibratedOutputPath + "/" + cfgCalibratedFolderName;
-
-	   // make new file name
-	   var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-	   var newFileName = FileName.replace(/\.fit$/i, '_c.fit')
-	   newFileName  = CalibratedOutputPath + '/' + newFileName
-
-	   //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
-	   if ( cfgSkipExistingFiles && File.exists( newFileName ) )
-	   {
-		  Console.warningln('File '+ newFileName + ' already exists, skipping calibration' );
-	   }
-	   else
-	   {
-
-		  if (!fileData)
-			 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
-		  if (!fileData) {
-			 console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
-			 return false;
-		  }
-
-		  // Get Masters files names
-		  mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
-		  if (! mastersFiles)
-		  {
-			 Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
-			 return fileName;
-		  }
-
-		  // Check if folder for calibrated files exists
-		  if ( !File.directoryExists(CalibratedOutputPath) )
-			 File.createDirectory(CalibratedOutputPath, true);
-
-
-		  var P = new ImageCalibration;
-		  P.targetFrames = [ // enabled, path
-			 [true, fileName]
-		  ];
-		  P.inputHints = "";
-		  P.outputHints = "";
-		  P.pedestal = 0;
-		  P.pedestalMode = ImageCalibration.prototype.Keyword;
-		  P.pedestalKeyword = "";
-		  P.overscanEnabled = false;
-		  P.overscanImageX0 = 0;
-		  P.overscanImageY0 = 0;
-		  P.overscanImageX1 = 0;
-		  P.overscanImageY1 = 0;
-		  P.overscanRegions = [ // enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
-			 [false, 0, 0, 0, 0, 0, 0, 0, 0],
-			 [false, 0, 0, 0, 0, 0, 0, 0, 0],
-			 [false, 0, 0, 0, 0, 0, 0, 0, 0],
-			 [false, 0, 0, 0, 0, 0, 0, 0, 0]
-		  ];
-
-		  P.masterBiasEnabled = true;
-		  P.masterBiasPath = mastersFiles.masterbias;
-
-		  P.masterDarkEnabled = true;
-		  P.masterDarkPath = mastersFiles.masterdark;
-
-		  P.masterFlatEnabled = true;
-		  P.masterFlatPath = mastersFiles.masterflat;
-
-		  P.calibrateBias = false;
-		  P.calibrateDark = true;    // понять бы - нужно или нет?!
-		  P.calibrateFlat = false;   // понять бы - нужно или нет?!
-
-		  P.optimizeDarks = true;
-		  P.darkOptimizationThreshold = 0.00000;
-		  P.darkOptimizationLow = 3.0000;
-		  P.darkOptimizationWindow = 1024;
-
-		  P.darkCFADetectionMode = (fileData.cfa)
-			 ? ImageCalibration.prototype.ForceCFA
-			 : ImageCalibration.prototype.IgnoreCFA;
-
-		  P.evaluateNoise = true;
-		  P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-
-		  P.outputDirectory = CalibratedOutputPath;
-		  P.outputExtension = ".fit";
-		  P.outputPrefix = "";
-		  P.outputPostfix = "_c";
-		  P.outputSampleFormat =  cfgOutputFormatIC;
-		  P.outputPedestal = 0; // Нужно поискать
-
-		  P.overwriteExistingFiles = cfgOverwriteAllFiles;
-		  P.onError = ImageCalibration.prototype.Continue;
-		  P.noGUIMessages = true;
-
-		  var status = P.executeGlobal();
-		  this.CalibratedCount++;
-		  this.ProcessesCompleted++;
-
-		  console.noteln( "<end><cbr><br>",
-						  "-------------------------------------------------------------" );
-		  console.noteln( " [" + this.FileTotalCount + "] End of calibration" );
-		  console.noteln( "-------------------------------------------------------------" );
-
-	   }
-
-	   if (File.exists( newFileName ))
-	   {
-		  // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
-		  var fn="";
-		  if ((fn=newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null)
-		  {
-			 debug("path: " +fn[1], dbgNotice);
-			 debug("matched: " +fn[2], dbgNotice);
-			 debug("file is calibrated of " +fn[2], dbgNotice);
-
-			 AddFileToArray(FITS.CALIBRATED, newFileName,fn[2],fn[1]); //type, full name, signature, path
-		  }
-		  else
-		  {
-			 debug ("PATTERN NOT FOUND");
-		  }
-		  return newFileName;
-	   }
-	   else
-	   {
-		  return false;
-	   }
-
-	}
-
-
-	/************************************************************************************************************
-	 * Косметика фита
-	 *
-	 * @param fileName string  Полное Имя файла_c.fit включая путь
-	 * @return string          Полное имя файла_c_cc.fit включая путь
-	 */
-	this.cosmeticFit = function (fileName)
-	{
-		if (fileName==false || !fileName.match(/_c.fit$/)) {
-		  debug("Skipping Cosmetic Correction", dbgNormal);
-		  return fileName;
-		}
-	   if (!cfgNeedCalibration) {
-		  return fileName;
-		  debug("Cosmetic correction is off (with calibration)", dbgNormal);
-	   }
-
-	   // Start cosmetic correction
-	   console.noteln( "<end><cbr><br>",
-					   "-------------------------------------------------------------" );
-	   console.noteln( "| [" + this.FileTotalCount + "] Begin cosmetic correction of ", fileName );
-	   console.noteln( "-------------------------------------------------------------" );
-
-
-	   //Set cosmetized output path
-	   CosmetizedOutputPath = BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-	   {
-		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
-		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
-		  CosmetizedOutputPath = CosmetizedOutputPath + "/" + fileData.object;
-	   }
-	   CosmetizedOutputPath =  CosmetizedOutputPath + "/" + cfgCosmetizedFolderName;
-
-	   // return new file name
-	   var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-	   var newFileName = FileName.replace(/_c\.fit$/, '_c_cc.fit');
-	   newFileName = CosmetizedOutputPath + '/' + newFileName;
-
-
-	   //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
-	   if ( cfgSkipExistingFiles && File.exists( newFileName ) )
-	   {
-		  Console.warningln('File '+ newFileName + ' already exists, skipping cosmetic correction' );
-	   }
-	   else
-	   {
-		  if (!fileData)
-			 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
-		  if (!fileData) {
-			 console.criticalln("Can't get File Header for Cosmetic Correction for " + fileName + "!");
-			 return false;
-		  }
-
-
-		  // Get CosmeticCorrection Process Icon
-		  var ProcessIconName = cfgCosmetizedProcessName+ '_'+ fileData.instrument.replace('/', '_') + (cgfUseBiningFolder ? '_bin'+ file.bin : '') + (cgfUseExposureInCosmeticsIcons? '_'+ fileData.duration : '');
-		  debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
-
-		  // Check if folder for cosmetics files exists
-		  if ( !File.directoryExists(CosmetizedOutputPath) )
-			 File.createDirectory(CosmetizedOutputPath, true);
-
-
-		  var CC = ProcessInstance.fromIcon( ProcessIconName );
-		  if ( CC == null )
-			 throw new Error( "No such process icon: " + ProcessIconName);
-		  if ( !(CC instanceof CosmeticCorrection) )
-			 throw new Error( "The specified icon does not an instance of CosmeticCorrection: " + ProcessIconName);
-
-		  CC.targetFrames = [ // enabled, path
-			 [true, fileName]
-		  ];
-		  CC.outputDir       = CosmetizedOutputPath;
-		  CC.outputExtension = ".fit";
-		  CC.prefix          = "";
-		  CC.postfix         = "_cc";
-		  CC.overwrite       = cfgOverwriteAllFiles;
-		  //CC.cfa             = false;
-
-		  CC.executeGlobal();
-		  this.ProcessesCompleted++;
-		  this.CosmetizedCount++;
-
-		  console.noteln( "<end><cbr><br>",
-						  "-------------------------------------------------------------" );
-		  console.noteln( " [" + this.FileTotalCount + "] End of cosmetic correction " );
-		  console.noteln( "-------------------------------------------------------------" );
-	   }
-
-
-	   // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
-	   var fn="";
-	   if ((fn=newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null)
-	   {
-		  debug("path: " +fn[1], dbgNotice);
-		  debug("matched: " +fn[2], dbgNotice);
-		  debug("file is cosmetized of " +fn[2], dbgNotice);
-
-		  AddFileToArray(FITS.COSMETIZED, newFileName,fn[2],fn[1]); //type, full name, signature, path
-	   }else{
-		  debug ("PATTERN NOT FOUND");
-	   }
-
-
-
-	   return newFileName;
-	}
-
-
-
 	/*********************************************************
 	 * Поиск соответствующего рефенса для выравнивания
 	 *
@@ -1220,199 +1829,6 @@ function AutoCalibrateEngine()
 	}
 
 
-	/************************************************************************************************************
-	 * Регистрация (выравнивание) фитов (1-3 в зависимости от был ли чб или цвет)
-	 *
-	 * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
-	 * @return string | array of strings        полное имя файла_c_сс_r.fit включая путь
-	 *
-	 */
-	this.registerFits = function (files)
-	{
-		if (files==false) {
-		  debug("Skipping Registration", dbgNormal);
-		  return false;
-		}
-
-	   if (!cfgNeedRegister) {
-		  debug ("Registration is off", dbgNormal);
-		  return files;
-	   }
-
-	   // Прервый всегда будет "файлом", даже если их много
-	   var file = files[0];
-
-	   // Start registation
-	   console.noteln( "<end><cbr><br>",
-					   "-------------------------------------------------------------" );
-	   console.noteln( "| [" + this.FileTotalCount + "] Begin registration of ", (files.length != 1 ? files.length + " files" : file) );
-	   console.noteln( "-------------------------------------------------------------" );
-
-	   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
-	   debug ("Need to register " + files.length + " file(s)", dbgNotice);
-
-
-	   // Set registration folder
-	   RegisteredOutputPath = BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-	   {
-          var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
-		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
-		  RegisteredOutputPath = RegisteredOutputPath + "/" + fileData.object;
-	   }
-	   RegisteredOutputPath =  RegisteredOutputPath + "/" + cfgRegisteredFolderName;
-
-
-	   // Start registration for all files
-	   var newFiles=[]; //empty array
-	   for (var i = 0; i < files.length; i++)
-	   {
-
-         // return new file name
-         var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
-         var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_r.fit');
-         if (FileName === newFileName)
-            var newFileName = FileName.replace(/_c_cc_b\.fit$/, '_c_cc_b_r.fit'); //if ABE was run before
-         newFiles[i] = RegisteredOutputPath + '/' + newFileName;
-
-         //Проверить - существует ли файл и стоит ли перезаписывать его
-         if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
-         {
-            Console.warningln('File '+ newFileName + ' already exists, skipping Registration' );
-         }
-         else
-         {
-            // Search for reference file
-			  if (!fileData)
-				 var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
-			  if (!fileData) {
-				 console.criticalln("Can't get File Header for Registration for " + FileName + "!");
-				 return false;
-			  }
-
-            // Get reference for Registration
-            var referenceFile = getRegistrationReferenceFile( fileData.object );
-            if (!referenceFile)
-            {
-               Console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
-               //return files; // мне кажется, тут лучше вернуть false. Проверим
-               return false;
-            }
-
-            // Check if folder exists
-            if ( !File.directoryExists(RegisteredOutputPath) )
-               File.createDirectory(RegisteredOutputPath, true);
-
-            if (files.length > 1)
-               Console.noteln ("Registering " + files[i]);
-
-            var P = new StarAlignment;
-
-            P.structureLayers = 5;
-            P.noiseLayers = 0;
-            P.hotPixelFilterRadius = 1;
-            P.noiseReductionFilterRadius = 0;
-            P.sensitivity = 0.100;
-            P.peakResponse = 0.80;
-            P.maxStarDistortion = 0.500;
-            P.upperLimit = 1.000;
-            P.invert = false;
-
-            P.distortionModel = "";
-            P.undistortedReference = false;
-            P.distortionCorrection = true;
-            P.distortionMaxIterations = 100; // I use 20
-            P.distortionTolerance = 0.001;   // i use 0.005
-
-            P.matcherTolerance = 0.0500;
-            P.ransacTolerance = 2.00;
-            P.ransacMaxIterations = 2000;
-            P.ransacMaximizeInliers = 1.00;
-            P.ransacMaximizeOverlapping = 1.00;
-            P.ransacMaximizeRegularity = 1.00;
-            P.ransacMinimizeError = 1.00;
-            P.maxStars = 0;
-            P.useTriangles = false;
-            P.polygonSides = 5;
-            P.descriptorsPerStar = 20;
-            P.restrictToPreviews = true;
-            P.intersection = StarAlignment.prototype.MosaicOnly;
-            P.useBrightnessRelations = false;
-            P.useScaleDifferences = false;
-            P.scaleTolerance = 0.100;
-            P.referenceImage = referenceFile;
-            P.referenceIsFile = true;
-            P.targets = [ // enabled, isFile, image
-            [true, true, files[i]]
-            ];
-            P.inputHints = "";
-            P.outputHints = "";
-            P.mode = StarAlignment.prototype.RegisterMatch;
-            P.writeKeywords = true;
-            P.generateMasks = false;
-            P.generateDrizzleData = false;
-            P.frameAdaptation = false;
-            P.noGUIMessages = true;
-            P.useSurfaceSplines = false;
-            P.splineSmoothness = 0.00; //i use 0.25, но не уверен, что это на что-то влияет :)
-            P.pixelInterpolation = StarAlignment.prototype.Auto;
-            P.clampingThreshold = 0.30;
-
-            P.outputDirectory = RegisteredOutputPath;
-            P.outputExtension = ".fit";
-            P.outputPrefix = "";
-            P.outputPostfix = "_r";
-            P.maskPostfix = "_m";
-            P.outputSampleFormat = StarAlignment.prototype.SameAsTarget; //StarAlignment.prototype.SameAsTarget
-            P.overwriteExistingFiles = cfgOverwriteAllFiles;
-            P.onError = StarAlignment.prototype.Continue;
-            P.useFileThreads = true;      //новое?
-            P.fileThreadOverload = 1.20;  //новое?
-            P.maxFileReadThreads = 1;     //новое?
-            P.maxFileWriteThreads = 1;    //новое?
-
-            /*
-            * Read-only properties
-            *
-            P.outputData = [ // outputImage, outputMask, pairMatches, inliers, overlapping, regularity, quality, rmsError, rmsErrorDev, peakErrorX, peakErrorY, H11, H12, H13, H21, H22, H23, H31, H32, H33, frameAdaptationBiasRK, frameAdaptationBiasG, frameAdaptationBiasB, frameAdaptationSlopeRK, frameAdaptationSlopeG, frameAdaptationSlopeB, frameAdaptationAvgDevRK, frameAdaptationAvgDevG, frameAdaptationAvgDevB, referenceStarX, referenceStarY, targetStarX, targetStarY
-            ];
-            */
-
-            var status = P.executeGlobal();
-
-            this.ProcessesCompleted++;
-            this.RegisteredCount++;
-
-            console.noteln( "<end><cbr><br>",
-                      "-------------------------------------------------------------" );
-            console.noteln( " [" + this.FileTotalCount + "] End of registration " );
-            console.noteln( "-------------------------------------------------------------" );
-
-         }
-
-         if (File.exists( newFiles[i] ))
-         {
-            // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
-            var fn="";
-            if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
-            {
-               debug("path: " +fn[1], dbgNotice);
-               debug("matched: " +fn[2], dbgNotice);
-               debug("file is registered of " +fn[2], dbgNotice);
-
-               AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
-            }else{
-               debug ("PATTERN NOT FOUND");
-            }
-         }
-         else
-         {
-            return false;
-         }
-	   }
-
-	   return newFiles;
-	}
 
 
 	/*********************************************************
@@ -1467,156 +1883,6 @@ function AutoCalibrateEngine()
 	   return  ( referenceFile == "" ? false : cfgNormalizationReferencesPath + "/" + referenceFile );
 	}
 
-	/************************************************************************************************************
-	 * Нормализация фитов (1-3 в зависимости от был ли чб или цвет)
-	 *
-	 * @param
-	 * @return
-	 * @todo пачку фитов в одном процессе регистрировать
-	 */
-	this.localNormalization = function (files)
-	{
-		if (files==false) {
-		  debug("Skipping Normalization", dbgNormal);
-		  return false;
-		}
-
-	   if (!cfgNeedNormalization) {
-		  debug ("Normalization is off", dbgNormal);
-		  return true;
-	   }
-
-	   // Прервый всегда будет "файлом", даже если их много
-	   var file = files[0];
-
-	   // Start normalization
-	   console.noteln( "<end><cbr><br>",
-					   "-------------------------------------------------------------" );
-	   console.noteln( "| [" + this.FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file) );
-	   console.noteln( "-------------------------------------------------------------" );
-
-	   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
-	   debug ("Need to normilize " + files.length + " file(s)", dbgNotice);
-
-      // Set normalization folder
-      NormalizedOutputPath = BaseCalibratedOutputPath;
-      if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-      {
-		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
-		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
-		NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
-      }
-      NormalizedOutputPath =  NormalizedOutputPath + "/" + cfgNormilizedFolderName;
-
-
-	   // Start registration for all files
-	   var newFiles=[]; //empty array
-	   for (var i = 0; i < files.length; i++)
-	   {
-
-         // return new file name
-         var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-         var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
-         if (FileName === newFileName)
-            var newFileName = FileName.replace(/_c_cc_b_r\.fit$/, '_c_cc_b_r_n.fit'); //if ABE was run before
-
-         newFiles[i] = NormalizedOutputPath + '/' + newFileName;
-
-         //Проверить - существует ли файл и стоит ли перезаписывать его
-         if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
-         {
-             Console.warningln('File '+ newFileName + ' already exists, skipping normalization' );
-         }
-         else
-         {
-            // Search for reference file
-			  if (!fileData)
-				 var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
-			  if (!fileData) {
-				 console.criticalln("Can't get File Header for Normalization for " + fileName + "!");
-				 return false;
-			  }
-
-            // Get reference for Normalization
-            var referenceFile = getNormalizationReferenceFile( fileData.object, fileData.filter, fileData.exposure );
-            if (!referenceFile)
-            {
-              Console.warningln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + fileData.filter + "</b> and exposure <b>" + fileData.exposure + "s</b>. Skipping LocalNormalization");
-              return files;
-            }
-
-            // Check if folder exists
-            if ( !File.directoryExists(NormalizedOutputPath) )
-              File.createDirectory(NormalizedOutputPath, true);
-
-            if (files.length > 1)
-            Console.noteln ("Normalization of " + files[i]);
-
-            var P = new LocalNormalization;
-            P.scale = cfgNormalizationScale;
-            P.noScale = cfgNormalizationNoScaleFlag;
-            P.rejection = true;
-            P.backgroundRejectionLimit = 0.050;
-            P.referenceRejectionThreshold = 0.500;
-            P.targetRejectionThreshold = 0.500;
-            P.hotPixelFilterRadius = 2;
-            P.noiseReductionFilterRadius = 0;
-            P.referencePathOrViewId = referenceFile;
-            P.referenceIsView = false;
-            P.targetItems = [ // enabled, image
-            [true, files[i]]
-            ];
-            P.inputHints = "";
-            P.outputHints = "";
-            P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_Always;
-            P.generateNormalizationData = false;
-            P.showBackgroundModels = false;
-            P.showRejectionMaps = false;
-            P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
-            P.noGUIMessages = false;
-            P.outputDirectory = NormalizedOutputPath;
-            P.outputExtension = ".fit";
-            P.outputPrefix = "";
-            P.outputPostfix = "_n";
-            P.overwriteExistingFiles = cfgOverwriteAllFiles;
-            P.onError = LocalNormalization.prototype.OnError_Continue;
-            P.useFileThreads = true;
-            P.fileThreadOverload = 1.20;
-            P.maxFileReadThreads = 1;
-            P.maxFileWriteThreads = 1;
-            P.graphSize = 800;
-            P.graphTextSize = 12;
-            P.graphTitleSize = 18;
-            P.graphTransparent = false;
-            P.graphOutputDirectory = "";
-
-            var status = P.executeGlobal();
-            this.ProcessesCompleted++;
-            this.NormalizedCount++;
-
-            console.noteln( "<end><cbr><br>",
-                      "-------------------------------------------------------------" );
-            console.noteln( " [" + this.FileTotalCount + "] End of normalization " );
-            console.noteln( "-------------------------------------------------------------" );
-		  }
-
-		  // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
-		  var fn="";
-		  if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null)
-		  {
-			 debug("path: " +fn[1], dbgNotice);
-			 debug("matched: " +fn[2], dbgNotice);
-			 debug("file is normalized of " +fn[2], dbgNotice);
-
-			 AddFileToArray(FITS.NORMALIZED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
-		  }else{
-			 debug ("PATTERN NOT FOUND");
-		  }
-
-
-	   }
-	   return false;
-	}
 
 
 	/**
@@ -1663,7 +1929,7 @@ function AutoCalibrateEngine()
 
 	   // Create normalization folder
 	   ApprovedOutputPath = BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
@@ -1781,184 +2047,6 @@ function AutoCalibrateEngine()
 
 	}
 
-	/************************************************************************************************************
-	 * Выравнивание фона через ABE у фитов на входе (1-3 в зависимости от был ли чб или цвет)
-	 *
-	 * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
-	 * @return string | array of strings        полное имя файла_c_сс_b.fit включая путь
-	 *
-	 */
-	this.ABEprocess = function (files)
-	{
-		if (files==false) {
-		  debug("Skipping ABE processing", dbgNormal);
-		  return false;
-		}
-
-	   if (!cfgNeedABE) {
-		  debug ("ABE processing is off", dbgNormal);
-		  return files;
-	   }
-
-	   // Прервый всегда будет "файлом", даже если их много
-	   var file = files[0];
-
-	   // Start ABE
-	   console.noteln( "<end><cbr><br>",
-					   "-------------------------------------------------------------" );
-	   console.noteln( "| [" + this.FileTotalCount + "] Begin processing ABE of ", (files.length != 1 ? files.length + " files" : file) );
-	   console.noteln( "-------------------------------------------------------------" );
-
-	   // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
-	   debug ("Need to ABE " + files.length + " file(s)", dbgNotice);
-
-	   // Set folder path
-	   ABEOutputPath = BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-	   {
-		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
-		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
-		  ABEOutputPath  = ABEOutputPath  + "/" + fileData.object;
-	   }
-	   ABEOutputPath  =  ABEOutputPath  + "/" + cfgABEFolderName;
-
-
-	   // Start registration for all files
-	   var newFiles=[]; //empty array
-	   for (var i = 0; i < files.length; i++)
-	   {
-
-		  // return new file name
-		  var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-		  var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_b.fit');
-		  newFiles[i] = ABEOutputPath  + '/' + newFileName;
-
-		  //Проверить - существует ли файл и стоит ли перезаписывать его
-		  if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
-		  {
-			 Console.warningln('File '+ newFileName + ' already exists, skipping ABE' );
-		  }
-		  else
-		  {
-
-         // Check if folder exists
-         if ( !File.directoryExists(ABEOutputPath ) )
-            File.createDirectory(ABEOutputPath , true);
-
-          if (files.length > 1)
-				Console.noteln ("Processing ABE " + files[i]);
-
-			 //Open file
-			 ImageWindow.open( files[i] );
-			 var w = ImageWindow.openWindows[ImageWindow.openWindows.length-1];
-
-			 if (!w || w.isNull)
-			 {
-				Console.criticalln("Error opening file: " + files[i]);
-				return false;
-			 }
-
-
-			 var ABEproc;
-
-			 var ProcessIconName = cfgABEProcessName;
-			 debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
-
-			 //Try to use saved process
-			 ABEproc = ProcessInstance.fromIcon(ProcessIconName);
-
-			 if ( ABEproc == null || !(ABEproc instanceof AutomaticBackgroundExtractor))
-			 {
-				debug ("The specified icon does not exists or instance of AutomaticBackgroundExtractor: " + ProcessIconName,dbgNormal);
-
-				//Using default
-
-				ABEproc = new AutomaticBackgroundExtractor;
-				with (ABEproc)
-				{
-				   tolerance = 1.000;
-				   deviation = 0.800;
-				   unbalance = 1.800;
-				   minBoxFraction = 0.050;
-				   maxBackground = 1.0000;
-				   minBackground = 0.0000;
-				   useBrightnessLimits = false;
-				   polyDegree = 5;
-				   boxSize = 5;
-				   boxSeparation = 5;
-				   modelImageSampleFormat = AutomaticBackgroundExtractor.prototype.f32;
-				   abeDownsample = 2.00;
-				   writeSampleBoxes = false;
-				   justTrySamples = false;
-				   targetCorrection = AutomaticBackgroundExtractor.prototype.Subtract;
-				   normalize = true;
-				   discardModel = true;
-				   replaceTarget = true;
-				   correctedImageId = "";
-				   correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
-				   verboseCoefficients = false;
-				   compareModel = false;
-				   compareFactor = 10.00;
-				}
-			 }
-			 else
-			 {
-				with (ABEproc)
-				{
-				   writeSampleBoxes = false;
-				   justTrySamples = false;
-				   replaceTarget = true;
-				   correctedImageSampleFormat = AutomaticBackgroundExtractor.prototype.SameAsTarget;
-				}
-			 }
-
-			 //Запустить
-			 with (ABEproc)
-			 {
-				executeOn(w.mainView);
-				//
-				// save
-				//
-				w.saveAs(newFiles[i], false, false, true, !cfgOverwriteAllFiles);
-			 }
-			 w.purge();
-			 w.close();
-
-			 this.ProcessesCompleted++;
-			 this.ABECount++;
-
-			 console.noteln( "<end><cbr><br>",
-							 "-------------------------------------------------------------" );
-			 console.noteln( " [" + this.FileTotalCount + "] End of ABE " );
-			 console.noteln( "-------------------------------------------------------------" );
-
-		  }
-
-		  /*
-		  if (File.exists( newFiles[i] ))
-		  {
-			 // Добавим в массив файлов информацию о создании регистрируемого файла, что бы второй раз не делать
-			 var fn="";
-			 if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null)
-			 {
-				debug("path: " +fn[1], dbgNotice);
-				debug("matched: " +fn[2], dbgNotice);
-				debug("file is registered of " +fn[2], dbgNotice);
-
-				AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
-			 }else{
-				debug ("PATTERN NOT FOUND");
-			 }
-		  }
-		  else
-		  {
-			 return false;
-		  }
-		  */
-	   }
-
-	   return newFiles;
-	}
 
 
 	/*
@@ -2180,28 +2268,3 @@ function AutoCalibrateEngine()
 }
 
 
-
-/**
- * Поиск расширения файла
- */
-function fileExtension(file)
-{
-   //console.writeln('ext file='+ file);
-   var ext = file.match(/\.([^.]+)$/);
-
-   return ext && ext.length ? ext[1] : false
-}
-
-
-function DirNameContains(dirName)
-{
-	var bF=false;
-	cfgSkipDirsContains.forEach(
-		function(element) {
-			//console.writeln(element);
-			if (dirName.indexOf(element) > -1)
-				bF=true;
-		}
-	);
-	return bF;
-}
