@@ -7,7 +7,14 @@
 function ConfigData()
 {
 	//ConfigFields
-	this.inputDir = "";
+	this.InputPath = ""; //cfgInputPath
+	this.PathMode = 1; //cfgPathMode
+	this.SearchInSubDirs = true;	//cfgSearchInSubDirs
+	
+	this.NeedCalibration = true;
+	this.NeedABE	= false; //cfgNeedABE
+	this.NeedRegister = true; //cfgNeedRegister
+	this.NeedNormalization = true; //cfgNeedNormalization
 
 	//Helper functions
 	function load( key, type )
@@ -34,12 +41,48 @@ function ConfigData()
 	this.loadSettings = function()
 	{
 		var o;
-		if ( (o = load( "InputDir",                 DataType_String )) != null )
-			this.inputDir = o;
+		if ( (o = load( "InputPath",                 DataType_String )) != null )
+			this.InputPath = o;
+		if ( (o = load( "PathMode",                  DataType_Int16 )) != null )
+			this.PathMode = o;
+		if ( (o = load( "SearchInSubDirs",           DataType_Boolean )) != null )
+			this.SearchInSubDirs = o;
+
+		if ( (o = load( "NeedCalibration",           	DataType_Boolean )) != null )
+			this.NeedCalibration = o;
+		if ( (o = load( "NeedABE",           			DataType_Boolean )) != null )
+			this.NeedABE = o;
+		if ( (o = load( "NeedRegister",           		DataType_Boolean )) != null )
+			this.NeedRegister = o;
+		if ( (o = load( "NeedNormalization",           	DataType_Boolean )) != null )
+			this.NeedNormalization = o;
 	}
+	
 	this.saveSettings = function()
 	{
-		save( "InputDir",               			DataType_String, this.inputDir );
+		save( "InputPath",               			DataType_String,  this.InputPath );
+		save( "PathMode",               			DataType_Int16,   this.PathMode );
+		save( "SearchInSubDirs",           			DataType_Boolean, this.SearchInSubDirs );
+
+		save( "NeedCalibration",           			DataType_Boolean, this.NeedCalibration );
+		save( "NeedABE",           					DataType_Boolean, this.NeedABE );
+		save( "NeedRegister",           			DataType_Boolean, this.NeedRegister );
+		save( "NeedNormalization",           		DataType_Boolean, this.NeedNormalization );
+
+		if( DEBUG ) {
+			console.writeln( "<b>Settings saved:</b>" );
+
+			console.writeln( "InputPath: 		" + this.InputPath );
+			console.writeln( "PathMode:  		" + this.PathMode );
+			console.writeln( "SearchInSubDirs:  " + this.SearchInSubDirs );
+
+			console.writeln( "NeedCalibration:  " 	+ this.NeedCalibration );
+			console.writeln( "NeedABE:  " 			+ this.NeedABE );
+			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
+			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
+
+			console.writeln( "\n" );
+		};
 	}
 
 
@@ -48,12 +91,26 @@ function ConfigData()
 	 */
 	this.exportParameters = function()
 	{
-		Parameters.set("InputDir", this.inputDir);
+		Parameters.set("InputPath", 		this.InputPath);
+		Parameters.set("PathMode",  		this.PathMode);
+		Parameters.set("SearchInSubDirs",  	this.SearchInSubDirs);
+
+		Parameters.set("NeedCalibration",  	this.NeedCalibration);
+		Parameters.set("NeedABE",  			this.NeedABE);
+		Parameters.set("NeedRegister",  	this.NeedRegister);
+		Parameters.set("NeedNormalization", this.NeedNormalization);
 
 		if( DEBUG ) {
 			console.writeln( "<b>Parameters to save:</b>" );
 
-			console.writeln( "InputDir: " + this.inputDir );
+			console.writeln( "InputPath: 		" + this.InputPath );
+			console.writeln( "PathMode:  		" + this.PathMode );
+			console.writeln( "SearchInSubDirs:  " + this.SearchInSubDirs );
+
+			console.writeln( "NeedCalibration:  " 	+ this.NeedCalibration );
+			console.writeln( "NeedABE:  " 			+ this.NeedABE );
+			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
+			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
 
 			console.writeln( "\n" );
 		};
@@ -62,12 +119,33 @@ function ConfigData()
 	this.importParameters = function()
 	{
 
-		if(Parameters.has("InputDir"))
-			this.inputDir = Parameters.getString("InputDir");
+		if(Parameters.has("InputPath"))
+			this.InputPath = Parameters.getString("InputPath");
+		if(Parameters.has("PathMode"))
+			this.PathMode = Parameters.getInteger("PathMode");
+		if(Parameters.has("SearchInSubDirs"))
+			this.SearchInSubDirs = Parameters.getBoolean("SearchInSubDirs");
+
+		if(Parameters.has("NeedCalibration"))
+			this.NeedCalibration = Parameters.getBoolean("NeedCalibration");
+		if(Parameters.has("NeedABE"))
+			this.NeedABE = Parameters.getBoolean("NeedABE");
+		if(Parameters.has("NeedRegister"))
+			this.NeedRegister = Parameters.getBoolean("NeedRegister");
+		if(Parameters.has("NeedNormalization"))
+			this.NeedNormalization = Parameters.getBoolean("NeedNormalization");
+
 
 		if( DEBUG ) {
 			console.writeln( "<b>Loaded Parameters:</b>" );
-			console.writeln( "InputDir: " + this.inputDir );
+			console.writeln( "InputPath: 		" + this.InputPath );
+			console.writeln( "PathMode:  		" + this.PathMode );
+			console.writeln( "SearchInSubDirs:  " + this.SearchInSubDirs );
+
+			console.writeln( "NeedCalibration:  " 	+ this.NeedCalibration );
+			console.writeln( "NeedABE:  " 			+ this.NeedABE );
+			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
+			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
 
 			console.writeln( "\n" );
 		};

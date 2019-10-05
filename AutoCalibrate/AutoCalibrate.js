@@ -1,5 +1,10 @@
 #define Autocalibrate_Main
 
+// Global switches
+#ifndef DEBUG
+#define DEBUG true
+#endif
+
 
 // Includes
 #ifndef AutoCalibrate_Global_js
@@ -19,11 +24,6 @@ var Config = new ConfigData();            //variable for global access to script
 #endif
 
 
-
-// Global switches
-#ifndef DEBUG
-#define DEBUG true
-#endif
 
 
 //////////////////////////////////////////
@@ -50,6 +50,7 @@ function main()
    console.noteln( "PixInsight Version: ", coreId, ", ", coreVersionBuild, ", ", coreVersionMajor,
                    ", ", coreVersionMinor, ", ", coreVersionRelease );
 
+   //Load Current Settings
    Config.loadSettings();
 
    if (Parameters.isGlobalTarget || Parameters.isViewTarget) {

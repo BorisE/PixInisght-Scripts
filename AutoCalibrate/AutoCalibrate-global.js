@@ -13,7 +13,7 @@
 #feature-icon  AutoCalibration.xpm
 
 #define TITLE "AutoCalibration"
-#define VERSION "4.0alpha2"
+#define VERSION "4.0alpha3"
 #define COMPILE_DATE "2019/10/05"
 
 #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
