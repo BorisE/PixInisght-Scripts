@@ -1,6 +1,9 @@
 #ifndef AutoCalibrate_config_default_js
 #define AutoCalibrate_config_default_js
 #endif
+
+#define DEFAULT_EXTENSION     ".fit"
+
 /*
 //////////////////////////////////////////////////////
 /*

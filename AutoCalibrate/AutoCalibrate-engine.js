@@ -2,17 +2,17 @@
    Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
    Developed 2019 by Boris Emchenko
 */
-
-
 #ifndef AutoCalibate_Engine_js
 #define AutoCalibate_Engine_js
 #endif
 
 // Includes.
-#ifndef AutoCalibrate_Include_js
-#include "AutoCalibrate-include.js"    // Constants, glbal vars
+#ifndef AutoCalibrate_Global_js
+#include "AutoCalibrate-global.js"          	// Ver, Title and other info
 #endif
-
+#ifndef AutoCalibrate_Include_js
+#include "AutoCalibrate-include.js"    			// Constants, glbal vars
+#endif
 #ifndef AutoCalibrate_config_default_js
 #include "AutoCalibrate-config-default.js"     // Config part.
 #endif
