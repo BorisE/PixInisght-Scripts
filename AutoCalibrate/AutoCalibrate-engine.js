@@ -43,6 +43,7 @@ function AutoCalibrateEngine()
 	this.ABECount=0;
 
 
+   this.BaseCalibratedOutputPath=""; //base path
 
 	// =========================================================
 	// 	Начало исполнения
@@ -86,7 +87,7 @@ function AutoCalibrateEngine()
 		var fileName = 'd:/Test this/2019-09-03/190903-II-3_20190903_Lum_350s_2x2_-25degC_0.0degN_000000319.FIT';
 		var fileData= getFileHeaderData(fileName) ;
 
-		var BaseCalibratedOutputPath = 'd:/Test this/2019-09-03';
+		var this.BaseCalibratedOutputPath = 'd:/Test this/2019-09-03';
 
 		ABEprocess (
 		debayerSplitFit(
@@ -115,7 +116,7 @@ function AutoCalibrateEngine()
 		debug(checkFileNeedCalibratation_and_PopulateArray("e:/DSlrRemote/-LeoTrio1/calibrated/cosmetized/LeoTrio1_20190118_L_600s_1x1_-30degC_0.0degN_000011908_c_cc.fit"));
 
 		// Debug
-		BaseCalibratedOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration';
+		this.BaseCalibratedOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration';
 		approvingFiles (['c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M63_20190407_B_600s_1x1_-30degC_0.0degN_000011919.FIT']);
 
 		exit;
@@ -203,20 +204,21 @@ function AutoCalibrateEngine()
 				// if not upper dir links
 				if ( objFileFind.name != "." && objFileFind.name != "..")
 				{
-				   // if this is Directory and recursion is enabled
+
+               // if this is Directory and recursion is enabled
 				   if ( objFileFind.isDirectory ) {
 					  if (	cfgSearchInSubDirs &&
-							objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
-							cfgSkipDirs.indexOf(objFileFind.name) === -1 &&
-							DirNameContains(objFileFind.name, cfgSkipDirsContains) !==true
+							      objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
+							      cfgSkipDirs.indexOf(objFileFind.name) === -1 &&
+							      DirNameContains(objFileFind.name, cfgSkipDirsContains) !==true
 						 )
 					  {
-						 //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
+                     //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
 
-						 // Run recursion search
-						 busy = false; // на будущее для асихнронного блока
-						 this.searchDirectory( searchPath +'/'+ objFileFind.name );
-						 busy = true;
+                     // Run recursion search
+                     busy = false; // на будущее для асихнронного блока
+                     this.searchDirectory( searchPath +'/'+ objFileFind.name );
+                     busy = true;
 					  }
 
 				   }
@@ -224,7 +226,7 @@ function AutoCalibrateEngine()
 				   else
 				   {
 					  debug ('File found: '+ searchPath +'/'+ objFileFind.name, dbgNotice);
-					debug ('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
+					  debug ('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
 					  // if this is FIT
 					  if ( fileExtension(objFileFind.name) !==false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits') )
 					  {
@@ -232,19 +234,19 @@ function AutoCalibrateEngine()
 						 // Set output folders (depends on config)
 						 if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 						 {
-							BaseCalibratedOutputPath = cfgInputPath + "/" + cfgOutputPath;
+							this.BaseCalibratedOutputPath = cfgInputPath + "/" + cfgOutputPath;
 						 }
 						 else if (cfgPathMode == PATHMODE.ABSOLUTE)
 						 {
-							BaseCalibratedOutputPath = cfgOutputPath ;
+							this.BaseCalibratedOutputPath = cfgOutputPath ;
 						 }
 						 else if (cfgPathMode == PATHMODE.RELATIVE || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
 						 {
-							BaseCalibratedOutputPath = searchPath ;
+							this.BaseCalibratedOutputPath = searchPath ;
 						 }
 						 else
 						 {
-							BaseCalibratedOutputPath = cfgOutputPath ;
+							this.BaseCalibratedOutputPath = cfgOutputPath ;
 						 }
 
 
@@ -289,14 +291,6 @@ function AutoCalibrateEngine()
 	};
 
 
-
-	/* **************************************************************************************************************
-	 *
-	 *       Конец основной части
-	 *
-	 * **************************************************************************************************************/
-
-
 	/**
 	 * Базовая функция для 2го прохода
 	 *
@@ -321,7 +315,7 @@ function AutoCalibrateEngine()
 
 	   // Переопределяем режимы размещения папок
 	   // Размещать файлы по объектам
-	   // А ниже назначаем BaseCalibratedOutputPath уровень ниже найденного
+	   // А ниже назначаем this.BaseCalibratedOutputPath уровень ниже найденного
 	   // cfgCreateObjectFolder = false; //отключаем режим
 
 	   //Проверим массив на наличие пропущенных звеньев и попробуем создать это звено
@@ -355,16 +349,16 @@ function AutoCalibrateEngine()
 					  debug("pathtodir: " +fn[1], dbgNotice);
 					  debug("filedir: " +fn[2], dbgNotice);
 					  debug("file: " +fn[3], dbgNotice);
-					  BaseCalibratedOutputPath = fn[1];
+					  this.BaseCalibratedOutputPath = fn[1];
 				   }
 				   else
 				   {
 
-					  BaseCalibratedOutputPath = File.extractDrive( FILEARRAY[i][getFILEARRPropertyName (FITS.ORIGINAL)] )
+					  this.BaseCalibratedOutputPath = File.extractDrive( FILEARRAY[i][getFILEARRPropertyName (FITS.ORIGINAL)] )
 							   + File.extractDirectory( FILEARRAY[i][getFILEARRPropertyName(FITS.ORIGINAL)] );
 				   }
 
-				   debug (BaseCalibratedOutputPath, dbgNormal);
+				   debug (this.BaseCalibratedOutputPath, dbgNormal);
 
 
 				   // if missing CALIBRATED
@@ -478,8 +472,28 @@ function AutoCalibrateEngine()
                //Get ObjFolderName
                var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
                fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
-               FinalsOutputPath = cfgInputPath + "/"  + cfgFinalsDirName + "/" + fileData.object;
 
+
+               if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+               {
+               this.BaseCalibratedOutputPath = cfgInputPath + "/" + cfgOutputPath;
+               }
+               else if (cfgPathMode == PATHMODE.ABSOLUTE)
+               {
+                  FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + cfgFinalsDirName;
+               }
+               else if (cfgPathMode == PATHMODE.RELATIVE || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+               {
+               this.BaseCalibratedOutputPath = searchPath ;
+               }
+               else
+               {
+               this.BaseCalibratedOutputPath = cfgOutputPath ;
+               }
+
+
+
+               FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + cfgFinalsDirName + "/" + fileData.object;
                var DestinationFileName = FinalsOutputPath + '/' + File.extractNameAndExtension(fileName);
 
 
@@ -671,7 +685,7 @@ function AutoCalibrateEngine()
 	   console.noteln( "-------------------------------------------------------------" );
 
 	   //Set calibrated output path
-	   CalibratedOutputPath = BaseCalibratedOutputPath;
+	   CalibratedOutputPath = this.BaseCalibratedOutputPath;
 	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
@@ -832,7 +846,7 @@ function AutoCalibrateEngine()
 
 
 	   //Set cosmetized output path
-	   CosmetizedOutputPath = BaseCalibratedOutputPath;
+	   CosmetizedOutputPath = this.BaseCalibratedOutputPath;
 	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
@@ -954,7 +968,7 @@ function AutoCalibrateEngine()
 	   debug ("Need to ABE " + files.length + " file(s)", dbgNotice);
 
 	   // Set folder path
-	   ABEOutputPath = BaseCalibratedOutputPath;
+	   ABEOutputPath = this.BaseCalibratedOutputPath;
 	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
@@ -1141,7 +1155,7 @@ function AutoCalibrateEngine()
 
 
 	   // Set registration folder
-	   RegisteredOutputPath = BaseCalibratedOutputPath;
+	   RegisteredOutputPath = this.BaseCalibratedOutputPath;
 	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
          var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
@@ -1344,7 +1358,7 @@ function AutoCalibrateEngine()
 	   debug ("Need to normilize " + files.length + " file(s)", dbgNotice);
 
       // Set normalization folder
-      NormalizedOutputPath = BaseCalibratedOutputPath;
+      NormalizedOutputPath = this.BaseCalibratedOutputPath;
       if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
       {
          var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
@@ -1928,7 +1942,7 @@ function AutoCalibrateEngine()
 	   debug ("Need to measure " + files.length + " file(s)", dbgNotice);
 
 	   // Create normalization folder
-	   ApprovedOutputPath = BaseCalibratedOutputPath;
+	   ApprovedOutputPath = this.BaseCalibratedOutputPath;
 	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name

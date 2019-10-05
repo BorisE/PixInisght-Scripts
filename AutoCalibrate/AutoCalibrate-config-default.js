@@ -16,7 +16,7 @@ var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
 
 //ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
 //В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
-if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO || PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
+if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
 	var cfgOutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
 //В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
 }else if (cfgPathMode == PATHMODE.ABSOLUTE) {
