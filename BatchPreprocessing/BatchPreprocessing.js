@@ -47,7 +47,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 // ----------------------------------------------------------------------------
 
-#feature-id    Batch Processing > BatchPreprocessing
+#feature-id    Batch Processing > BatchPreprocessing+
 
 #feature-info  A script for calibration and alignment of light frames.<br/>\
                Original script written by Kai Wiechen (c) 2012<br/>\

@@ -1,1 +1,0 @@
-@"C:\Program Files\Pixinsight\bin\pixinsight" -r="c:\astro\pixinsight.scripts\autocalibrate.js" --force-exit

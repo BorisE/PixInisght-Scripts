@@ -65,7 +65,7 @@
  * for helping us to find bugs in FileFormat and other related PJSR objects.
  */
 
-#feature-id    Batch Processing > BatchFormatConversion
+#feature-id    Batch Processing > BatchFormatConversion+
 
 #feature-info  A batch image format conversion utility.<br/>\
    <br/> \

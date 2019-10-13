@@ -20,7 +20,7 @@
    this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#feature-id    Batch Processing > BatchChannelExtraction
+#feature-id    Batch Processing > BatchChannelExtraction+
 
 #feature-info  An automated channel extraction utility.<br/>\
    <br/>\
