@@ -16,6 +16,27 @@ function ConfigData()
 	this.NeedRegister = true; //cfgNeedRegister
 	this.NeedNormalization = true; //cfgNeedNormalization
 
+
+	this.CalibratationMastersPath = "";//cfgCalibratationMastersPath
+	this.RegistrationReferencesPath = ""; //cfgRegistrationReferencesPath
+	this.NormalizationReferencesPath = ""; //cfgNormalizationReferencesPath
+
+	#ifndef DEFAULT_NORMALIZATION_SCALE
+	#define DEFAULT_NORMALIZATION_SCALE 256
+	#endif
+	this.NormalizationScale = DEFAULT_NORMALIZATION_SCALE;			//cfgNormalizationScale
+	this.NormalizationNoScaleFlag = true;	//cfgNormalizationNoScaleFlag
+
+
+	//temp
+	this.outputExtension = "fits"; 
+	this.outputHints="";
+	this.overwriteExisting=true;
+
+	if (DEBUG)
+		console.writeln('<br/><br/>Config object created...<br/>');
+
+
 	//Helper functions
 	function load( key, type )
 	{
@@ -56,6 +77,21 @@ function ConfigData()
 			this.NeedRegister = o;
 		if ( (o = load( "NeedNormalization",           	DataType_Boolean )) != null )
 			this.NeedNormalization = o;
+
+		if ( (o = load( "CalibratationMastersPath",     DataType_String )) != null )
+			this.CalibratationMastersPath = o;
+		if ( (o = load( "RegistrationReferencesPath",     DataType_String )) != null )
+			this.RegistrationReferencesPath = o;
+		if ( (o = load( "NormalizationReferencesPath",     DataType_String )) != null )
+			this.NormalizationReferencesPath = o;
+		
+		
+		if ( (o = load( "NormalizationScale",                  DataType_Int16 )) != null )
+			this.NormalizationScale = o;
+		if ( (o = load( "NormalizationNoScaleFlag",           DataType_Boolean )) != null )
+			this.NormalizationNoScaleFlag = o;
+		
+		
 	}
 	
 	this.saveSettings = function()
@@ -69,6 +105,13 @@ function ConfigData()
 		save( "NeedRegister",           			DataType_Boolean, this.NeedRegister );
 		save( "NeedNormalization",           		DataType_Boolean, this.NeedNormalization );
 
+		save( "CalibratationMastersPath",           DataType_String,  this.CalibratationMastersPath );
+		save( "RegistrationReferencesPath",         DataType_String,  this.RegistrationReferencesPath );
+		save( "NormalizationReferencesPath",        DataType_String,  this.NormalizationReferencesPath );
+
+		save( "NormalizationScale",               	DataType_Int16,   this.NormalizationScale );
+		save( "NormalizationNoScaleFlag",           DataType_Boolean, this.NormalizationNoScaleFlag );
+
 		if( DEBUG ) {
 			console.writeln( "<b>Settings saved:</b>" );
 
@@ -80,6 +123,13 @@ function ConfigData()
 			console.writeln( "NeedABE:  " 			+ this.NeedABE );
 			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
 			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
+
+			console.writeln( "CalibratationMastersPath:  " 			+ this.CalibratationMastersPath );
+			console.writeln( "RegistrationReferencesPath:  " 		+ this.RegistrationReferencesPath );
+			console.writeln( "NormalizationReferencesPath:  " 		+ this.NormalizationReferencesPath );
+
+			console.writeln( "NormalizationScale:  " 				+ this.NormalizationScale );
+			console.writeln( "NormalizationNoScaleFlag:  " 			+ this.NormalizationNoScaleFlag );
 
 			console.writeln( "\n" );
 		};
@@ -100,6 +150,13 @@ function ConfigData()
 		Parameters.set("NeedRegister",  	this.NeedRegister);
 		Parameters.set("NeedNormalization", this.NeedNormalization);
 
+		Parameters.set("CalibratationMastersPath",  	this.CalibratationMastersPath);
+		Parameters.set("RegistrationReferencesPath",  	this.RegistrationReferencesPath);
+		Parameters.set("NormalizationReferencesPath",  	this.NormalizationReferencesPath);
+
+		Parameters.set("NormalizationScale",  			this.NormalizationScale);
+		Parameters.set("NormalizationNoScaleFlag",  	this.NormalizationNoScaleFlag);
+
 		if( DEBUG ) {
 			console.writeln( "<b>Parameters to save:</b>" );
 
@@ -111,6 +168,13 @@ function ConfigData()
 			console.writeln( "NeedABE:  " 			+ this.NeedABE );
 			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
 			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
+
+			console.writeln( "CalibratationMastersPath:  " 			+ this.CalibratationMastersPath );
+			console.writeln( "RegistrationReferencesPath:  " 		+ this.RegistrationReferencesPath );
+			console.writeln( "NormalizationReferencesPath:  " 		+ this.NormalizationReferencesPath );
+
+			console.writeln( "NormalizationScale:  " 				+ this.NormalizationScale );
+			console.writeln( "NormalizationNoScaleFlag:  " 			+ this.NormalizationNoScaleFlag );
 
 			console.writeln( "\n" );
 		};
@@ -136,6 +200,19 @@ function ConfigData()
 			this.NeedNormalization = Parameters.getBoolean("NeedNormalization");
 
 
+		if(Parameters.has("CalibratationMastersPath"))
+			this.CalibratationMastersPath = Parameters.getString("CalibratationMastersPath");
+		if(Parameters.has("RegistrationReferencesPath"))
+			this.RegistrationReferencesPath = Parameters.getString("RegistrationReferencesPath");
+		if(Parameters.has("NormalizationReferencesPath"))
+			this.NormalizationReferencesPath = Parameters.getString("NormalizationReferencesPath");
+
+		if(Parameters.has("NormalizationScale"))
+			this.NormalizationScale = Parameters.getInteger("NormalizationScale");
+		if(Parameters.has("NormalizationNoScaleFlag"))
+			this.NormalizationNoScaleFlag = Parameters.getBoolean("NormalizationNoScaleFlag");
+
+
 		if( DEBUG ) {
 			console.writeln( "<b>Loaded Parameters:</b>" );
 			console.writeln( "InputPath: 		" + this.InputPath );
@@ -147,7 +224,26 @@ function ConfigData()
 			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
 			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
 
+			console.writeln( "CalibratationMastersPath:  " 			+ this.CalibratationMastersPath );
+			console.writeln( "RegistrationReferencesPath:  " 		+ this.RegistrationReferencesPath );
+			console.writeln( "NormalizationReferencesPath:  " 		+ this.NormalizationReferencesPath );
+
+			console.writeln( "NormalizationScale:  " 				+ this.NormalizationScale );
+			console.writeln( "NormalizationNoScaleFlag:  " 			+ this.NormalizationNoScaleFlag );
+
 			console.writeln( "\n" );
 		};
 	}
+	
+	
+	this.checkPathValidity = function()
+	{
+		return true;
+	}
+	
+	this.loadDefaultValues = function ()
+	{
+	}
 }
+
+

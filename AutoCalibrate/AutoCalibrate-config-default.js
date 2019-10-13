@@ -12,40 +12,44 @@
 //////////////////////////////////////////////////////
 
 //ПАПКА С ИСХОДНЫМИ ФИТАМИ
-var cfgInputPath = 'e:/DSlrRemote/+M77'; // без финального "/" (@todo убрать. если есть)
-Config.InputPath = cfgInputPath; 
+//var cfgInputPath = 'e:/DSlrRemote/+M77'; // без финального "/" (@todo убрать. если есть)
+//Config.InputPath = cfgInputPath; 
+Config.InputPath = 'e:/DSlrRemote/+M77'; 
 
 //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
-var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
+//var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
 Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
 
 //ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
 //В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
-if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.AUTO || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
+if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.AUTO || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
 	var cfgOutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
 //В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
-}else if (cfgPathMode == PATHMODE.ABSOLUTE) {
+}else if (Config.PathMode == PATHMODE.ABSOLUTE) {
 	var cfgOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
 //Иначе - можно игнорировать
 }else {
 	var cfgOutputPath = '';
 }
-cfgFinalsDirName = "Results";
+var cfgFinalsDirName = "Results";
 
 
 // КАЛИБРОВАТЬ?
-var cfgNeedCalibration = true;
+//var cfgNeedCalibration = true;
+Config.NeedCalibration = true;
 //var cfgNeedCalibrate = false;
 
 // РОВНЯТЬ ФОН ABE?
-var cfgNeedABE  = false;
-
+//var cfgNeedABE  = false;
+Config.NeedABE = false;
 
 // ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
-var cfgNeedRegister  = true;
+//var cfgNeedRegister  = true;
+Config.NeedRegister = true;
 
 // НОРМАЛИЗОВАТЬ ФОН?
-var cfgNeedNormalization  = true;
+//var cfgNeedNormalization  = true;
+Config.NeedNormalization = true;
 
 // ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ?
 var cfgNeedApproving = true;
@@ -61,8 +65,8 @@ var cfgOverwriteAllFiles = true; //НИКОГДА НЕ ВКЛЮЧАТЬ!!! ин�
 
 
 //Искать в подпапках? В комбинации с cfgUseRelativeOutputPath будет просматривать все вложенные папки с калиброванными фитами!
-var cfgSearchInSubDirs = true;
-Config.SearchInSubDirs = cfgSearchInSubDirs; 
+//var cfgSearchInSubDirs = true;
+Config.SearchInSubDirs = true; 
 
 //Подпапка с калиброванными фитами 
 var cfgCalibratedFolderName = 'calibrated'; 	// без финального "/" 
@@ -92,15 +96,18 @@ var cfgSkipDirsContains = [ '.data', '.pxiproject' ];
 
 //Папка с библиотекой мастеров
 //var cfgCalibratationMastersPath = 'c:/Users/bemchenko/Documents/DSlrRemote/Vedrus'; // без финального "/" (@todo убрать. если есть)
-var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
+//var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
+Config.CalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
 
 //Папка с библиотекой референсов для выравнивания по звездам
 //var cfgRegistrationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/RegistrationReferences'; // без финального "/" 
-var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
+//var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
+Config.RegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
 
 //Папка с библиотекой референсов для выравнивания фона
 //var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/NormalizationReferences'; // без финального "/" 
-var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
+//var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
+Config.NormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
 
 
 
@@ -124,14 +131,15 @@ var cfgDarkExposureLenghtTolerance = 30; // В секундах; MasterDark  в�
 										 // Данный параметр разрешае ему быть на 30 сек короче! если задать 0, то будут рассматриваться только те дарки, которые длинее
 
 // Формат файла
-//var OutputFormat = ImageCalibration.prototype.f32; //default
-var cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
+var cfgOutputFormatIC = ImageCalibration.prototype.f32; //default
+//var cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
 
 // Параметры для Local Normalization
-var cfgNormalizationScale=256;
-var cfgNormalizationNoScaleFlag=true;
-
+//var cfgNormalizationScale=256;
+//var cfgNormalizationNoScaleFlag=true;
+Config.NormalizationScale = DEFAULT_NORMALIZATION_SCALE;
+Config.NormalizationNoScaleFlag = true;
 
 // Выражение для фильтрации кадров
 var cfgApprovedExpression = 'FWHM > 4.5';
@@ -172,9 +180,13 @@ var darks_dir_pattern = new RegExp('darks(\\s|_)*(-\\d+).*','i'); 		// [...darks
 // Имя BIAS файла
 var bias_file_pattern = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d)){1}.*','i'); // [...bias...bin  #..] - слово bias в любом регистре + bin или binning и цифра через пробел
 																	// Примеры: bias-bin2_TEMP_25deg_n117, BIASBINNING_2, bias-20bin1_n118_from20180910, 
+
+var bias_wobin_file_pattern = new RegExp('bias.*','i'); // [...bias...] - слово bias в любом регистре без указания бин
+
 // Имя DARK файла																
 var darks_file_pattern = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*','i'); 	// [...dark...EXPTIME_1200...BIN] - слово DARK, EXPTIME|EXP_число и BIN_число должны быть обязательно. Число через пробел, _, без пробела
 																	// Примеры: dark-TEMP_30deg-EXPTIME_1200-BINNING_2 | masterdark_from20181218 exp120sec bin 2
+var darks_wobin_file_pattern = new RegExp('dark.*(EXPTIME|EXP)(\\s|_)*(\\d+).*','i'); 	// [...dark...EXPTIME_1200...] - слово DARK, EXPTIME|EXP_число ,bin не обязателен
 
 // Папка с FLATами
 //var flats_dir_pattern = new RegExp('^masterflats.*_(\\d\\d\\d\\d)(\\d\\d)(\\d\\d)','i'); // masterflats300_20180901
@@ -186,8 +198,14 @@ var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*
 																	// [flat...filter_Sii-...] - начинается со слова flat и дальше должно быть FILTER_названиефильтра- 
 																	// а потом еще должно встретиться BIN|BINNING число (можно без пробела или через _
 																	// Примеры: flat-FILTER_B-BINNING_1.xisf, flat-FILTER_B-BIN1_20190201, masterflatimakesomedayFILETER_R-___bin_2
+
+
 // Настройки для отладчика
 																	
 var cfgDebugEnabled = true;
 var cfgDebugLevel = dbgNotice; //dbgNormal, dbgNotice  dbgCurrent
 //////////////////////////////////////////////////////
+
+
+if (DEBUG)
+	console.writeln('<br/><br/>Default cofing loaded...<br/>');

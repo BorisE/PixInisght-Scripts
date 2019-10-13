@@ -22,6 +22,7 @@
 #include <pjsr/FrameStyle.jsh>
 #include <pjsr/Sizer.jsh>
 #include <pjsr/TextAlign.jsh>
+#include <pjsr/SectionBar.jsh>
 
 
 // Global switches
@@ -39,11 +40,15 @@ function AutocalibrationDialog()
    this.__base__();
 
 
-   var labelWidth1 = this.font.width( "Output format hints:" + 'T' );
+   var labelWidth1 = this.font.width( "Output format hints :" + 'T' );
    var ttStr=""; //temp str var
 
 
-   // Info Label
+   //
+   
+   // 1. Info Label
+   
+   //
    this.helpLabel = new Label(this);
    with(this.helpLabel)
    {
@@ -61,10 +66,9 @@ function AutocalibrationDialog()
 
    //
 
-   // Input dir section
+   // 2. Input dir section
 
    //
-
    this.inputDir_Edit = new Edit( this );
    this.inputDir_Edit.readOnly = true;
    this.inputDir_Edit.text = Config.InputPath;
@@ -101,10 +105,12 @@ function AutocalibrationDialog()
 
    //
 
-   // Options section
+   // 3. Options section
 
    //
 
+   // 3.1. Combobox PATH Mode
+   
    var bpsToolTip = "<p>Autocalibrate output mode.</p>" +
       "<p>It is the way <i>AutoCalibrate</i> interpret where to output final files.</p>" +
       "<p><b>AUTO</b> reserved for future</p>" +
@@ -170,8 +176,7 @@ function AutocalibrationDialog()
    this.pathMode_Sizer.addStretch();
 
 
-   //
-
+   // 3.2. CheckBox
 
    this.searchSubdirs_CheckBox = new CheckBox( this );
    this.searchSubdirs_CheckBox.text = "Search in subdirs";
@@ -189,17 +194,30 @@ function AutocalibrationDialog()
    this.searchSubdirs_Sizer.add( this.searchSubdirs_CheckBox );
    this.searchSubdirs_Sizer.addStretch();
 
+
+   this.OptionsGroupBox = new GroupBox( this );
+   this.OptionsGroupBox.title = "Options";
+   this.OptionsGroupBox.sizer = new VerticalSizer;
+   this.OptionsGroupBox.sizer.margin = 6;
+   this.OptionsGroupBox.sizer.spacing = 4;
+   this.OptionsGroupBox.sizer.add( this.pathMode_Sizer );
+   this.OptionsGroupBox.sizer.add( this.searchSubdirs_Sizer );
+
+
    //
 
-   // Process section
+   // 4. Process section
 
    //
 
+   // 4.1 Calibrate
+   
    this.ProcessCalibrate_CheckBox = new CheckBox( this );
    with (this.ProcessCalibrate_CheckBox)
    {
       text = "Calibrate";
       checked = Config.NeedCalibration;
+		minWidth = labelWidth1;
       toolTip =
       "<p>Process basic calibration + cosmetic correction.</p>" +
       "<p>Automatically search for best MasterCalibration frames in library. Good idea to set it true.</p>";
@@ -208,22 +226,69 @@ function AutocalibrationDialog()
          Config.NeedCalibration = checked;
       };
    }
+   var bpsToolTip = 
+			"<p>Specify directory where Calibration Masters are located.</p>" +
+			"<p>Format: </p>" +
+			"<p><b>... / [Vitar /] SW250 [ / bin1] / Darks -20 / 	bias-TEMP_25deg_n117.xisf</b></p>" +
+ 			"<p>				dark-TEMP_20deg-EXPTIME_1200_n55.xisf</p>" +
+ 			"<p>				dark-TEMP_20deg-EXPTIME_600.fit</p>" +
+ 			"<p>				dark-TEMP_20deg-EXPTIME_60.xisf</p>" +
+			"<p><b>... / [Vitar /] SW250 [ / bin1] / flats20180803 / flat-FILTER_B-BINNING_1_20180803.xisf</b></p>" +
+ 			"<p><br>Важные замечания:</p>" +
+	"<p>1) В иерархии две папки необязательны: имя обсерватории и бининг. Этим управляют параметры cgfUseObserverName и cgfUseBiningFolder соответственно. </p>" +
+	"<p>2) Папки и файлы подбираются на основании их имен папок/файлов, определяемых шаблонами ниже в конфигурации. Содержимое файлов не проверяется! Расширение файлов не проверяется (может быть любым!)</p>" +
+	"<p>3) Если будет найдено несколько папок/файлов подходящих под шаблон, будет использован первый найденый. Нужно следить, чтобы папки/файлы были уникальными в части ключевых эелментов, определяемых шаблонами</p>" +
+			"";
 
+   this.mastersDir_Edit = new Edit( this );
+   with (this.mastersDir_Edit)
+   {
+		readOnly = true;
+		text = Config.CalibratationMastersPath;
+		minWidth = labelWidth1;
+		toolTip = bpsToolTip;
+   }
+   
+   this.mastersDirSelect_Button = new ToolButton( this );
+   with (this.mastersDirSelect_Button)
+   {
+		icon = this.scaledResource( ":/browser/select-file.png" );
+		setScaledFixedSize( 20, 20 );
+		toolTip = bpsToolTip;
+		onClick = function()
+		   {
+			  var gdd = new GetDirectoryDialog;
+			  gdd.initialPath = Config.CalibratationMastersPath;
+			  gdd.caption = "Select directory with Calibration Masters library";
+
+			  if ( gdd.execute() )
+			  {
+				 Config.CalibratationMastersPath = gdd.directory;
+				 this.dialog.mastersDir_Edit.text = Config.CalibratationMastersPath;
+			  }
+		   };
+   }
+   
    this.ProcessCalibrate_Sizer = new HorizontalSizer;
    with (this.ProcessCalibrate_Sizer)
    {
+	  spacing = 4;
+	//margin = 6;
       addUnscaledSpacing(  this.logicalPixelsToPhysical( 4 ) );
       add( this.ProcessCalibrate_CheckBox );
-      addStretch();
+      add( this.mastersDir_Edit, 100 );
+      add( this.mastersDirSelect_Button );
+      //addStretch();
    }
 
-   //
+   // 4.2. ABE
 
    this.ProcessABE_CheckBox = new CheckBox( this );
    with (this.ProcessABE_CheckBox)
    {
       text = "ABE";
       checked = Config.NeedABE;
+	  minWidth = labelWidth1;
       toolTip =
       "<p>Apply Automatic Background Extractor for every frame.</p>" +
       "<p>Usually should be kept off. Use LocalNormalization to control background</p>";
@@ -241,13 +306,14 @@ function AutocalibrationDialog()
       addStretch();
    }
 
-   //
+   // 4.3. Register
 
    this.ProcessRegister_CheckBox = new CheckBox( this );
    with (this.ProcessRegister_CheckBox)
    {
       text = "Register";
       checked = Config.NeedRegister;
+	  minWidth = labelWidth1;
       toolTip =
       "<p>Automatically Register every frame.</p>" +
       "<p>It uses reference library for every object</p>";
@@ -257,39 +323,183 @@ function AutocalibrationDialog()
       };
    }
 
+   var bpsToolTip = 
+			"<p>Определяет папку, содержащую набор референсов по выравниюванию разных объектов.</p>" +
+			"<p>Файлы референсов должны начинаться с имени объекта за которым следует символ нижнего подчеркивания (e.g. M39_20190916_G_120s_1x1_-25degC_0.0degN_000014638.FIT).</p>" +
+			"<p>Важно: BIN в настоящий момент (v4.0) не учитывается!</p>" +
+			"";
+
+   this.regReferenceDir_Edit = new Edit( this );
+   with (this.regReferenceDir_Edit)
+   {
+		readOnly = true;
+		text = Config.RegistrationReferencesPath;
+		minWidth = labelWidth1;
+		toolTip = bpsToolTip;
+   }
+   
+   this.regReferenceDirSelect_Button = new ToolButton( this );
+   with (this.regReferenceDirSelect_Button)
+   {
+		icon = this.scaledResource( ":/browser/select-file.png" );
+		setScaledFixedSize( 20, 20 );
+		toolTip = bpsToolTip;
+		onClick = function()
+		   {
+			  var gdd = new GetDirectoryDialog;
+			  gdd.initialPath = Config.RegistrationReferencesPath;
+			  gdd.caption = "Select directory with Registration Reference Library";
+
+			  if ( gdd.execute() )
+			  {
+				 Config.RegistrationReferencesPath = gdd.directory;
+				 this.dialog.regReferenceDir_Edit.text = Config.RegistrationReferencesPath;
+			  }
+		   };
+   }
+
    this.ProcessRegister_Sizer = new HorizontalSizer;
    with (this.ProcessRegister_Sizer)
    {
+	  spacing = 4;
       addUnscaledSpacing(  this.logicalPixelsToPhysical( 4 ) );
       add( this.ProcessRegister_CheckBox );
-      addStretch();
+      add( this.regReferenceDir_Edit, 100 );
+      add( this.regReferenceDirSelect_Button );
+      //addStretch();
    }
 
-   //
+   // 4.4. Normalization
 
    this.ProcessNormalization_CheckBox = new CheckBox( this );
    with (this.ProcessNormalization_CheckBox)
    {
       text = "LocalNormalization";
       checked = Config.NeedNormalization;
+	  minWidth = labelWidth1;
       toolTip =
-      "<p>Automatically apply LocalNormalization to every frame.</p>" +
-      "<p>It uses reference library for every object, filter and exposure</p>";
+		"<p>Automatically apply LocalNormalization to every frame.</p>" +
+		"<p>It uses reference library for every object, filter and exposure</p>";
       onClick = function( checked )
       {
          Config.NeedNormalization = checked;
       };
    }
 
+   var bpsToolTip = 
+			"<p>Определяет папку, содержащую набор референсов для выравниювания фона объектов.</p>" +
+			"<p>Файлы референсов должны начинаться с имени объекта за которым следует символ нижнего подчеркивания, любые символы, потом после символа подчекривания имя фильтра и экспозиция (e.g. M39_20190916_G_120s_1x1_-25degC_0.0degN_000014638.FIT).</p>" +
+			"<p>Важно: BIN в настоящий момент (v4.0) не учитывается!</p>" +
+			"";
+
+   this.normReferenceDir_Edit = new Edit( this );
+   with (this.normReferenceDir_Edit)
+   {
+		readOnly = true;
+		text = Config.NormalizationReferencesPath;
+		minWidth = labelWidth1;
+		toolTip = bpsToolTip;
+   }
+   
+   this.regReferenceDirSelect_Button = new ToolButton( this );
+   with (this.regReferenceDirSelect_Button)
+   {
+		icon = this.scaledResource( ":/browser/select-file.png" );
+		setScaledFixedSize( 20, 20 );
+		toolTip = bpsToolTip;
+		onClick = function()
+		   {
+			  var gdd = new GetDirectoryDialog;
+			  gdd.initialPath = Config.NormalizationReferencesPath;
+			  gdd.caption = "Select directory with Normalization Reference Library";
+
+			  if ( gdd.execute() )
+			  {
+				 Config.NormalizationReferencesPath = gdd.directory;
+				 this.dialog.normReferenceDir_Edit.text = Config.NormalizationReferencesPath;
+			  }
+		   };
+   }
+
    this.ProcessNormalization_Sizer = new HorizontalSizer;
    with (this.ProcessNormalization_Sizer)
    {
+	  spacing = 4;
       addUnscaledSpacing(  this.logicalPixelsToPhysical( 4 ) );
       add( this.ProcessNormalization_CheckBox );
-      addStretch();
+      add( this.normReferenceDir_Edit, 100 );
+      add( this.regReferenceDirSelect_Button );
+      //addStretch();
    }
 
-   //
+
+	// 4.4.1. Local Normalization Scale
+	
+   var bpsToolTip = 
+			"<p>Определяет масштаб фона.</p>" +
+			"<p>Стоит попробовать 256, 512 и иногда 1024</p>" +
+			"";
+	this.normScale_SpinBox = new SpinBox( this );
+	with (this.normScale_SpinBox)
+	{
+		setFixedWidth( this.font.width( "MMMM" ) );
+		toolTip = bpsToolTip;
+		maxValue = 65535;
+		stepSize = 32;
+		minValue = 32;
+		value = Config.NormalizationScale;
+		onValueUpdated = function( value )
+		{
+			Config.NormalizationScale = value;
+		}
+	}
+
+   this.normScale_Label = new Label(this);
+   with(this.normScale_Label)
+   {
+      margin = 4;
+      text = "Scale";
+	textAlignment = TextAlign_Right|TextAlign_VertCenter;
+   }
+
+	this.normScale_Sizer = new HorizontalSizer;
+	with (this.normScale_Sizer)
+	{
+		spacing = 4;
+		addUnscaledSpacing( labelWidth1 + this.logicalPixelsToPhysical( 8 ) );
+		//add( this.normScale_Edit );
+		add( this.normScale_SpinBox );
+		add( this.normScale_Label );
+		addStretch();
+	}
+
+	//
+	
+   this.normNoScaleFlag_CheckBox = new CheckBox( this );
+   with (this.normNoScaleFlag_CheckBox)
+   {
+		text = "No scale component";
+		checked = Config.NormalizationNoScaleFlag;
+		toolTip =
+			"<p>Use only offset component of the local normalization function and limit normalization to correction of additive gradients only.</p>";
+		onClick = function( checked )
+		{
+			Config.NormalizationNoScaleFlag = checked;
+		};
+   }
+
+   this.normNoScaleFlag_Sizer = new HorizontalSizer;
+   with (this.normNoScaleFlag_Sizer)
+   {
+		spacing = 4;
+		addUnscaledSpacing( labelWidth1 + this.logicalPixelsToPhysical( 8 ) );
+		add( this.normNoScaleFlag_CheckBox );
+		addStretch();
+   }
+
+
+
+   // 
 
    this.ProcessGroupBox = new GroupBox( this );
    with (this.ProcessGroupBox)
@@ -302,6 +512,8 @@ function AutocalibrationDialog()
       sizer.add( this.ProcessABE_Sizer );
       sizer.add( this.ProcessRegister_Sizer );
       sizer.add( this.ProcessNormalization_Sizer );
+      sizer.add( this.normScale_Sizer );
+      sizer.add( this.normNoScaleFlag_Sizer );
 
    }
 
@@ -316,197 +528,6 @@ function AutocalibrationDialog()
 
 
 
-
-
-
-
-
-
-
-   //
-
-
-   this.OptionsGroupBox = new GroupBox( this );
-   this.OptionsGroupBox.title = "Options";
-   this.OptionsGroupBox.sizer = new VerticalSizer;
-   this.OptionsGroupBox.sizer.margin = 6;
-   this.OptionsGroupBox.sizer.spacing = 4;
-   this.OptionsGroupBox.sizer.add( this.pathMode_Sizer );
-   this.OptionsGroupBox.sizer.add( this.searchSubdirs_Sizer );
-
-
-   //
-
-
-      //
-   var fmtHintToolTip = "<p>Format hints allow you to override global file format settings for " +
-      "image files used by specific processes. In BatchFormatConversion, input hints change " +
-      "the way input images of some particular file formats are read.</p>" +
-      "<p>For example, you can use the \"raw\" input hint to force the DSLR_RAW format to load a pure " +
-      "raw image without applying any deBayering, interpolation, white balance or black point " +
-      "correction. Most standard file format modules support hints; each format supports a " +
-      "number of input and/or output hints that you can use for different purposes with tools and " +
-      "scripts that give you access to format hints.</p>";
-
-
-   //
-
-   var outExtToolTip = "<p>Specify a file extension to identify the output file format.</p>" +
-      "<p>Be sure the selected output format is able to write images, or the batch conversion " +
-      "process will fail upon attempting to write the first output image.</p>" +
-      "<p>Also be sure that the output format can generate images with the specified output " +
-      "sample format (see below), if you change the default setting.</p>";
-
-   this.outputExt_Label = new Label( this );
-   this.outputExt_Label.text = "Output extension:";
-   this.outputExt_Label.minWidth = labelWidth1;
-   this.outputExt_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-   this.outputExt_Label.toolTip = outExtToolTip;
-
-   this.outputExt_Edit = new Edit( this );
-   this.outputExt_Edit.text = engine.outputExtension;
-   this.outputExt_Edit.setFixedWidth( this.font.width( "MMMMMM" ) );
-   this.outputExt_Edit.toolTip = outExtToolTip;
-   this.outputExt_Edit.onEditCompleted = function()
-   {
-      // Image extensions are always lowercase in PI/PCL.
-      var ext = this.text.trim().toLowerCase();
-
-      // Use the default extension if empty.
-      // Ensure that ext begins with a dot character.
-      if ( ext.length == 0 || ext == '.' )
-         ext = DEFAULT_OUTPUT_EXTENSION;
-      else if ( !ext.startsWith( '.' ) )
-         ext = '.' + ext;
-
-      this.text = engine.outputExtension = ext;
-   };
-
-   this.options_Sizer = new HorizontalSizer;
-   this.options_Sizer.spacing = 4;
-   this.options_Sizer.add( this.outputExt_Label );
-   this.options_Sizer.add( this.outputExt_Edit );
-   this.options_Sizer.addStretch();
-
-   //
-
-   var bpsToolTip = "<p>Sample format for output images.</p>" +
-      "<p>Note that these settings are just a <i>hint</i>. The script will convert all " +
-      "input images to the specified sample format, if necessary, but it can be ignored " +
-      "by the output format if it is unable to write images with the specified bit depth " +
-      "and sample type.</p>";
-
-   this.sampleFormat_Label = new Label( this );
-   this.sampleFormat_Label.text = "Sample format:";
-   this.sampleFormat_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-   this.sampleFormat_Label.minWidth = labelWidth1;
-   this.sampleFormat_Label.toolTip = bpsToolTip;
-
-   this.sampleFormat_ComboBox = new ComboBox( this );
-   this.sampleFormat_ComboBox.addItem( "Same as input images" );
-   this.sampleFormat_ComboBox.addItem( "8-bit unsigned integer" );
-   this.sampleFormat_ComboBox.addItem( "16-bit unsigned integer" );
-   this.sampleFormat_ComboBox.addItem( "32-bit unsigned integer" );
-   this.sampleFormat_ComboBox.addItem( "32-bit IEEE 754 floating point" );
-   this.sampleFormat_ComboBox.addItem( "64-bit IEEE 754 floating point" );
-   this.sampleFormat_ComboBox.toolTip = bpsToolTip;
-   this.sampleFormat_ComboBox.onItemSelected = function( index )
-   {
-      switch ( index )
-      {
-      case 0:
-         engine.bitsPerSample = 0; // same as input
-         break;
-      case 1:
-         engine.bitsPerSample = 8;
-         engine.floatSample = false;
-         break;
-      case 2:
-         engine.bitsPerSample = 16;
-         engine.floatSample = false;
-         break;
-      case 3:
-         engine.bitsPerSample = 32;
-         engine.floatSample = false;
-         break;
-      case 4:
-         engine.bitsPerSample = 32;
-         engine.floatSample = true;
-         break;
-      case 5:
-         engine.bitsPerSample = 64;
-         engine.floatSample = true;
-         break;
-      default: // ?
-         break;
-      }
-   };
-
-   this.sampleFormat_Sizer = new HorizontalSizer;
-   this.sampleFormat_Sizer.spacing = 4;
-   this.sampleFormat_Sizer.add( this.sampleFormat_Label );
-   this.sampleFormat_Sizer.add( this.sampleFormat_ComboBox );
-   this.sampleFormat_Sizer.addStretch();
-
-   //
-
-   this.outputHints_Label = new Label( this );
-   this.outputHints_Label.text = "Output format hints:";
-   this.outputHints_Label.minWidth = labelWidth1;
-   this.outputHints_Label.textAlignment = TextAlign_Right|TextAlign_VertCenter;
-   this.outputHints_Label.toolTip = fmtHintToolTip;
-
-   this.outputHints_Edit = new Edit( this );
-   this.outputHints_Edit.text = engine.outputHints;
-   this.outputHints_Edit.toolTip = fmtHintToolTip;
-   this.outputHints_Edit.onEditCompleted = function()
-   {
-       // Format hints are case-sensitive.
-       var hint = this.text.trim();
-       this.text = engine.outputHints = hint;
-   };
-
-   this.outputHints_Sizer = new HorizontalSizer;
-   this.outputHints_Sizer.spacing = 4;
-   this.outputHints_Sizer.add( this.outputHints_Label );
-   this.outputHints_Sizer.add( this.outputHints_Edit, 100 );
-
-   //
-
-   this.overwriteExisting_CheckBox = new CheckBox( this );
-   this.overwriteExisting_CheckBox.text = "Overwrite existing files";
-   this.overwriteExisting_CheckBox.checked = engine.overwriteExisting;
-   this.overwriteExisting_CheckBox.toolTip =
-      "<p>Allow overwriting of existing image files.</p>" +
-      "<p><b>* Warning *</b> This option may lead to irreversible data loss - enable it at your own risk.</p>";
-   this.overwriteExisting_CheckBox.onClick = function( checked )
-   {
-      engine.overwriteExisting = checked;
-   };
-
-   this.overwriteExisting_Sizer = new HorizontalSizer;
-   this.overwriteExisting_Sizer.addUnscaledSpacing( labelWidth1 + this.logicalPixelsToPhysical( 4 ) );
-   this.overwriteExisting_Sizer.add( this.overwriteExisting_CheckBox );
-   this.overwriteExisting_Sizer.addStretch();
-
-   //
-
-   this.outputOptions_GroupBox = new GroupBox( this );
-   //this.outputOptions_GroupBox.title = "Basic Options";
-   this.outputOptions_GroupBox.sizer = new VerticalSizer;
-   this.outputOptions_GroupBox.sizer.margin = 6;
-   this.outputOptions_GroupBox.sizer.spacing = 4;
-   this.outputOptions_GroupBox.sizer.add( this.options_Sizer );
-   this.outputOptions_GroupBox.sizer.add( this.sampleFormat_Sizer );
-   this.outputOptions_GroupBox.sizer.add( this.outputHints_Sizer );
-   this.outputOptions_GroupBox.sizer.add( this.overwriteExisting_Sizer );
-
-
-   this.TestSection = new SectionBar;
-   this.TestSection.setTitle( "Misc Options" );
-   this.TestSection.setSection( this.outputOptions_GroupBox );
-
-
    //
 
    //Instance button
@@ -516,7 +537,7 @@ function AutocalibrationDialog()
    this.newInstance_Button.onMousePress = function()
    {
       this.hasFocus = true;
-      exportParameters();
+      Config.exportParameters();
       this.pushed = false;
       this.dialog.newInstance();
    };
@@ -566,9 +587,6 @@ function AutocalibrationDialog()
       add(this.ProcessSection );
       add(this.ProcessGroupBox );
 
-      add(this.TestSection );
-      add(this.outputOptions_GroupBox );
-
 
       //add(this.clearConsoleCheckBox_Sizer);
       addSpacing(10);
@@ -586,7 +604,7 @@ function AutocalibrationDialog()
 
 
 //main
-function main()
+function mainGUI()
 {
    if (!DEBUG)
       console.hide();
@@ -666,5 +684,7 @@ function main()
    Config.saveSettings();
 }
 
+#ifndef Autocalibrate_Main
+mainGUI();
+#endif
 
-main();

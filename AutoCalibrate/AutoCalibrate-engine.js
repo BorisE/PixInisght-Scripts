@@ -13,9 +13,18 @@
 #ifndef AutoCalibrate_Include_js
 #include "AutoCalibrate-include.js"    			// Constants, glbal vars
 #endif
+
+#ifndef AutoCalibrate_settings_js
+#include "AutoCalibrate-settings.js"      // Settings
+var Config = new ConfigData();            //variable for global access to script data
+                                          //Need to be in front of other declarations
+console.noteln('Creating again Config');
+#endif
+
 #ifndef AutoCalibrate_config_default_js
 #include "AutoCalibrate-config-default.js"     // Config part.
 #endif
+
 
 #include <pjsr/DataType.jsh>
 #include <pjsr/UndoFlag.jsh>
@@ -44,6 +53,7 @@ function AutoCalibrateEngine()
 
 
    this.BaseCalibratedOutputPath=""; //base path
+   this.NeedToCopyToFinalDirFlag = false;
 
 	// =========================================================
 	// 	Начало исполнения
@@ -56,25 +66,22 @@ function AutoCalibrateEngine()
 		console.show();
 
 		//Dispay current config
-      console.noteln( TITLE, " script started. Version: ", VERSION, " Date: ", COMPILE_DATE );
-      console.noteln( "PixInsight Version: ", coreId, ", ", coreVersionBuild, ", ", coreVersionMajor,
-                      ", ", coreVersionMinor, ", ", coreVersionRelease );
-      console.noteln( "<end><cbr><br>",
+		console.noteln( "<end><cbr><br>",
 						"************************************************************" );
 		console.noteln( "* Configuration ");
 		console.noteln( "************************************************************" );
-		console.noteln('  Search path: ' + cfgInputPath);
-		console.noteln('  Path Mode: ' + cfgPathMode);
+		console.noteln('  Search path: ' + Config.InputPath);
+		console.noteln('  Path Mode: ' + Config.PathMode);
 
 		//console.noteln('  Output to relative path: ' + cfgUseRelativeOutputPath);
 		//console.noteln('  Create Object Folder: ' + cfgCreateObjectFolder);
 		//if (!cfgUseRelativeOutputPath) console.writeln('  Output path: ' + cfgOutputPath);
-		console.noteln('  Calibrate Images: ' + cfgNeedCalibration);
-		if (cfgNeedCalibration) console.writeln('  Masters library path: ' + cfgCalibratationMastersPath);
-		console.noteln('  Register Images: ' + cfgNeedRegister);
-		if (cfgNeedRegister) console.writeln('  Registration Reference path: ' + cfgRegistrationReferencesPath);
-		console.noteln('  Normalize Images: ' + cfgNeedNormalization);
-		if (cfgNeedNormalization) console.writeln('  Normalization Reference path: ' + cfgNormalizationReferencesPath);
+		console.noteln('  Calibrate Images: ' + Config.NeedCalibration);
+		if (Config.NeedCalibration) console.writeln('  Masters library path: ' + Config.CalibratationMastersPath);
+		console.noteln('  Register Images: ' + Config.NeedRegister);
+		if (Config.NeedRegister) console.writeln('  Registration Reference path: ' + Config.RegistrationReferencesPath);
+		console.noteln('  Normalize Images: ' + Config.NeedNormalization);
+		if (Config.NeedNormalization) console.writeln('  Normalization Reference path: ' + Config.NormalizationReferencesPath);
 		console.writeln();
 
 		// Starting processing
@@ -99,7 +106,7 @@ function AutoCalibrateEngine()
 
 		exit;
 
-		mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath + (cgfUseBiningFolder? "/bin" + fileData.bin : "")  + "/" + fileData.instrument, fileData);
+		mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath + (cgfUseBiningFolder? "/bin" + fileData.bin : "")  + "/" + fileData.instrument, fileData);
 		exit;
 
 		registerFits(['c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M63_20190407_B_600s_1x1_-30degC_0.0degN_000011919.FIT']);
@@ -131,9 +138,9 @@ function AutoCalibrateEngine()
 		 * Производит поиск исходных (необработанных) FITS файлов и их обработка по цепочке калибровки.
 		 * Также является 1ым проходом перед поиском недостающих файлов в цепочке калибровки (если включено)
 		 * **************************************************************************************************************/
-		this.searchDirectory(  cfgInputPath   );
+		this.searchDirectory(  Config.InputPath   );
 
-      if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+      if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
          this.MoveMostAdvanced();
 
 		//Finish 1st pass
@@ -207,7 +214,7 @@ function AutoCalibrateEngine()
 
                // if this is Directory and recursion is enabled
 				   if ( objFileFind.isDirectory ) {
-					  if (	cfgSearchInSubDirs &&
+					  if (	Config.SearchInSubDirs &&
 							      objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
 							      cfgSkipDirs.indexOf(objFileFind.name) === -1 &&
 							      DirNameContains(objFileFind.name, cfgSkipDirsContains) !==true
@@ -232,15 +239,15 @@ function AutoCalibrateEngine()
 					  {
 
 						 // Set output folders (depends on config)
-						 if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+						 if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 						 {
-							this.BaseCalibratedOutputPath = cfgInputPath + "/" + cfgOutputPath;
+							this.BaseCalibratedOutputPath = Config.InputPath + "/" + cfgOutputPath;
 						 }
-						 else if (cfgPathMode == PATHMODE.ABSOLUTE)
+						 else if (Config.PathMode == PATHMODE.ABSOLUTE)
 						 {
 							this.BaseCalibratedOutputPath = cfgOutputPath ;
 						 }
-						 else if (cfgPathMode == PATHMODE.RELATIVE || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+						 else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
 						 {
 							this.BaseCalibratedOutputPath = searchPath ;
 						 }
@@ -260,7 +267,7 @@ function AutoCalibrateEngine()
 							Console.noteln( '* ['  + this.FileTotalCount + '] (Dir ' + this.DirCount + '|File ' + FileCount + ') Start file processings: '+ searchPath +'/'+ objFileFind.name);
 							console.noteln( "************************************************************" );
 
-                     NeedToCopyToFinalDirFlag = true;
+							this.NeedToCopyToFinalDirFlag = true;
 
 							//Process by full pipeline
 							approvingFiles (
@@ -474,15 +481,15 @@ function AutoCalibrateEngine()
                fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
 
 
-               if (cfgPathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+               if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
                {
-               this.BaseCalibratedOutputPath = cfgInputPath + "/" + cfgOutputPath;
+               this.BaseCalibratedOutputPath = Config.InputPath + "/" + cfgOutputPath;
                }
-               else if (cfgPathMode == PATHMODE.ABSOLUTE)
+               else if (Config.PathMode == PATHMODE.ABSOLUTE)
                {
                   FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + cfgFinalsDirName;
                }
-               else if (cfgPathMode == PATHMODE.RELATIVE || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+               else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
                {
                this.BaseCalibratedOutputPath = searchPath ;
                }
@@ -673,7 +680,7 @@ function AutoCalibrateEngine()
 		  return false;
 		}
 
-	   if (!cfgNeedCalibration) {
+	   if (!Config.NeedCalibration) {
 		  debug("Calibration is off", dbgNormal);
 		  return fileName;
 		}
@@ -686,7 +693,7 @@ function AutoCalibrateEngine()
 
 	   //Set calibrated output path
 	   CalibratedOutputPath = this.BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
@@ -715,7 +722,7 @@ function AutoCalibrateEngine()
 		  }
 
 		  // Get Masters files names
-		  mastersFiles = matchMasterCalibrationFiles (cfgCalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
+		  mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
 		  if (! mastersFiles)
 		  {
 			 Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
@@ -833,7 +840,7 @@ function AutoCalibrateEngine()
 		  debug("Skipping Cosmetic Correction", dbgNormal);
 		  return fileName;
 		}
-	   if (!cfgNeedCalibration) {
+	   if (!Config.NeedCalibration) {
 		  return fileName;
 		  debug("Cosmetic correction is off (with calibration)", dbgNormal);
 	   }
@@ -847,7 +854,7 @@ function AutoCalibrateEngine()
 
 	   //Set cosmetized output path
 	   CosmetizedOutputPath = this.BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
@@ -950,7 +957,7 @@ function AutoCalibrateEngine()
 		  return false;
 		}
 
-	   if (!cfgNeedABE) {
+	   if (!Config.NeedABE) {
 		  debug ("ABE processing is off", dbgNormal);
 		  return files;
 	   }
@@ -969,7 +976,7 @@ function AutoCalibrateEngine()
 
 	   // Set folder path
 	   ABEOutputPath = this.BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
@@ -1130,12 +1137,12 @@ function AutoCalibrateEngine()
 		  return false;
 		}
 
-	   if (!cfgNeedRegister) {
+	   if (!Config.NeedRegister) {
 		   debug ("Registration is off", dbgNormal);
 
-			if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag) {
+			if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
             requestToCopy.push(files);
-            NeedToCopyToFinalDirFlag = false;
+            this.NeedToCopyToFinalDirFlag = false;
 			}
 
         return files;
@@ -1156,7 +1163,7 @@ function AutoCalibrateEngine()
 
 	   // Set registration folder
 	   RegisteredOutputPath = this.BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
          var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
          fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
@@ -1198,9 +1205,9 @@ function AutoCalibrateEngine()
             {
                Console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
 
-               if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag) {
+               if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
                   requestToCopy.push(files); //mark as final, because no further processing would be
-                  NeedToCopyToFinalDirFlag = false;
+                  this.NeedToCopyToFinalDirFlag = false;
                }
                //return files; // мне кажется, тут лучше вернуть false. Проверим
                return false;
@@ -1336,11 +1343,11 @@ function AutoCalibrateEngine()
 		  return false;
 		}
 
-		if (!cfgNeedNormalization) {
+		if (!Config.NeedNormalization) {
 			debug ("Normalization is off", dbgNormal);
-			if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag) {
+			if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
             requestToCopy.push(files);
-            NeedToCopyToFinalDirFlag = false;
+            this.NeedToCopyToFinalDirFlag = false;
 			}
 		   return true;
 	   }
@@ -1359,7 +1366,7 @@ function AutoCalibrateEngine()
 
       // Set normalization folder
       NormalizedOutputPath = this.BaseCalibratedOutputPath;
-      if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+      if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
       {
          var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
          fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
@@ -1401,10 +1408,10 @@ function AutoCalibrateEngine()
             if (!referenceFile)
             {
                Console.warningln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + fileData.filter + "</b> and exposure <b>" + fileData.exposure + "s</b>. Skipping LocalNormalization");
-               if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag)
+               if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag)
                {
                   requestToCopy.push(files);
-                  NeedToCopyToFinalDirFlag = false; //this is final
+                  this.NeedToCopyToFinalDirFlag = false; //this is final
                }
 
               return files;
@@ -1418,8 +1425,8 @@ function AutoCalibrateEngine()
             Console.noteln ("Normalization of " + files[i]);
 
             var P = new LocalNormalization;
-            P.scale = cfgNormalizationScale;
-            P.noScale = cfgNormalizationNoScaleFlag;
+            P.scale = Config.NormalizationScale;
+            P.noScale = Config.NormalizationNoScaleFlag;
             P.rejection = true;
             P.backgroundRejectionLimit = 0.050;
             P.referenceRejectionThreshold = 0.500;
@@ -1479,10 +1486,10 @@ function AutoCalibrateEngine()
          }
 	   }
 
-      if (cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && NeedToCopyToFinalDirFlag)
+      if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag)
       {
          requestToCopy.push(newFiles);
-         NeedToCopyToFinalDirFlag = false; //Normalization is final
+         this.NeedToCopyToFinalDirFlag = false; //Normalization is final
       }
 
 	   return false;
@@ -1525,7 +1532,7 @@ function AutoCalibrateEngine()
 				   // if this is Directory
 				   if ( objFileFind.isDirectory )
 				   {
-					  debug('found folder: ' + objFileFind.name, dbgNotice);
+					  debug('found folder: ' + objFileFind.name + "", dbgNotice);
 
 					  //Test if this is folder with darks
 					  var matches = objFileFind.name.match(darks_dir_pattern);
@@ -1575,7 +1582,7 @@ function AutoCalibrateEngine()
 				// if not upper dir links
 				if ( objFileFind.name != "." && objFileFind.name != "..")
 				{
-				   // if this is Directory
+				   // if this is not a Directory
 				   if ( !objFileFind.isDirectory )
 				   {
 					  debug('found file: ' + objFileFind.name, dbgNotice);
@@ -1595,6 +1602,22 @@ function AutoCalibrateEngine()
 						 {
 							debug("Skipping bias file because of bin" + matches[2]+ " instead of targeted bin" +fileData.bin , dbgNotice);
 						 }
+					  } else {
+						  var matches = objFileFind.name.match(bias_wobin_file_pattern);
+						  if ( matches )
+						  {
+							 debug("Found bias wo bin, considering bin = 1",dbgNotice);
+							 //Use only target bin
+							 if (1 == fileData.bin)
+							 {
+								bias_file_name=objFileFind.name;
+								debug("Bias file for targeted bin found: " + bias_file_name, dbgNormal);
+							 }
+							 else
+							 {
+								debug("Skipping bias file because of assumed by default bin 1 doesn't equal to targeted bin" +fileData.bin , dbgNotice);
+							 }
+						  }
 					  }
 
 					  //Test if this is dark
@@ -1613,15 +1636,33 @@ function AutoCalibrateEngine()
 						 {
 							debug("Skipping dark file because of bin" + matches[4]+ " instead of targeted bin" +fileData.bin , dbgNotice);
 						 }
+					  } else {
+						  var matches = objFileFind.name.match(darks_wobin_file_pattern);
+						  if ( matches )
+						  {
+							 debug("Found dark wo bin, considering bin = 1",dbgNotice);
+							 //Use only target bin
+							 if (1 == fileData.bin)
+							 {
+								darkexplib[darkexplib.length]=matches[3];
+								darkexplib_filename[darkexplib_filename.length] = objFileFind.name;
+								debug("Dark file found for exposure " + darkexplib[darkexplib.length-1] + "s" , dbgNormal);
+							 }
+							 else
+							 {
+								debug("Skipping dark file because of assumed by default bin 1 doesn't equal to targeted bin" +fileData.bin , dbgNotice);
+							 }
+						  }
 					  }
 				   }
 				}
 			 }
 			 while ( objFileFind.next() );
 	   }
+	   debug ("Found " + (bias_file_name.length > 0 ? 1 : 0) + " bias file and " +darkexplib.length+" dark file", dbgNotice);
 
 	   // Match nearest exposure to FITS
-	   debug ("Matching nearest exposure for FITS " +fileData.duration + "s in library through "+darkexplib.length+" values", dbgNotice);
+	   debug ("Matching nearest exposure for FITS " +fileData.duration + "sec in library through "+darkexplib.length+" values", dbgNotice);
 	   var mindiff=100000, nearest_exposure=0, darkexplib_filename_nearest="";
 	   for (i = 0; i < darkexplib.length; i++)
 	   {
@@ -1810,9 +1851,9 @@ function AutoCalibrateEngine()
 	   var templib=[], templib_dirname = []; //empty array
 
 		// Begin search for temp libraries
-	   debug("Scaning refernce library for available references in " + cfgRegistrationReferencesPath + " ...", dbgNormal);
+	   debug("Scaning refernce library for available references in " + Config.RegistrationReferencesPath + " ...", dbgNormal);
 	   var referenceFile="";
-		if ( objFileFind.begin( cfgRegistrationReferencesPath + "/*" ) )
+		if ( objFileFind.begin( Config.RegistrationReferencesPath + "/*" ) )
 		{
 			 do
 			 {
@@ -1824,8 +1865,8 @@ function AutoCalibrateEngine()
 				   {
 					  debug('found file: ' + objFileFind.name, dbgNotice);
 
-					  //Test if this is bias
-					  var registerreference_file_pattern = new RegExp('^' + objectname + '[- _].*','i'); 	// +? non-greedy modifier;
+					  //Test if this is reference file
+					  var registerreference_file_pattern = new RegExp('^' + objectname + '_.*','i'); 	// +? non-greedy modifier;
 					  var matches = objFileFind.name.match(registerreference_file_pattern);
 					  if ( matches )
 					  {
@@ -1839,7 +1880,7 @@ function AutoCalibrateEngine()
 			 while ( objFileFind.next() );
 	   }
 
-	   return  ( referenceFile == "" ? false : cfgRegistrationReferencesPath + "/" + referenceFile );
+	   return  ( referenceFile == "" ? false : Config.RegistrationReferencesPath + "/" + referenceFile );
 	}
 
 
@@ -1864,9 +1905,9 @@ function AutoCalibrateEngine()
 	   var templib=[], templib_dirname = []; //empty array
 
 		// Begin search for temp libraries
-	   debug("Scaning refernce library for available references in " + cfgNormalizationReferencesPath + " ...", dbgNormal);
+	   debug("Scaning refernce library for available references in " + Config.NormalizationReferencesPath + " ...", dbgNormal);
 	   var referenceFile="";
-		if ( objFileFind.begin( cfgNormalizationReferencesPath + "/*" ) )
+		if ( objFileFind.begin( Config.NormalizationReferencesPath + "/*" ) )
 		{
 			 do
 			 {
@@ -1879,8 +1920,8 @@ function AutoCalibrateEngine()
 					  debug('found file: ' + objFileFind.name, dbgNotice);
 
 					  //Test if this is bias
-					  var normalizationreference_file_pattern = new RegExp('^' + objectname + '[- _].*_' + filtername + '_' + exposure + 's_','i'); 	// +? non-greedy modifier;
 					  //Console.writeln(normalizationreference_file_pattern);
+					  var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '_' + exposure + 's.*','i'); 	// +? non-greedy modifier;
 					  var matches = objFileFind.name.match(normalizationreference_file_pattern);
 					  if ( matches )
 					  {
@@ -1894,7 +1935,7 @@ function AutoCalibrateEngine()
 			 while ( objFileFind.next() );
 	   }
 
-	   return  ( referenceFile == "" ? false : cfgNormalizationReferencesPath + "/" + referenceFile );
+	   return  ( referenceFile == "" ? false : Config.NormalizationReferencesPath + "/" + referenceFile );
 	}
 
 
@@ -1943,7 +1984,7 @@ function AutoCalibrateEngine()
 
 	   // Create normalization folder
 	   ApprovedOutputPath = this.BaseCalibratedOutputPath;
-	   if (cfgPathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || cfgPathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || cfgPathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+	   if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 	   {
 		  var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);

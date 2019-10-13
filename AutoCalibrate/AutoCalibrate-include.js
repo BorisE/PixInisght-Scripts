@@ -131,7 +131,18 @@ function getFILEARRPrecedingName(property)
 function debug(st, level = dbgCurrent)
 {
    if (cfgDebugEnabled && level <= cfgDebugLevel)
-      console.writeln (st);
+   {
+		if (level == dbgNotice) 
+		{
+			console.write ("<sub>");
+			console.write (st);
+			console.writeln ("</sub>");
+		}
+		else
+		{
+			console.writeln (st);
+		}
+   }
 }
 
 
@@ -155,7 +166,7 @@ function renameCopyFit(fileName)
       file.duration +'s';
    console.writeln('.. to: '+ file.dst);
 
-   if (cfgNeedCalibration) {
+   if (Config.NeedCalibration) {
       // удаляю _с файл
       File.remove(fileName.replace(/_c_cc\.fit$/, '_c.fit'));
    }
@@ -176,7 +187,7 @@ function renameCopyFit(fileName)
       cfgOutputPath +'/'+ file.object +'/'+ file.filter +'/cc/'+ file.dst +'_c_cc.fit'
    );
 
-   if (cfgNeedCalibration) {
+   if (Config.NeedCalibration) {
       console.writeln('move: '+ fileName.replace(/_c_cc\.fit$/, '.fit') +' to: '+cfgOutputPath +'/'+ file.object +'/'+ file.filter +'/src/'+ file.dst +'.fit');
       File.move(
          fileName.replace(/_c_cc\.fit$/, '.fit'),

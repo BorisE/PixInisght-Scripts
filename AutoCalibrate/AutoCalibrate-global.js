@@ -2,19 +2,9 @@
 #define AutoCalibrate_Global_js
 #endif
 
-#feature-id Batch Processing > AutoCalibration
-
-#feature-info  An automated calibration, cosmetic and registration<br/>\
-   <br/> \
-   @todo \
-   <br/> \
-   Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko
-
-#feature-icon  AutoCalibration.xpm
-
 #define TITLE "AutoCalibration"
-#define VERSION "4.0alpha3"
-#define COMPILE_DATE "2019/10/05"
+#define VERSION "4.0"
+#define COMPILE_DATE "2019/10/13"
 
 #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
 #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -29,7 +19,15 @@ Version History
 
 TODO:
     - добавить ABE в мониторинг второго прохода (надо ли это второй проход?!)
-   - графическая оболочка и сохранение параметров в PI
+
+v 4.0 [2019/10/13]
+	- GUI: basic parameters can be directly specified
+	- GUI: saving instance, saving in Settings DB
+	- Engine: try also to find Calibration Masters without specified BIN
+	- Engine: debug for notice output slighltly changed
+
+v 4.0alpha4 [2019/10/10]
+	- Improving GUI
 
 v 4.0alpha2 [2019/10/05]
 	- Running from GUI

@@ -81,7 +81,7 @@ v 2.0 beta5 [2019/08/08](все еще тестируется)
                        Выравнивание, если есть ref.fit
 */
 
-#feature-id Batch Processing > AutoCalibration
+#feature-id Batch Processing > AutoCalibrationCMD
 
 #feature-info  An automated calibration, cosmetic and registration<br/>\
    <br/> \
@@ -110,14 +110,19 @@ v 2.0 beta5 [2019/08/08](все еще тестируется)
 //////////////////////////////////////////
 //#include "AutoCalibrate-config.js"     // Конкретный config. Можно просто в тексте определить переменные
 
-cfgInputPath = 'e:/DSlrRemote/+M77/test'; // без финального "/" (@todo убрать. если есть)
+Config.InputPath = 'e:/DSlrRemote/+M77/test'; // без финального "/" (@todo убрать. если есть)
 cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
-cfgPathMode = PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER;
+Config.PathMode = PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER;
 cfgUseSecnodPass = false;
-cfgNeedABE=true;
+Config.NeedABE =true;
 
 //////////////////////////////////////////
+console.noteln( TITLE, " script started. Version: ", VERSION, " Date: ", COMPILE_DATE );
+console.noteln( "PixInsight Version: ", coreId, ", ", coreVersionBuild, ", ", coreVersionMajor,
+			  ", ", coreVersionMinor, ", ", coreVersionRelease );
+
+
 var Engine = new AutoCalibrateEngine();
 Engine.Process();
 //////////////////////////////////////////
