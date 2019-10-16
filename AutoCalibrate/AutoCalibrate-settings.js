@@ -7,6 +7,7 @@
 function ConfigData()
 {
 	//ConfigFields
+	
 	this.InputPath = ""; //cfgInputPath
 	this.PathMode = 1; //cfgPathMode
 	this.SearchInSubDirs = true;	//cfgSearchInSubDirs

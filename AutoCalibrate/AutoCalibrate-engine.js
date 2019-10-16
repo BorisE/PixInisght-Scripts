@@ -255,6 +255,8 @@ function AutoCalibrateEngine()
 						 {
 							this.BaseCalibratedOutputPath = cfgOutputPath ;
 						 }
+						 debug ("BaseCalibratedOutputPath: " + this.BaseCalibratedOutputPath, dbgNotice);
+
 
 
 						 // Check if file still NOT CALIBRATED and Populate Array
@@ -722,7 +724,7 @@ function AutoCalibrateEngine()
 		  }
 
 		  // Get Masters files names
-		  mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
+		  var mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
 		  if (! mastersFiles)
 		  {
 			 Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");

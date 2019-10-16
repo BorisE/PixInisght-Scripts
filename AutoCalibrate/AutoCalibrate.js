@@ -8,6 +8,7 @@
 
 #feature-icon  AutoCalibration.xpm
 
+//File id
 #define Autocalibrate_Main
 
 // Global switches
@@ -15,22 +16,21 @@
 #define DEBUG true
 #endif
 
-
 // Includes
 #ifndef AutoCalibrate_Global_js
-#include "AutoCalibrate-global.js"        // Ver, Title and other info
+#include "AutoCalibrate-global.js"			// Ver, Title and other info
 #endif
 #ifndef AutoCalibrate_Include_js
-#include "AutoCalibrate-include.js"    			// Constants, glbal vars
+#include "AutoCalibrate-include.js"    		// Constants, glbal vars, lib functions
 #endif
 #ifndef AutoCalibrate_settings_js
-#include "AutoCalibrate-settings.js"      // Settings
+#include "AutoCalibrate-settings.js"		// Settings object
 #endif
-var Config = new ConfigData();            //variable for global access to script data
-                                          //Need to be in front of other declarations
+var Config = new ConfigData();          	// Variable for global access to script data
+											// Need to be in front of other declarations
 
 #ifndef AutoCalibrate_config_default_js
-#include "AutoCalibrate-config-default.js"     // Load default config
+#include "AutoCalibrate-config-default.js"     // Load default config values
 #endif
 
 

@@ -9,6 +9,8 @@
 #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
 #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
 
+#define SETTINGS_KEY_BASE  "AutoCalibrate/"
+
 /*
    Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
    Developed 2019 by Boris Emchenko
@@ -18,7 +20,10 @@
 Version History
 
 TODO:
-    - добавить ABE в мониторинг второго прохода (надо ли это второй проход?!)
+    - добавить в диалог параметр для Absolut Path
+	- перевести весь config-defalut в объект Config.loadDefafultValues
+	- проверить, что -CMD тоже работает
+	- добавить ABE в мониторинг второго прохода (надо ли это второй проход?!)
 
 v 4.0 [2019/10/13]
 	- GUI: basic parameters can be directly specified
@@ -104,4 +109,3 @@ v 2.0 beta5 [2019/08/08](все еще тестируется)
                        Выравнивание, если есть ref.fit
 */
 
-#define SETTINGS_KEY_BASE  "AutoCalibrate/"
