@@ -153,7 +153,7 @@ calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/flat-'+ file.filter +'.
  ... / [Vitar /] SW250 [ / bin1] / flats20180803 / flat-FILTER_B-BINNING_1_20180803.xisf
 
 Важные замечания:
-	1) В иерархии две папки необязательны: имя обсерватории и бининг. Этим управляют параметры cgfUseObserverName и cgfUseBiningFolder соответственно. 
+	1) В иерархии две папки необязательны: имя обсерватории и бининг. Этим управляют параметры Config.UseObserverName и Config.UseBiningFolder соответственно. 
 	2) Папки и файлы подбираются на основании их имен папок/файлов, определяемых шаблонами ниже в конфигурации. Содержимое файлов не проверяется! Расширение файлов не проверяется (может быть любым!)
 	3) Если будет найдено несколько папок/файлов подходящих под шаблон, будет использован первый найденый. Нужно следить, чтобы папки/файлы были уникальными в части ключевых эелментов, определяемых шаблонами
  
@@ -163,7 +163,7 @@ calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/flat-'+ file.filter +'.
 * 	2. OUTPUT OF CALIBRATED FILES 
 ******************************************************************************************************
 Возможны 3 схемы.
-Опредедяется параметром cfgUseRelativeOutputPath и cfgCreateObjectFolder
+Опредедяется параметром cfgUseRelativeOutputPath ???? и cfgCreateObjectFolder ????
 
 Схема 1. Относительная
 
@@ -176,7 +176,7 @@ calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/flat-'+ file.filter +'.
 				/ registered 	/ registered files
 
 Схема 2. Относительная с группировкой по объекту
-			Разновидность схемы 1, когда включен параметр cfgCreateObjectFolder	= true
+			Разновидность схемы 1, когда включен параметр cfgCreateObjectFolder ??????	= true
 			
  path to file 	/ input FITS file
 				/ objectname 	/ calibrated 	/ calibrated FITS file
@@ -187,8 +187,8 @@ calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/flat-'+ file.filter +'.
 Схема 3. Абсолютная, старая (НЕ ФАКТ, ЧТО РАБОТАЕТ!!!)
 
 	calibrated FITS file -	будет храниться в той же папке, где и исходный
-	cosmetics corrected FITS file - будет хранитсья в папке cfgOutputPath/calibrated
-	debayerd corrected FITS file - будет хранитсья в папке cfgOutputPath/debayered 
+	cosmetics corrected FITS file - будет хранитсья в папке Config.OutputPath/calibrated
+	debayerd corrected FITS file - будет хранитсья в папке Config.OutputPath/debayered 
 
 ******************************************************************************************************
 * 	3. COSMETIC CORRECTION ICONS 
@@ -198,10 +198,10 @@ calibratePath +'/'+ file.instrument +'/bin'+ file.bin +'/flat-'+ file.filter +'.
 Они должны назывтаь в следующем формате: 
 	'cosmetic_наблюдатель_телескоп_bin1_длинаэкспозиции' (Сosmetic_Vitar_SW250_bin1_600)
 
-если отключено cgfUseObserverName и cgfUseBiningFolder:
+если отключено Config.UseObserverName и Config.UseBiningFolder:
 	'cosmetic_телескоп_длинаэкспозиции' (Сosmetic_SW250_600)
 
-если отключено cgfUseExposureInCosmeticsIcons то вообще будет:
+если отключено Config.UseExposureInCosmeticsIcons то вообще будет:
 	'Сosmetic_телескоп_' (Сosmetic_SW250)
 Использую именно такую конфигурацию
 

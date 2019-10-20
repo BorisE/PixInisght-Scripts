@@ -4,8 +4,7 @@
 
 #define DEFAULT_EXTENSION     ".fit"
 
-/*
-//////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 /*
 			Конфигурация
 */
@@ -18,6 +17,7 @@ Config.NeedCalibration = true;		// КАЛИБРОВАТЬ?
 Config.NeedABE = false; 			// РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = true; 		// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
 Config.NeedNormalization = true; 	// НОРМАЛИЗОВАТЬ ФОН?
+Config.NeedApproving = true; 		// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ? Пока не работает (глюк PI?)
 
 // Библиотеки калибровки/референосов
 Config.CalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
@@ -25,107 +25,78 @@ Config.RegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // 
 Config.NormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/"  //Папка с библиотекой референсов для выравнивания фона
 
 
-// Параметры для Local Normalization
-Config.NormalizationScale = DEFAULT_NORMALIZATION_SCALE; 	
-Config.NormalizationNoScaleFlag = true;						
-
-
-
-
-
-
-
 //ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
 //В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
 if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.AUTO || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-	var cfgOutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
+	Config.OutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
 //В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
 }else if (Config.PathMode == PATHMODE.ABSOLUTE) {
-	var cfgOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration'; // без финального "/" (@todo убрать. если есть)
+	Config.OutputPath = 'e:/DSlrRemote'; // без финального "/" (@todo убрать. если есть)
 //Иначе - можно игнорировать
 }else {
-	var cfgOutputPath = '';
+	Config.OutputPath = '';
 }
 
-var cfgFinalsDirName = "Results";
-
-
-
-
-
-
-
-// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ?
-var cfgNeedApproving = true;
-
-//ИСПОЛЬЗОВАТЬ ВТОРОЙ ПРОХОД
-var cfgUseSecnodPass = true; //вспомнить бы, для чего я это делал :)
 
 //Переделывать ли найденные файлы
-var cfgSkipExistingFiles = true; //Перед запуском процесса проверять, существует ли файл и пропускать если да
-var cfgOverwriteAllFiles = true; //НИКОГДА НЕ ВКЛЮЧАТЬ!!! иначе PI будет создавать дубли по кругу пока место не закончится
+Config.SkipExistingFiles = true; //Перед запуском процесса проверять, существует ли файл и пропускать если да
+Config.OverwriteAllFiles = true; //Настройка для процессов PI. Пока не придумал ситуацию, в которой его нужно было бы отключить
+
+//ИСПОЛЬЗОВАТЬ ВТОРОЙ ПРОХОД
+Config.UseSecnodPass = true; //вспомнить бы, для чего я это делал :)
 
 
 
+Config.CalibratedFolderName = 'calibrated'; 	// без финального "/"  //Подпапка с калиброванными фитами 
+Config.CosmetizedFolderName = 'cosmetized'; 	// без финального "/"  //Подпапка с фитами после косметики
+Config.CosmetizedProcessName = 'Cosmetic';		//Префикс названия процесса косметики
+Config.DebayerdFolderName = "debayered";		// без финального "/" //Подпапка с фитами после дебайеризации
 
+Config.ABEFolderName="dABE";					// без финального "/" //Подпапка с результатом ABE 
+Config.ABEProcessName="ABE";					//Название процесса ABE
 
-//Подпапка с калиброванными фитами 
-var cfgCalibratedFolderName = 'calibrated'; 	// без финального "/" 
-//Подпапка с фитами после косметики
-var cfgCosmetizedFolderName = 'cosmetized'; 	// без финального "/" 
-//Префикс названия процесса косметики
-var cfgCosmetizedProcessName = 'Cosmetic';
-//Подпапка с фитами после дебайеризации
-var cfgDebayerdFolderName="debayered";		// без финального "/" 
-//Подпапка с результатом ABE 
-var cfgABEFolderName="dABE";					// без финального "/" 
-var cfgABEProcessName="ABE";
-//Подпапка с фитами после выравнивания
-var cfgRegisteredFolderName="registered";		// без финального "/" 
-//Подпапка с фитами после нормализации
-var cfgNormilizedFolderName="rnormilized";		// без финального "/" 
+Config.RegisteredFolderName="registered";		// без финального "/" 	//Подпапка с фитами после выравнивания
+Config.NormilizedFolderName="rnormilized";		// без финального "/" 	//Подпапка с фитами после нормализации
+
 //Подпапка с отобранными фитами 
-var cfgApprovedFolderName="approved";			// без финального "/" 
+Config.ApprovedFolderName="approved";			// без финального "/" 
+
+//Для режима PUT_FINALS_IN_OBJECT_SUBFOLDER
+Config.FinalsDirName = "Results";
+
 
 //Пропускать каталоги, начинающиеся с ...
-var cfgSkipDirsBeginWith = "_";
+Config.SkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
-var cfgSkipDirs = [  cfgCalibratedFolderName, cfgCosmetizedFolderName, cfgDebayerdFolderName, cfgABEFolderName, cfgRegisteredFolderName, cfgNormilizedFolderName, cfgApprovedFolderName, cfgOutputPath, cfgFinalsDirName]; //стандартные каталоги
-cfgSkipDirs.push( 'asteroids', 'bad' ); //User
+Config.SkipDirs = [  Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
+Config.SkipDirs.push( 'asteroids', 'bad' ); //User
 // Пропустить каталоги, если имя каталога содержит одну из строк
-var cfgSkipDirsContains = [ '.data', '.pxiproject' ]; 
+Config.SkipDirsContains = [ '.data', '.pxiproject' ]; 
 
 
 
 
+Config.UseObserverName = false; // Использовать имя наблюдателя в иерархии папок? // Для меня не нужно, Олегу пригодиться
+Config.UseBiningFolder = false; // Использовать бининг в иерархии папок?
 
-// Настройка схемы, где должны храниться фиты на выходе:
-//	true: относительная; фиты на выходе будут в подпапках в той же папке, где и исходные фиты 
-//	false: абсолютная; фиты на выходе будут в папке, заданном в cfgOutputPath
-var cfgUseRelativeOutputPath = true; //OBSOLETE
-// Все обработанные файлы будут помещаться в папку с именем объекта
-var cfgCreateObjectFolder = true; //OBSOLETE
-
-
-// Использовать имя наблюдателя в иерархии папок?
-// Для меня не нужно, Олегу пригодиться
-var cgfUseObserverName = false;
-// Использовать бининг в иерархии папок?
-var cgfUseBiningFolder = false; // Для меня не нужно, Олегу и другим пригодиться
 // Использовать разные косметики для разной длительности?
-var cgfUseExposureInCosmeticsIcons = false;	// Для меня не нужно, может Олегу и перфекционистам пригодится
+Config.UseExposureInCosmeticsIcons = false;	// Для меня не нужно, может Олегу и перфекционистам пригодится
 
-var cfgDarkExposureLenghtTolerance = 30; // В секундах; MasterDark  всегда подбирается самый ближайший их тех, которые длиннее экспозиции кадра. 
+Config.DarkExposureLenghtTolerance = 30; // В секундах; MasterDark  всегда подбирается самый ближайший их тех, которые длиннее экспозиции кадра. 
 										 // Данный параметр разрешае ему быть на 30 сек короче! если задать 0, то будут рассматриваться только те дарки, которые длинее
 
 // Формат файла
-var cfgOutputFormatIC = ImageCalibration.prototype.f32; //default
-//var cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
+Config.OutputFormatIC = ImageCalibration.prototype.f32; //default
+//Config.OutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
+
+// Параметры для Local Normalization
+Config.NormalizationScale = 256; 	
+Config.NormalizationNoScaleFlag = true;						
 
 
 // Выражение для фильтрации кадров
-var cfgApprovedExpression = 'FWHM > 4.5';
+Config.ApprovedExpression = 'FWHM > 4.5';
 	  
 
 //////////////////////////////////////////////////////

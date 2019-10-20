@@ -6,33 +6,11 @@
 
 function ConfigData()
 {
-	//ConfigFields
-	
-	this.InputPath = ""; //cfgInputPath
-	this.PathMode = 1; //cfgPathMode
-	this.SearchInSubDirs = true;	//cfgSearchInSubDirs
-	
-	this.NeedCalibration = true;
-	this.NeedABE	= false; //cfgNeedABE
-	this.NeedRegister = true; //cfgNeedRegister
-	this.NeedNormalization = true; //cfgNeedNormalization
-
-
-	this.CalibratationMastersPath = "";//cfgCalibratationMastersPath
-	this.RegistrationReferencesPath = ""; //cfgRegistrationReferencesPath
-	this.NormalizationReferencesPath = ""; //cfgNormalizationReferencesPath
-
-	#ifndef DEFAULT_NORMALIZATION_SCALE
-	#define DEFAULT_NORMALIZATION_SCALE 256
-	#endif
-	this.NormalizationScale = DEFAULT_NORMALIZATION_SCALE;			//cfgNormalizationScale
-	this.NormalizationNoScaleFlag = true;	//cfgNormalizationNoScaleFlag
-
-
 	//temp
 	this.outputExtension = "fits"; 
 	this.outputHints="";
 	this.overwriteExisting=true;
+
 
 	if (DEBUG)
 		console.writeln('<br/><br/>Config object created...<br/>');
@@ -114,23 +92,9 @@ function ConfigData()
 		save( "NormalizationNoScaleFlag",           DataType_Boolean, this.NormalizationNoScaleFlag );
 
 		if( DEBUG ) {
-			console.writeln( "<b>Settings saved:</b>" );
+			console.writeln( "\n<b>Settings saved:</b>" );
 
-			console.writeln( "InputPath: 		" + this.InputPath );
-			console.writeln( "PathMode:  		" + this.PathMode );
-			console.writeln( "SearchInSubDirs:  " + this.SearchInSubDirs );
-
-			console.writeln( "NeedCalibration:  " 	+ this.NeedCalibration );
-			console.writeln( "NeedABE:  " 			+ this.NeedABE );
-			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
-			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
-
-			console.writeln( "CalibratationMastersPath:  " 			+ this.CalibratationMastersPath );
-			console.writeln( "RegistrationReferencesPath:  " 		+ this.RegistrationReferencesPath );
-			console.writeln( "NormalizationReferencesPath:  " 		+ this.NormalizationReferencesPath );
-
-			console.writeln( "NormalizationScale:  " 				+ this.NormalizationScale );
-			console.writeln( "NormalizationNoScaleFlag:  " 			+ this.NormalizationNoScaleFlag );
+			this.printParameters();
 
 			console.writeln( "\n" );
 		};
@@ -159,23 +123,9 @@ function ConfigData()
 		Parameters.set("NormalizationNoScaleFlag",  	this.NormalizationNoScaleFlag);
 
 		if( DEBUG ) {
-			console.writeln( "<b>Parameters to save:</b>" );
-
-			console.writeln( "InputPath: 		" + this.InputPath );
-			console.writeln( "PathMode:  		" + this.PathMode );
-			console.writeln( "SearchInSubDirs:  " + this.SearchInSubDirs );
-
-			console.writeln( "NeedCalibration:  " 	+ this.NeedCalibration );
-			console.writeln( "NeedABE:  " 			+ this.NeedABE );
-			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
-			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
-
-			console.writeln( "CalibratationMastersPath:  " 			+ this.CalibratationMastersPath );
-			console.writeln( "RegistrationReferencesPath:  " 		+ this.RegistrationReferencesPath );
-			console.writeln( "NormalizationReferencesPath:  " 		+ this.NormalizationReferencesPath );
-
-			console.writeln( "NormalizationScale:  " 				+ this.NormalizationScale );
-			console.writeln( "NormalizationNoScaleFlag:  " 			+ this.NormalizationNoScaleFlag );
+			console.writeln( "\n<b>Loaded Parameters:</b>" );
+			
+			this.printParameters();
 
 			console.writeln( "\n" );
 		};
@@ -216,24 +166,28 @@ function ConfigData()
 
 		if( DEBUG ) {
 			console.writeln( "<b>Loaded Parameters:</b>" );
-			console.writeln( "InputPath: 		" + this.InputPath );
-			console.writeln( "PathMode:  		" + this.PathMode );
-			console.writeln( "SearchInSubDirs:  " + this.SearchInSubDirs );
-
-			console.writeln( "NeedCalibration:  " 	+ this.NeedCalibration );
-			console.writeln( "NeedABE:  " 			+ this.NeedABE );
-			console.writeln( "NeedRegister:  " 		+ this.NeedRegister );
-			console.writeln( "NeedNormalization:  " + this.NeedNormalization );
-
-			console.writeln( "CalibratationMastersPath:  " 			+ this.CalibratationMastersPath );
-			console.writeln( "RegistrationReferencesPath:  " 		+ this.RegistrationReferencesPath );
-			console.writeln( "NormalizationReferencesPath:  " 		+ this.NormalizationReferencesPath );
-
-			console.writeln( "NormalizationScale:  " 				+ this.NormalizationScale );
-			console.writeln( "NormalizationNoScaleFlag:  " 			+ this.NormalizationNoScaleFlag );
-
+			this.printParameters();
 			console.writeln( "\n" );
 		};
+	}
+	
+	this.printParameters = function()
+	{
+		console.writeln( "InputPath:                      " + this.InputPath );
+		console.writeln( "PathMode:                       " + this.PathMode );
+		console.writeln( "SearchInSubDirs:                	" + this.SearchInSubDirs );
+
+		console.writeln( "NeedCalibration:                " + this.NeedCalibration );
+		console.writeln( "NeedABE:                        " + this.NeedABE );
+		console.writeln( "NeedRegister:                   " + this.NeedRegister );
+		console.writeln( "NeedNormalization:              " + this.NeedNormalization );
+
+		console.writeln( "CalibratationMastersPath:       " 		+ this.CalibratationMastersPath );
+		console.writeln( "RegistrationReferencesPath:     " 		+ this.RegistrationReferencesPath );
+		console.writeln( "NormalizationReferencesPath:    " 		+ this.NormalizationReferencesPath );
+
+		console.writeln( "NormalizationScale:             " 				+ this.NormalizationScale );
+		console.writeln( "NormalizationNoScaleFlag:       " 			+ this.NormalizationNoScaleFlag );
 	}
 	
 	
@@ -246,5 +200,4 @@ function ConfigData()
 	{
 	}
 }
-
 

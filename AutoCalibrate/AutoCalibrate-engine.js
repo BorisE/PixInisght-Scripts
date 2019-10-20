@@ -10,9 +10,6 @@
 #ifndef AutoCalibrate_Global_js
 #include "AutoCalibrate-global.js"          	// Ver, Title and other info
 #endif
-#ifndef AutoCalibrate_Include_js
-#include "AutoCalibrate-include.js"    			// Constants, glbal vars
-#endif
 
 #ifndef AutoCalibrate_settings_js
 #include "AutoCalibrate-settings.js"      // Settings
@@ -71,11 +68,9 @@ function AutoCalibrateEngine()
 		console.noteln( "* Configuration ");
 		console.noteln( "************************************************************" );
 		console.noteln('  Search path: ' + Config.InputPath);
-		console.noteln('  Path Mode: ' + Config.PathMode);
+		console.noteln('  Path Mode:   ' + Config.PathMode);
 
-		//console.noteln('  Output to relative path: ' + cfgUseRelativeOutputPath);
-		//console.noteln('  Create Object Folder: ' + cfgCreateObjectFolder);
-		//if (!cfgUseRelativeOutputPath) console.writeln('  Output path: ' + cfgOutputPath);
+		//if (!cfgUseRelativeOutputPath) console.writeln('  Output path: ' + Config.OutputPath);
 		console.noteln('  Calibrate Images: ' + Config.NeedCalibration);
 		if (Config.NeedCalibration) console.writeln('  Masters library path: ' + Config.CalibratationMastersPath);
 		console.noteln('  Register Images: ' + Config.NeedRegister);
@@ -106,7 +101,7 @@ function AutoCalibrateEngine()
 
 		exit;
 
-		mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath + (cgfUseBiningFolder? "/bin" + fileData.bin : "")  + "/" + fileData.instrument, fileData);
+		mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath + (Config.UseBiningFolder? "/bin" + fileData.bin : "")  + "/" + fileData.instrument, fileData);
 		exit;
 
 		registerFits(['c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M63_20190407_B_600s_1x1_-30degC_0.0degN_000011919.FIT']);
@@ -165,7 +160,7 @@ function AutoCalibrateEngine()
 		 * Производит сканирования массива, полученного в первом проходе с определением недостающих этапов калибровки для каждого файла
 		 * В случае отсутствия запускает нужный этап калибровки
 		 * **************************************************************************************************************/
-		if (cfgUseSecnodPass)
+		if (Config.UseSecnodPass)
 		{
 		   this.DirCount=0; this.FileTotalCount=0; this.ProcessesCompleted=0;
 		   this.ScanArray();
@@ -215,9 +210,9 @@ function AutoCalibrateEngine()
                // if this is Directory and recursion is enabled
 				   if ( objFileFind.isDirectory ) {
 					  if (	Config.SearchInSubDirs &&
-							      objFileFind.name.substring(0,cfgSkipDirsBeginWith.length) != cfgSkipDirsBeginWith &&
-							      cfgSkipDirs.indexOf(objFileFind.name) === -1 &&
-							      DirNameContains(objFileFind.name, cfgSkipDirsContains) !==true
+							      objFileFind.name.substring(0,Config.SkipDirsBeginWith.length) != Config.SkipDirsBeginWith &&
+							      Config.SkipDirs.indexOf(objFileFind.name) === -1 &&
+							      DirNameContains(objFileFind.name, Config.SkipDirsContains) !==true
 						 )
 					  {
                      //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
@@ -241,11 +236,11 @@ function AutoCalibrateEngine()
 						 // Set output folders (depends on config)
 						 if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
 						 {
-							this.BaseCalibratedOutputPath = Config.InputPath + "/" + cfgOutputPath;
+							this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
 						 }
 						 else if (Config.PathMode == PATHMODE.ABSOLUTE)
 						 {
-							this.BaseCalibratedOutputPath = cfgOutputPath ;
+							this.BaseCalibratedOutputPath = Config.OutputPath ;
 						 }
 						 else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
 						 {
@@ -253,7 +248,7 @@ function AutoCalibrateEngine()
 						 }
 						 else
 						 {
-							this.BaseCalibratedOutputPath = cfgOutputPath ;
+							this.BaseCalibratedOutputPath = Config.OutputPath ;
 						 }
 						 debug ("BaseCalibratedOutputPath: " + this.BaseCalibratedOutputPath, dbgNotice);
 
@@ -485,11 +480,11 @@ function AutoCalibrateEngine()
 
                if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
                {
-               this.BaseCalibratedOutputPath = Config.InputPath + "/" + cfgOutputPath;
+               this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
                }
                else if (Config.PathMode == PATHMODE.ABSOLUTE)
                {
-                  FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + cfgFinalsDirName;
+                  FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + Config.FinalsDirName;
                }
                else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
                {
@@ -497,12 +492,12 @@ function AutoCalibrateEngine()
                }
                else
                {
-               this.BaseCalibratedOutputPath = cfgOutputPath ;
+               this.BaseCalibratedOutputPath = Config.OutputPath ;
                }
 
 
 
-               FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + cfgFinalsDirName + "/" + fileData.object;
+               FinalsOutputPath = this.BaseCalibratedOutputPath + "/"  + Config.FinalsDirName + "/" + fileData.object;
                var DestinationFileName = FinalsOutputPath + '/' + File.extractNameAndExtension(fileName);
 
 
@@ -701,7 +696,7 @@ function AutoCalibrateEngine()
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
 		  CalibratedOutputPath = CalibratedOutputPath + "/" + fileData.object;
 	   }
-	   CalibratedOutputPath =  CalibratedOutputPath + "/" + cfgCalibratedFolderName;
+	   CalibratedOutputPath =  CalibratedOutputPath + "/" + Config.CalibratedFolderName;
 
 	   // make new file name
 	   var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
@@ -709,7 +704,7 @@ function AutoCalibrateEngine()
 	   newFileName  = CalibratedOutputPath + '/' + newFileName
 
 	   //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
-	   if ( cfgSkipExistingFiles && File.exists( newFileName ) )
+	   if ( Config.SkipExistingFiles && File.exists( newFileName ) )
 	   {
 		  Console.warningln('File '+ newFileName + ' already exists, skipping calibration' );
 	   }
@@ -724,7 +719,7 @@ function AutoCalibrateEngine()
 		  }
 
 		  // Get Masters files names
-		  var mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath +  "/" + fileData.instrument + (cgfUseBiningFolder? "/bin" + fileData.bin : ""), fileData);
+		  var mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath +  "/" + fileData.instrument + (Config.UseBiningFolder? "/bin" + fileData.bin : ""), fileData);
 		  if (! mastersFiles)
 		  {
 			 Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
@@ -786,10 +781,10 @@ function AutoCalibrateEngine()
 		  P.outputExtension = ".fit";
 		  P.outputPrefix = "";
 		  P.outputPostfix = "_c";
-		  P.outputSampleFormat =  cfgOutputFormatIC;
+		  P.outputSampleFormat =  Config.OutputFormatIC;
 		  P.outputPedestal = 0; // Нужно поискать
 
-		  P.overwriteExistingFiles = cfgOverwriteAllFiles;
+		  P.overwriteExistingFiles = Config.OverwriteAllFiles;
 		  P.onError = ImageCalibration.prototype.Continue;
 		  P.noGUIMessages = true;
 
@@ -862,7 +857,7 @@ function AutoCalibrateEngine()
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
 		  CosmetizedOutputPath = CosmetizedOutputPath + "/" + fileData.object;
 	   }
-	   CosmetizedOutputPath =  CosmetizedOutputPath + "/" + cfgCosmetizedFolderName;
+	   CosmetizedOutputPath =  CosmetizedOutputPath + "/" + Config.CosmetizedFolderName;
 
 	   // return new file name
 	   var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
@@ -871,7 +866,7 @@ function AutoCalibrateEngine()
 
 
 	   //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
-	   if ( cfgSkipExistingFiles && File.exists( newFileName ) )
+	   if ( Config.SkipExistingFiles && File.exists( newFileName ) )
 	   {
 		  Console.warningln('File '+ newFileName + ' already exists, skipping cosmetic correction' );
 	   }
@@ -886,7 +881,7 @@ function AutoCalibrateEngine()
 
 
 		  // Get CosmeticCorrection Process Icon
-		  var ProcessIconName = cfgCosmetizedProcessName+ '_'+ fileData.instrument.replace('/', '_') + (cgfUseBiningFolder ? '_bin'+ file.bin : '') + (cgfUseExposureInCosmeticsIcons? '_'+ fileData.duration : '');
+		  var ProcessIconName = Config.CosmetizedProcessName+ '_'+ fileData.instrument.replace('/', '_') + (Config.UseBiningFolder ? '_bin'+ file.bin : '') + (Config.UseExposureInCosmeticsIcons? '_'+ fileData.duration : '');
 		  debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
 
 		  // Check if folder for cosmetics files exists
@@ -913,7 +908,7 @@ function AutoCalibrateEngine()
 		  CC.outputExtension = ".fit";
 		  CC.prefix          = "";
 		  CC.postfix         = "_cc";
-		  CC.overwrite       = cfgOverwriteAllFiles;
+		  CC.overwrite       = Config.OverwriteAllFiles;
 		  //CC.cfa             = false;
 
 		  CC.executeGlobal();
@@ -984,7 +979,7 @@ function AutoCalibrateEngine()
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
 		  ABEOutputPath  = ABEOutputPath  + "/" + fileData.object;
 	   }
-	   ABEOutputPath  =  ABEOutputPath  + "/" + cfgABEFolderName;
+	   ABEOutputPath  =  ABEOutputPath  + "/" + Config.ABEFolderName;
 
 
 	   // Start registration for all files
@@ -998,7 +993,7 @@ function AutoCalibrateEngine()
 		  newFiles[i] = ABEOutputPath  + '/' + newFileName;
 
 		  //Проверить - существует ли файл и стоит ли перезаписывать его
-		  if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+		  if ( Config.SkipExistingFiles && File.exists( newFiles[i] ) )
 		  {
 			 Console.warningln('File '+ newFileName + ' already exists, skipping ABE' );
 		  }
@@ -1025,7 +1020,7 @@ function AutoCalibrateEngine()
 
 			 var ABEproc;
 
-			 var ProcessIconName = cfgABEProcessName;
+			 var ProcessIconName = Config.ABEProcessName;
 			 debug ("Using ProcessIcon name: ",ProcessIconName, dbgNormal);
 
 			 //Try to use saved process
@@ -1083,7 +1078,7 @@ function AutoCalibrateEngine()
 				//
 				// save
 				//
-				w.saveAs(newFiles[i], false, false, true, !cfgOverwriteAllFiles);
+				w.saveAs(newFiles[i], false, false, true, !Config.OverwriteAllFiles);
 			 }
 			 w.purge();
 			 w.forceClose(); //w.close();
@@ -1171,7 +1166,7 @@ function AutoCalibrateEngine()
          fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
          RegisteredOutputPath = RegisteredOutputPath + "/" + fileData.object;
 	   }
-	   RegisteredOutputPath =  RegisteredOutputPath + "/" + cfgRegisteredFolderName;
+	   RegisteredOutputPath =  RegisteredOutputPath + "/" + Config.RegisteredFolderName;
 
 
 	   // Start registration for all files
@@ -1187,7 +1182,7 @@ function AutoCalibrateEngine()
          newFiles[i] = RegisteredOutputPath + '/' + newFileName;
 
          //Проверить - существует ли файл и стоит ли перезаписывать его
-         if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+         if ( Config.SkipExistingFiles && File.exists( newFiles[i] ) )
          {
             Console.warningln('File '+ newFileName + ' already exists, skipping Registration' );
          }
@@ -1280,7 +1275,7 @@ function AutoCalibrateEngine()
             P.outputPostfix = "_r";
             P.maskPostfix = "_m";
             P.outputSampleFormat = StarAlignment.prototype.SameAsTarget; //StarAlignment.prototype.SameAsTarget
-            P.overwriteExistingFiles = cfgOverwriteAllFiles;
+            P.overwriteExistingFiles = Config.OverwriteAllFiles;
             P.onError = StarAlignment.prototype.Continue;
             P.useFileThreads = true;      //новое?
             P.fileThreadOverload = 1.20;  //новое?
@@ -1374,7 +1369,7 @@ function AutoCalibrateEngine()
          fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
          NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
       }
-      NormalizedOutputPath =  NormalizedOutputPath + "/" + cfgNormilizedFolderName;
+      NormalizedOutputPath =  NormalizedOutputPath + "/" + Config.NormilizedFolderName;
 
 
 	   // Start normalization for all files
@@ -1391,7 +1386,7 @@ function AutoCalibrateEngine()
          newFiles[i] = NormalizedOutputPath + '/' + newFileName;
 
          //Проверить - существует ли файл и стоит ли перезаписывать его
-         if ( cfgSkipExistingFiles && File.exists( newFiles[i] ) )
+         if ( Config.SkipExistingFiles && File.exists( newFiles[i] ) )
          {
              Console.warningln('File '+ newFileName + ' already exists, skipping normalization' );
          }
@@ -1452,7 +1447,7 @@ function AutoCalibrateEngine()
             P.outputExtension = ".fit";
             P.outputPrefix = "";
             P.outputPostfix = "_n";
-            P.overwriteExistingFiles = cfgOverwriteAllFiles;
+            P.overwriteExistingFiles = Config.OverwriteAllFiles;
             P.onError = LocalNormalization.prototype.OnError_Continue;
             P.useFileThreads = true;
             P.fileThreadOverload = 1.20;
@@ -1669,7 +1664,7 @@ function AutoCalibrateEngine()
 	   for (i = 0; i < darkexplib.length; i++)
 	   {
 		  debug(darkexplib[i], dbgNotice);
-		  if ( ( (darkexplib[i] + cfgDarkExposureLenghtTolerance) >= fileData.duration) && (mindiff > Math.abs(darkexplib[i]-fileData.duration)))
+		  if ( ( (darkexplib[i] + Config.DarkExposureLenghtTolerance) >= fileData.duration) && (mindiff > Math.abs(darkexplib[i]-fileData.duration)))
 		  {
 			 nearest_exposure = darkexplib[i];
 			 darkexplib_filename_nearest = darkexplib_filename[i];
@@ -1961,7 +1956,7 @@ function AutoCalibrateEngine()
 		  return false;
 	   }
 
-	   if (!cfgNeedApproving) {
+	   if (!Config.NeedApproving) {
 		  debug ("Approving is off", dbgNormal);
 		  return true;
 	   }
@@ -1992,7 +1987,7 @@ function AutoCalibrateEngine()
 		  fileData.object = ( fileData.object =="" ? cfgDefObjectName: fileData.object);
 		  ApprovedOutputPath = ApprovedOutputPath + "/" + fileData.object;
 	   }
-	   ApprovedOutputPath = ApprovedOutputPath + "/" + cfgApprovedFolderName;
+	   ApprovedOutputPath = ApprovedOutputPath + "/" + Config.ApprovedFolderName;
 
 	   // Check if folder exists
 	   if ( !File.directoryExists(ApprovedOutputPath) )
@@ -2059,8 +2054,8 @@ function AutoCalibrateEngine()
 		  var P2 = new SubframeSelector;
 
 		  debug ("Need to approve " + files.length + " file(s)", dbgNotice);
-		  debug ("Approved expression: "+cfgApprovedExpression, dbgNotice);
-		  P2.approvalExpression = cfgApprovedExpression; // change this
+		  debug ("Approved expression: "+Config.ApprovedExpression, dbgNotice);
+		  P2.approvalExpression = Config.ApprovedExpression; // change this
 
 		  P2.routine = SubframeSelector.prototype.OutputSubframes;
 		  P2.subframes = [ // subframeEnabled, subframePath
@@ -2158,7 +2153,7 @@ function AutoCalibrateEngine()
 	   P.showImages = true;
 
 	   var inputImageWindow = ImageWindow.open(
-		  cfgOutputPath +'/'+ file.object +'/'+ file.filter +'/cc/'+ file.dst +'_c_cc.fit'
+		  Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/cc/'+ file.dst +'_c_cc.fit'
 	   );
 	   var sourceView = inputImageWindow[0].mainView;
 
@@ -2174,12 +2169,12 @@ function AutoCalibrateEngine()
 
 	   // splitRGB
 
-	   if (!File.directoryExists(cfgOutputPath +'/'+ file.object +'/R/cc'))
-		  File.createDirectory(cfgOutputPath +'/'+ file.object +'/R/cc', true);
-	   if (!File.directoryExists(cfgOutputPath +'/'+ file.object +'/G/cc'))
-		  File.createDirectory(cfgOutputPath +'/'+ file.object +'/G/cc', true);
-	   if (!File.directoryExists(cfgOutputPath +'/'+ file.object +'/B/cc'))
-		  File.createDirectory(cfgOutputPath +'/'+ file.object +'/B/cc', true);
+	   if (!File.directoryExists(Config.OutputPath +'/'+ file.object +'/R/cc'))
+		  File.createDirectory(Config.OutputPath +'/'+ file.object +'/R/cc', true);
+	   if (!File.directoryExists(Config.OutputPath +'/'+ file.object +'/G/cc'))
+		  File.createDirectory(Config.OutputPath +'/'+ file.object +'/G/cc', true);
+	   if (!File.directoryExists(Config.OutputPath +'/'+ file.object +'/B/cc'))
+		  File.createDirectory(Config.OutputPath +'/'+ file.object +'/B/cc', true);
 
 	   var imgW = resultView.image.width;
 	   var imgH = resultView.image.height;
@@ -2193,7 +2188,7 @@ function AutoCalibrateEngine()
 	   red.mainView.image.assign(resultView.image);
 	   red.mainView.endProcess();
 	   red.saveAs(
-		  cfgOutputPath +'/'+ file.object +'/R/cc/debayer_'+ file.dst +'_R_c_cc.fit'
+		  Config.OutputPath +'/'+ file.object +'/R/cc/debayer_'+ file.dst +'_R_c_cc.fit'
 		  , false, false, false, false);
 
 	   resultView.image.selectedChannel = 1;
@@ -2201,7 +2196,7 @@ function AutoCalibrateEngine()
 	   green.mainView.image.assign(resultView.image);
 	   green.mainView.endProcess();
 	   green.saveAs(
-		  cfgOutputPath +'/'+ file.object +'/G/cc/debayer_'+ file.dst +'_G_c_cc.fit'
+		  Config.OutputPath +'/'+ file.object +'/G/cc/debayer_'+ file.dst +'_G_c_cc.fit'
 		  , false, false, false, false);
 
 	   resultView.image.selectedChannel = 2;
@@ -2209,11 +2204,11 @@ function AutoCalibrateEngine()
 	   blue.mainView.image.assign(resultView.image);
 	   blue.mainView.endProcess();
 	   blue.saveAs(
-		  cfgOutputPath +'/'+ file.object +'/B/cc/debayer_'+ file.dst +'_B_c_cc.fit'
+		  Config.OutputPath +'/'+ file.object +'/B/cc/debayer_'+ file.dst +'_B_c_cc.fit'
 		  , false, false, false, false);
 
 	//   resultView.window.saveAs(
-	//      cfgOutputPath +'/'+ file.object +'/'+ file.filter +'/cc/deb_'+ file.dst +'_c_cc.fit'
+	//      Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/cc/deb_'+ file.dst +'_c_cc.fit'
 	//      , false, false, false, false );
 
 	   resultView.window.forceClose();
@@ -2299,7 +2294,7 @@ function AutoCalibrateEngine()
 	   // @todo date midnight / midday
 	   // @todo utc
 	   return {
-		  instrument: (cgfUseObserverName ? headers.OBSERVER +'/':'') + headers.TELESCOP,              // was Vitar/MakF10 or (for me) just SW250
+		  instrument: (Config.UseObserverName ? headers.OBSERVER +'/':'') + headers.TELESCOP,              // was Vitar/MakF10 or (for me) just SW250
 		  camera:     headers.INSTRUME,                                   // ArtemisHSC
 		  date:       headers['DATE-OBS'].substr(0, "2017-01-01".length ),  // 2016-10-13
 		  time:       headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'),  // 23_15

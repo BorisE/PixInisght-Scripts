@@ -20,9 +20,6 @@
 #ifndef AutoCalibrate_Global_js
 #include "AutoCalibrate-global.js"			// Ver, Title and other info
 #endif
-#ifndef AutoCalibrate_Include_js
-#include "AutoCalibrate-include.js"    		// Constants, glbal vars, lib functions
-#endif
 #ifndef AutoCalibrate_settings_js
 #include "AutoCalibrate-settings.js"		// Settings object
 #endif

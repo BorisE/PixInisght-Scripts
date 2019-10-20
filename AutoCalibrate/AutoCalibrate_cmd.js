@@ -111,10 +111,10 @@ v 2.0 beta5 [2019/08/08](все еще тестируется)
 //#include "AutoCalibrate-config.js"     // Конкретный config. Можно просто в тексте определить переменные
 
 Config.InputPath = 'e:/DSlrRemote/+M77/test'; // без финального "/" (@todo убрать. если есть)
-cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
+Config.OutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
 Config.PathMode = PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER;
-cfgUseSecnodPass = false;
+Config.UseSecnodPass = false;
 Config.NeedABE =true;
 
 //////////////////////////////////////////
