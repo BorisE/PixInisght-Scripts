@@ -13,7 +13,7 @@
 
 /*
    Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-   Developed 2019 by Boris Emchenko
+   Developed 2019 by Boris Emchenko astromania.info
 */
 
 /*
