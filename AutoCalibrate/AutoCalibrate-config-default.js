@@ -10,15 +10,30 @@
 			Конфигурация
 */
 //////////////////////////////////////////////////////
+Config.InputPath = 'e:/DSlrRemote/+M77';  //ПАПКА С ИСХОДНЫМИ ФИТАМИ
+Config.SearchInSubDirs = true;  //Искать в подпапках? В комбинации с cfgUseRelativeOutputPath будет просматривать все вложенные папки с калиброванными фитами!
+Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER; //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 
-//ПАПКА С ИСХОДНЫМИ ФИТАМИ
-//var cfgInputPath = 'e:/DSlrRemote/+M77'; // без финального "/" (@todo убрать. если есть)
-//Config.InputPath = cfgInputPath; 
-Config.InputPath = 'e:/DSlrRemote/+M77'; 
+Config.NeedCalibration = true;		// КАЛИБРОВАТЬ?
+Config.NeedABE = false; 			// РОВНЯТЬ ФОН ABE?
+Config.NeedRegister = true; 		// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
+Config.NeedNormalization = true; 	// НОРМАЛИЗОВАТЬ ФОН?
 
-//КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
-//var cfgPathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
-Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
+// Библиотеки калибровки/референосов
+Config.CalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
+Config.RegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/"  //Папка с библиотекой референсов для выравнивания по звездам
+Config.NormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/"  //Папка с библиотекой референсов для выравнивания фона
+
+
+// Параметры для Local Normalization
+Config.NormalizationScale = DEFAULT_NORMALIZATION_SCALE; 	
+Config.NormalizationNoScaleFlag = true;						
+
+
+
+
+
+
 
 //ПАПКА С КАЛИБРОВАННЫМИ ФИТАМИ НА ВЫХОДЕ 
 //В случае использования относительного способа адресации (PATHMODE.PUT_IN_SUBFOLDER) или автоматического, который может переключиться в PUT_IN_SUBFOLDER:
@@ -31,25 +46,14 @@ if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATH
 }else {
 	var cfgOutputPath = '';
 }
+
 var cfgFinalsDirName = "Results";
 
 
-// КАЛИБРОВАТЬ?
-//var cfgNeedCalibration = true;
-Config.NeedCalibration = true;
-//var cfgNeedCalibrate = false;
 
-// РОВНЯТЬ ФОН ABE?
-//var cfgNeedABE  = false;
-Config.NeedABE = false;
 
-// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
-//var cfgNeedRegister  = true;
-Config.NeedRegister = true;
 
-// НОРМАЛИЗОВАТЬ ФОН?
-//var cfgNeedNormalization  = true;
-Config.NeedNormalization = true;
+
 
 // ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ?
 var cfgNeedApproving = true;
@@ -64,9 +68,6 @@ var cfgOverwriteAllFiles = true; //НИКОГДА НЕ ВКЛЮЧАТЬ!!! ин�
 
 
 
-//Искать в подпапках? В комбинации с cfgUseRelativeOutputPath будет просматривать все вложенные папки с калиброванными фитами!
-//var cfgSearchInSubDirs = true;
-Config.SearchInSubDirs = true; 
 
 //Подпапка с калиброванными фитами 
 var cfgCalibratedFolderName = 'calibrated'; 	// без финального "/" 
@@ -94,20 +95,7 @@ cfgSkipDirs.push( 'asteroids', 'bad' ); //User
 // Пропустить каталоги, если имя каталога содержит одну из строк
 var cfgSkipDirsContains = [ '.data', '.pxiproject' ]; 
 
-//Папка с библиотекой мастеров
-//var cfgCalibratationMastersPath = 'c:/Users/bemchenko/Documents/DSlrRemote/Vedrus'; // без финального "/" (@todo убрать. если есть)
-//var cfgCalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
-Config.CalibratationMastersPath = 'e:/DSlrRemote/_Calibration masters library/Vedrus'; // без финального "/" (@todo убрать. если есть)
 
-//Папка с библиотекой референсов для выравнивания по звездам
-//var cfgRegistrationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/RegistrationReferences'; // без финального "/" 
-//var cfgRegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
-Config.RegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/" 
-
-//Папка с библиотекой референсов для выравнивания фона
-//var cfgNormalizationReferencesPath = 'c:/Users/bemchenko/Documents/DSlrRemote/NormalizationReferences'; // без финального "/" 
-//var cfgNormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
-Config.NormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/" 
 
 
 
@@ -135,11 +123,6 @@ var cfgOutputFormatIC = ImageCalibration.prototype.f32; //default
 //var cfgOutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
 
-// Параметры для Local Normalization
-//var cfgNormalizationScale=256;
-//var cfgNormalizationNoScaleFlag=true;
-Config.NormalizationScale = DEFAULT_NORMALIZATION_SCALE;
-Config.NormalizationNoScaleFlag = true;
 
 // Выражение для фильтрации кадров
 var cfgApprovedExpression = 'FWHM > 4.5';
