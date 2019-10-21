@@ -837,7 +837,7 @@ function AutoCalibrateEngine()
 		  debug("Skipping Cosmetic Correction", dbgNormal);
 		  return fileName;
 		}
-	   if (!Config.NeedCalibration) {
+	   if (!Config.NeedCosmeticCorrection) {
 		  return fileName;
 		  debug("Cosmetic correction is off (with calibration)", dbgNormal);
 	   }
@@ -990,6 +990,8 @@ function AutoCalibrateEngine()
 		  // return new file name
 		  var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
 		  var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_b.fit');
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c\.fit$/, '_c_b.fit'); //if СС was not run before
 		  newFiles[i] = ABEOutputPath  + '/' + newFileName;
 
 		  //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1179,6 +1181,10 @@ function AutoCalibrateEngine()
          var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_r.fit');
          if (FileName === newFileName)
             var newFileName = FileName.replace(/_c_cc_b\.fit$/, '_c_cc_b_r.fit'); //if ABE was run before
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c\.fit$/, '_c_r.fit'); //if no CC and no ABE was run before
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c_b\.fit$/, '_c_b_r.fit'); //if no CC and ABE was run before
          newFiles[i] = RegisteredOutputPath + '/' + newFileName;
 
          //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1382,6 +1388,10 @@ function AutoCalibrateEngine()
          var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
          if (FileName === newFileName)
             var newFileName = FileName.replace(/_c_cc_b_r\.fit$/, '_c_cc_b_r_n.fit'); //if ABE was run before
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c_r\.fit$/, '_c_r_n.fit'); //if no CC no ABE was run before
+         if (FileName === newFileName)
+            var newFileName = FileName.replace(/_c_b_r\.fit$/, '_c_b_r_n.fit'); //if no CC  was run before
 
          newFiles[i] = NormalizedOutputPath + '/' + newFileName;
 

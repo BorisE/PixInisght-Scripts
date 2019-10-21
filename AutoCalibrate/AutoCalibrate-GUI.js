@@ -281,6 +281,35 @@ function AutocalibrationDialog()
       //addStretch();
    }
 
+   // 4.2 Cosmetic Correction
+   
+   this.ProcessCosmetics_CheckBox = new CheckBox( this );
+   with (this.ProcessCosmetics_CheckBox)
+   {
+      text = "Cosmetic Correction";
+      checked = Config.NeedCosmeticCorrection;
+		minWidth = labelWidth1;
+		minHeight = this.mastersDir_Edit.height;
+      toolTip =
+      "<p>Process images with cosmetic correction (removing hot & cold pixels).</p>" +
+      "<p>For this to be successful, you need to have saved CC icon with the name <b>"+Config.CosmetizedProcessName+"_TELESCOPE</b> (e.g. "+Config.CosmetizedProcessName+"_SW250).</p>";
+      onClick = function( checked )
+      {
+         Config.NeedCosmeticCorrection = checked;
+      };
+   }
+
+   this.ProcessCosmetics_Sizer = new HorizontalSizer;
+   with (this.ProcessCosmetics_Sizer)
+   {
+	  spacing = 4;
+	//margin = 6;
+      addUnscaledSpacing(  this.logicalPixelsToPhysical( 4 ) );
+      add( this.ProcessCosmetics_CheckBox );
+      addStretch();
+   }
+
+
    // 4.2. ABE
 
    this.ProcessABE_CheckBox = new CheckBox( this );
@@ -289,6 +318,7 @@ function AutocalibrationDialog()
       text = "ABE";
       checked = Config.NeedABE;
 	  minWidth = labelWidth1;
+	  minHeight = this.mastersDir_Edit.height;
       toolTip =
       "<p>Apply Automatic Background Extractor for every frame.</p>" +
       "<p>Usually should be kept off. Use LocalNormalization to control background</p>";
@@ -301,6 +331,7 @@ function AutocalibrationDialog()
    this.ProcessABE_Sizer = new HorizontalSizer;
    with (this.ProcessABE_Sizer)
    {
+	  spacing = 4;
       addUnscaledSpacing(  this.logicalPixelsToPhysical( 4 ) );
       add( this.ProcessABE_CheckBox );
       addStretch();
@@ -509,6 +540,7 @@ function AutocalibrationDialog()
       sizer.margin = 6;
       sizer.spacing = 4;
       sizer.add( this.ProcessCalibrate_Sizer );
+      sizer.add( this.ProcessCosmetics_Sizer );
       sizer.add( this.ProcessABE_Sizer );
       sizer.add( this.ProcessRegister_Sizer );
       sizer.add( this.ProcessNormalization_Sizer );

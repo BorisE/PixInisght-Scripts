@@ -3,8 +3,8 @@
 #endif
 
 #define TITLE "AutoCalibration"
-#define VERSION "4.01"
-#define COMPILE_DATE "2019/10/20"
+#define VERSION "4.02"
+#define COMPILE_DATE "2019/10/21"
 
 #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
 #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -24,6 +24,9 @@ TODO:
 	- проверить, что -CMD тоже работает
 	- добавить ABE в мониторинг второго прохода (надо ли это второй проход?!)
 
+v 4.02 [2019/10/21]
+	- Cosmetic Correction стал опциональным
+	
 v 4.01 [2019/10/20]
 	- Переход на новый Config 
 
@@ -241,7 +244,7 @@ function getFILEARRPrecedingName(property)
 
 function debug(st, level = dbgCurrent)
 {
-   if (cfgDebugEnabled && level <= cfgDebugLevel)
+   if (DEBUG && level <= cfgDebugLevel)
    {
 		if (level == dbgNotice) 
 		{
@@ -378,7 +381,7 @@ function DirNameContains(dirName, SkipDirsContains)
 
 function print_array(arr, level = dbgCurrent)
 {
-   if (cfgDebugEnabled && level <= cfgDebugLevel)
+   if (DEBUG && level <= cfgDebugLevel)
    {
       console.writeln ("Printing array contents:");
 	  arr.forEach(

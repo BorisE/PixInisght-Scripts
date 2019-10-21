@@ -14,6 +14,7 @@ Config.SearchInSubDirs = true;  //Искать в подпапках? В ком�
 Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER; //КАКОЙ СПОСОБ РАЗМЕЩЕНИЯ ФАЙЛОВ ИСПОЛЬЗОВАТЬ
 
 Config.NeedCalibration = true;		// КАЛИБРОВАТЬ?
+Config.NeedCosmeticCorrection = true;// КОСМЕТИКА?
 Config.NeedABE = false; 			// РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = true; 		// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
 Config.NeedNormalization = true; 	// НОРМАЛИЗОВАТЬ ФОН?
@@ -155,8 +156,6 @@ var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*
 
 
 // Настройки для отладчика
-																	
-var cfgDebugEnabled = true;
 var cfgDebugLevel = dbgNotice; //dbgNormal, dbgNotice  dbgCurrent
 //////////////////////////////////////////////////////
 

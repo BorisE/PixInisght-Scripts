@@ -50,6 +50,8 @@ function ConfigData()
 
 		if ( (o = load( "NeedCalibration",           	DataType_Boolean )) != null )
 			this.NeedCalibration = o;
+		if ( (o = load( "NeedCosmeticCorrection",           	DataType_Boolean )) != null )
+			this.NeedCosmeticCorrection = o;
 		if ( (o = load( "NeedABE",           			DataType_Boolean )) != null )
 			this.NeedABE = o;
 		if ( (o = load( "NeedRegister",           		DataType_Boolean )) != null )
@@ -80,6 +82,7 @@ function ConfigData()
 		save( "SearchInSubDirs",           			DataType_Boolean, this.SearchInSubDirs );
 
 		save( "NeedCalibration",           			DataType_Boolean, this.NeedCalibration );
+		save( "NeedCosmeticCorrection",           	DataType_Boolean, this.NeedCosmeticCorrection );
 		save( "NeedABE",           					DataType_Boolean, this.NeedABE );
 		save( "NeedRegister",           			DataType_Boolean, this.NeedRegister );
 		save( "NeedNormalization",           		DataType_Boolean, this.NeedNormalization );
@@ -111,6 +114,7 @@ function ConfigData()
 		Parameters.set("SearchInSubDirs",  	this.SearchInSubDirs);
 
 		Parameters.set("NeedCalibration",  	this.NeedCalibration);
+		Parameters.set("NeedCosmeticCorrection",  	this.NeedCosmeticCorrection);
 		Parameters.set("NeedABE",  			this.NeedABE);
 		Parameters.set("NeedRegister",  	this.NeedRegister);
 		Parameters.set("NeedNormalization", this.NeedNormalization);
@@ -143,6 +147,8 @@ function ConfigData()
 
 		if(Parameters.has("NeedCalibration"))
 			this.NeedCalibration = Parameters.getBoolean("NeedCalibration");
+		if(Parameters.has("NeedCosmeticCorrection"))
+			this.NeedCosmeticCorrection = Parameters.getBoolean("NeedCosmeticCorrection");
 		if(Parameters.has("NeedABE"))
 			this.NeedABE = Parameters.getBoolean("NeedABE");
 		if(Parameters.has("NeedRegister"))
@@ -175,9 +181,10 @@ function ConfigData()
 	{
 		console.writeln( "InputPath:                      " + this.InputPath );
 		console.writeln( "PathMode:                       " + this.PathMode );
-		console.writeln( "SearchInSubDirs:                	" + this.SearchInSubDirs );
+		console.writeln( "SearchInSubDirs:                " + this.SearchInSubDirs );
 
 		console.writeln( "NeedCalibration:                " + this.NeedCalibration );
+		console.writeln( "NeedCosmeticCorrection:         " + this.NeedCosmeticCorrection );
 		console.writeln( "NeedABE:                        " + this.NeedABE );
 		console.writeln( "NeedRegister:                   " + this.NeedRegister );
 		console.writeln( "NeedNormalization:              " + this.NeedNormalization );
