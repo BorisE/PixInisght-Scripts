@@ -2,9 +2,9 @@
 #define AutoCalibrate_Global_js
 #endif
 
-#define TITLE "AutoCalibration"
-#define VERSION "4.02"
-#define COMPILE_DATE "2019/10/21"
+#define TITLE "AutoCalibrate"
+#define VERSION "4.03"
+#define COMPILE_DATE "2019/10/26"
 
 #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
 #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -13,17 +13,21 @@
 
 /*
    Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-   Developed 2019 by Boris Emchenko astromania.info
+   Developed 2019 by Boris Emchenko http://astromania.info
 */
 
 /*
 Version History
 
 TODO:
-    - добавить в диалог параметр для Absolut Path
+    - добавить в диалог параметр для Absolute Path
 	- проверить, что -CMD тоже работает
-	- добавить ABE в мониторинг второго прохода (надо ли это второй проход?!)
+	- проверить, что дебайрезиация тоже работает
+	- добавить ABE в мониторинг второго прохода (????)
 
+v 4.03 [2019/10/26]
+	- Апдейт StarAlignment (1.8.7)
+	
 v 4.02 [2019/10/21]
 	- Cosmetic Correction стал опциональным
 	

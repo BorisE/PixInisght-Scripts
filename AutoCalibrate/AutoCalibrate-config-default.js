@@ -44,7 +44,8 @@ Config.SkipExistingFiles = true; //Перед запуском процесса 
 Config.OverwriteAllFiles = true; //Настройка для процессов PI. Пока не придумал ситуацию, в которой его нужно было бы отключить
 
 //ИСПОЛЬЗОВАТЬ ВТОРОЙ ПРОХОД
-Config.UseSecnodPass = true; //вспомнить бы, для чего я это делал :)
+Config.UseSecnodPass = false; //@TODO: Зачем нужен второй проход:
+							  // (разобраться)
 
 
 
@@ -70,7 +71,7 @@ Config.FinalsDirName = "Results";
 Config.SkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
 Config.SkipDirs = [  Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
-Config.SkipDirs.push( 'asteroids', 'bad' ); //User
+Config.SkipDirs.push( 'asteroids', 'bad', 'Bad'  ); //User (чувствительно к регистру)
 // Пропустить каталоги, если имя каталога содержит одну из строк
 Config.SkipDirsContains = [ '.data', '.pxiproject' ]; 
 

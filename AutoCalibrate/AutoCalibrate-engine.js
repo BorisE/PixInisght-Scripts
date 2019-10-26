@@ -295,8 +295,11 @@ function AutoCalibrateEngine()
 	};
 
 
-	/**
+	/* **************************************************************************************************************
+	 *
 	 * Базовая функция для 2го прохода
+	 *
+	/* **************************************************************************************************************
 	 *
 	 * @param file string
 	 * @return object
@@ -1224,77 +1227,120 @@ function AutoCalibrateEngine()
                Console.noteln ("Registering " + files[i]);
 
             var P = new StarAlignment;
+			
+			P.structureLayers = 5;
+			P.noiseLayers = 0;
+			P.hotPixelFilterRadius = 1;
+			P.noiseReductionFilterRadius = 0;
+			P.sensitivity = 0.100;
+			P.peakResponse = 0.80;
+			P.maxStarDistortion = 0.500;
+			P.upperLimit = 1.000;
+			P.invert = false;
+			P.noGUIMessages = true;
+			P.inputHints = "";
+			P.outputHints = "";
+			P.mode = StarAlignment.prototype.RegisterMatch;
+			P.writeKeywords = true;
+			P.generateMasks = false;
+			P.generateDrizzleData = false;
+			P.frameAdaptation = false;
 
-            P.structureLayers = 5;
-            P.noiseLayers = 0;
-            P.hotPixelFilterRadius = 1;
-            P.noiseReductionFilterRadius = 0;
-            P.sensitivity = 0.100;
-            P.peakResponse = 0.80;
-            P.maxStarDistortion = 0.500;
-            P.upperLimit = 1.000;
-            P.invert = false;
+			P.outputPrefix = "";
+			P.outputPostfix = "_r";
+			P.maskPostfix = "_m";
 
-            P.distortionModel = "";
-            P.undistortedReference = false;
-            P.distortionCorrection = true;
-            P.distortionMaxIterations = 100; // I use 20
-            P.distortionTolerance = 0.001;   // i use 0.005
+			P.useFileThreads = true;      //новое?
+			P.fileThreadOverload = 1.20;  //новое?
+			P.maxFileReadThreads = 1;     //новое?
+			P.maxFileWriteThreads = 1;    //новое?
 
-            P.matcherTolerance = 0.0500;
-            P.ransacTolerance = 2.00;
-            P.ransacMaxIterations = 2000;
-            P.ransacMaximizeInliers = 1.00;
-            P.ransacMaximizeOverlapping = 1.00;
-            P.ransacMaximizeRegularity = 1.00;
-            P.ransacMinimizeError = 1.00;
-            P.maxStars = 0;
-            P.useTriangles = false;
-            P.polygonSides = 5;
-            P.descriptorsPerStar = 20;
-            P.restrictToPreviews = true;
-            P.intersection = StarAlignment.prototype.MosaicOnly;
-            P.useBrightnessRelations = false;
-            P.useScaleDifferences = false;
-            P.scaleTolerance = 0.100;
-            P.referenceImage = referenceFile;
-            P.referenceIsFile = true;
-            P.targets = [ // enabled, isFile, image
-            [true, true, files[i]]
-            ];
-            P.inputHints = "";
-            P.outputHints = "";
-            P.mode = StarAlignment.prototype.RegisterMatch;
-            P.writeKeywords = true;
-            P.generateMasks = false;
-            P.generateDrizzleData = false;
-            P.frameAdaptation = false;
-            P.noGUIMessages = true;
-            P.useSurfaceSplines = false;
-            P.splineSmoothness = 0.00; //i use 0.25, но не уверен, что это на что-то влияет :)
-            P.pixelInterpolation = StarAlignment.prototype.Auto;
-            P.clampingThreshold = 0.30;
+			P.pixelInterpolation = StarAlignment.prototype.Auto;
+			P.clampingThreshold = 0.30;
 
-            P.outputDirectory = RegisteredOutputPath;
-            P.outputExtension = ".fit";
-            P.outputPrefix = "";
-            P.outputPostfix = "_r";
-            P.maskPostfix = "_m";
-            P.outputSampleFormat = StarAlignment.prototype.SameAsTarget; //StarAlignment.prototype.SameAsTarget
-            P.overwriteExistingFiles = Config.OverwriteAllFiles;
-            P.onError = StarAlignment.prototype.Continue;
-            P.useFileThreads = true;      //новое?
-            P.fileThreadOverload = 1.20;  //новое?
-            P.maxFileReadThreads = 1;     //новое?
-            P.maxFileWriteThreads = 1;    //новое?
+			P.useSurfaceSplines = true;
+			P.splineSmoothness = 0.050;
 
-            /*
-            * Read-only properties
-            *
-            P.outputData = [ // outputImage, outputMask, pairMatches, inliers, overlapping, regularity, quality, rmsError, rmsErrorDev, peakErrorX, peakErrorY, H11, H12, H13, H21, H22, H23, H31, H32, H33, frameAdaptationBiasRK, frameAdaptationBiasG, frameAdaptationBiasB, frameAdaptationSlopeRK, frameAdaptationSlopeG, frameAdaptationSlopeB, frameAdaptationAvgDevRK, frameAdaptationAvgDevG, frameAdaptationAvgDevB, referenceStarX, referenceStarY, targetStarX, targetStarY
-            ];
-            */
+			P.referenceImage = referenceFile;
+			P.referenceIsFile = true;
+			P.targets = [ // enabled, isFile, image
+			[true, true, files[i]]
+			];
 
+			P.outputDirectory = RegisteredOutputPath;
+			P.outputExtension = ".fit";
+			P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
+			P.onError = StarAlignment.prototype.Continue;
+			P.overwriteExistingFiles = Config.OverwriteAllFiles;
+
+
+			if (coreVersionMajor > 1 || coreVersionMinor > 8 || coreVersionRelease >= 7)
+			{
+				P.distortionModel = "";
+				P.undistortedReference = false;
+				P.distortionCorrection = true;
+				P.distortionMaxIterations = 100;
+				P.distortionTolerance = 0.001;
+				P.distortionAmplitude = 2;
+				P.localDistortion = true;
+				P.localDistortionScale = 256;
+				P.localDistortionTolerance = 0.050;
+				P.localDistortionRejection = 2.50;
+				P.localDistortionRejectionWindow = 64;
+				P.localDistortionRegularization = 0.010;
+
+				P.extrapolateLocalDistortion = true;
+
+				P.matcherTolerance = 0.0500;
+				P.ransacTolerance = 2.00;
+				P.ransacMaxIterations = 2000;
+				P.ransacMaximizeInliers = 1.00;
+				P.ransacMaximizeOverlapping = 1.00;
+				P.ransacMaximizeRegularity = 1.00;
+				P.ransacMinimizeError = 1.00;
+				P.maxStars = 0;
+				P.fitPSF = StarAlignment.prototype.FitPSF_Always;
+				P.psfTolerance = 0.50;
+				P.useTriangles = false;
+				P.polygonSides = 5;
+				P.descriptorsPerStar = 20;
+				P.restrictToPreviews = true;
+				P.intersection = StarAlignment.prototype.MosaicOnly;
+				P.useBrightnessRelations = false;
+				P.useScaleDifferences = false;
+				P.scaleTolerance = 0.100;
+
+				P.generateDistortionMaps = false;
+				P.randomizeMosaic = true;
+				P.distortionMapPostfix = "_dm";
+				debug('PI Version higher than 1.8.7, so using new StarAlignment parameters', dbgNotice);
+			}
+			else
+			{
+				P.distortionModel = "";
+				P.undistortedReference = false;
+				P.distortionCorrection = true;
+				P.distortionMaxIterations = 100; // I use 20
+				P.distortionTolerance = 0.001;   // i use 0.005
+
+				P.matcherTolerance = 0.0500;
+				P.ransacTolerance = 2.00;
+				P.ransacMaxIterations = 2000;
+				P.ransacMaximizeInliers = 1.00;
+				P.ransacMaximizeOverlapping = 1.00;
+				P.ransacMaximizeRegularity = 1.00;
+				P.ransacMinimizeError = 1.00;
+				P.maxStars = 0;
+				P.useTriangles = false;
+				P.polygonSides = 5;
+				P.descriptorsPerStar = 20;
+				P.restrictToPreviews = true;
+				P.intersection = StarAlignment.prototype.MosaicOnly;
+				P.useBrightnessRelations = false;
+				P.useScaleDifferences = false;
+				P.scaleTolerance = 0.100;
+
+			}
             var status = P.executeGlobal();
 
             this.ProcessesCompleted++;
