@@ -1,191 +1,207 @@
-#ifndef AutoCalibrate_Global_js
-#define AutoCalibrate_Global_js
-#endif
+ #ifndef AutoCalibrate_Global_js
+    #define AutoCalibrate_Global_js
+ #endif
 
-#define TITLE "AutoCalibrate"
-#define VERSION "4.03"
-#define COMPILE_DATE "2019/10/26"
+ #define TITLE "AutoCalibrate"
+ #define VERSION "4.04"
+ #define COMPILE_DATE "2019/11/01"
 
-#define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
-#define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
+ #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
+ #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
 
-#define SETTINGS_KEY_BASE  "AutoCalibrate/"
+ #define SETTINGS_KEY_BASE "AutoCalibrate/"
 
 /*
-   Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-   Developed 2019 by Boris Emchenko http://astromania.info
-*/
+Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
+Developed 2019 by Boris Emchenko http://astromania.info
+ */
 
 /*
 Version History
 
 TODO:
-    - добавить в диалог параметр для Absolute Path
-	- проверить, что -CMD тоже работает
-	- проверить, что дебайрезиация тоже работает
-	- добавить ABE в мониторинг второго прохода (????)
+- добавить в диалог параметр для Absolute Path
+- проверить, что дебайрезиация тоже работает
+- добавить ABE в мониторинг второго прохода (????)
+
+v 4.04 [2019/11/02]
+- Форматирование кода
+- Апгрейд CMD версии до текущей архитектуры
 
 v 4.03 [2019/10/26]
-	- Апдейт StarAlignment (1.8.7)
-	
+- Апдейт StarAlignment (1.8.7)
+
 v 4.02 [2019/10/21]
-	- Cosmetic Correction стал опциональным
-	
+- Cosmetic Correction стал опциональным
+
 v 4.01 [2019/10/20]
-	- Переход на новый Config 
+- Переход на новый Config
 
 v 4.0 [2019/10/13]
-	- GUI: basic parameters can be directly specified
-	- GUI: saving instance, saving in Settings DB
-	- Engine: try also to find Calibration Masters without specified BIN
-	- Engine: debug for notice output slighltly changed
+- GUI: basic parameters can be directly specified
+- GUI: saving instance, saving in Settings DB
+- Engine: try also to find Calibration Masters without specified BIN
+- Engine: debug for notice output slighltly changed
 
 v 4.0alpha4 [2019/10/10]
-	- Improving GUI
+- Improving GUI
 
 v 4.0alpha2 [2019/10/05]
-	- Running from GUI
+- Running from GUI
 
 v 3.2/4.0alpha1 [2019/10/03]
-	- GUI adding in test mode
+- GUI adding in test mode
 
- v 3.1 [2019/09/15]
-	- новый режим: перемещение в отдельную папку объекта наиболее "продвинутые" (самой высокой степени обработки) файлы
+v 3.1 [2019/09/15]
+- новый режим: перемещение в отдельную папку объекта наиболее "продвинутые" (самой высокой степени обработки) файлы
 
- v 3.0 [2019/09/14]
-	- разделение на Engine
-	- оптимизация производительности (не читает файлы в ненужных случаях)
-	- в последующих процессах проверять имена файлов для случая, если ABE был включен/отключен
-   - bug fix: была все таки проблема с названиями фильтров Ha, Oiii и т.д. 3 раз исправлено :)
+v 3.0 [2019/09/14]
+- разделение на Engine
+- оптимизация производительности (не читает файлы в ненужных случаях)
+- в последующих процессах проверять имена файлов для случая, если ABE был включен/отключен
+- bug fix: была все таки проблема с названиями фильтров Ha, Oiii и т.д. 3 раз исправлено :)
 
- v 2.1 [2019/09/06](ABE еще тестируется)
-	  - обязательно использовать BINNING в именах калибровочных файлов
-     - в конфигурации задается формат сохраняемого фалйа (f32, i16, etc)
-     - ABE processing всех файлов (после дебайеризации)
-      - перечень каталогов исключения в виде массива
-	  - bug fix название фильтров в мастерфлетах тоже приводится к единому по словарю
+v 2.1 [2019/09/06](ABE еще тестируется)
+- обязательно использовать BINNING в именах калибровочных файлов
+- в конфигурации задается формат сохраняемого фалйа (f32, i16, etc)
+- ABE processing всех файлов (после дебайеризации)
+- перечень каталогов исключения в виде массива
+- bug fix название фильтров в мастерфлетах тоже приводится к единому по словарю
 
 v 2.0 beta5 [2019/08/08](все еще тестируется)
-	  - bug fix: название фильтра при чтении из библиотеки не переводилось в UPPERCASE, что для Ha, Oiii и т.д. не находило флеты
-	  - при сканировании не заходит в подкаталоги, заданные в конфигурации как "output" (все типы, включая сам output)
+- bug fix: название фильтра при чтении из библиотеки не переводилось в UPPERCASE, что для Ha, Oiii и т.д. не находило флеты
+- при сканировании не заходит в подкаталоги, заданные в конфигурации как "output" (все типы, включая сам output)
 
 
- v 2.0 beta4 [2019/05/07](все еще тестируется)
-	  - bug fix: при калибровке и выравнивании проверять, существует ли файл на выходе (так как иногда выравнивание не проходит и соотв. файл не создается)
-     - bug fix: не проверял при нормализации, нет ли уже готового файла (всегда пересоздавал заново(
+v 2.0 beta4 [2019/05/07](все еще тестируется)
+- bug fix: при калибровке и выравнивании проверять, существует ли файл на выходе (так как иногда выравнивание не проходит и соотв. файл не создается)
+- bug fix: не проверял при нормализации, нет ли уже готового файла (всегда пересоздавал заново(
 
-   v 2.0 beta3 [2019/05/05](все еще тестируется)
-      - bug fixes
+v 2.0 beta3 [2019/05/05](все еще тестируется)
+- bug fixes
 
-   v 2.0 beta2 [2019/05/01] (почти работает!)
-      - Переделана логика работа с подкаталогами (5 режимов работы, прямо задаваемых или авто)
-      - Опция не обрабатывать повторно (если соотв. файл на выходе уже существующует)
-      - Вывод данных (новый принцип debug)
-      - Файл документации
+v 2.0 beta2 [2019/05/01] (почти работает!)
+- Переделана логика работа с подкаталогами (5 режимов работы, прямо задаваемых или авто)
+- Опция не обрабатывать повторно (если соотв. файл на выходе уже существующует)
+- Вывод данных (новый принцип debug)
+- Файл документации
 
-   v2.0 beta1 [2019/04/19]
-      - Добавлен второй режим работы - пересканирование имеющегося набора файла и запуск недостаяющих процессов
-      - Переструктурированы файлы
-      - Добавлен этап "отфильтровка лучших" (не работает - bug PI?)
+v2.0 beta1 [2019/04/19]
+- Добавлен второй режим работы - пересканирование имеющегося набора файла и запуск недостаяющих процессов
+- Переструктурированы файлы
+- Добавлен этап "отфильтровка лучших" (не работает - bug PI?)
 
-   v1.0  16/04/2019     Boris Emchenko
-                        Пора давать релизный номер версии :)
-                        + исключения каталогов из поиска
-
-
-   v0.5  11/04/2019    Boris Emchenko:
-                       Wording, оптимизация кода
-
-   v0.4  04/04/2019    Boris Emchenko:
-                       Конфигурация скрипта вынесена в отдельный раздел
-                       Автоматический подбор биасов и дарков по температуре, дарков по экспозиции, флетов по фильтру и дате
-                       Выравнивание в случае наличия референса
-                       Нормализация в случае наличия референса
+v1.0  16/04/2019     Boris Emchenko
+Пора давать релизный номер версии :)
++ исключения каталогов из поиска
 
 
-   v0.3  12/04/2017    Уход от получения данных о снимке в имени файла на данные
-                       из заголовка фита
+v0.5  11/04/2019    Boris Emchenko:
+Wording, оптимизация кода
 
-   v0.2  10/19/2016    bugFix
-                       Фильтры в upperCase, минуты в lowerCase
-                       binX добавил в шаблон cosmetic_ivan_bin2_200
-
-   v0.1  10/18/2016    Продумал структуру входа, калибровки и выхода.
-                       Сделал поиск файлов, игнорирование уже калиброванных.
-                       Калибровка.
-                       Косметика.
-                       Создание структуры папок.
-                       Выравнивание, если есть ref.fit
-*/
+v0.4  04/04/2019    Boris Emchenko:
+Конфигурация скрипта вынесена в отдельный раздел
+Автоматический подбор биасов и дарков по температуре, дарков по экспозиции, флетов по фильтру и дате
+Выравнивание в случае наличия референса
+Нормализация в случае наличия референса
 
 
+v0.3  12/04/2017    Уход от получения данных о снимке в имени файла на данные
+из заголовка фита
+
+v0.2  10/19/2016    bugFix
+Фильтры в upperCase, минуты в lowerCase
+binX добавил в шаблон cosmetic_ivan_bin2_200
+
+v0.1  10/18/2016    Продумал структуру входа, калибровки и выхода.
+Сделал поиск файлов, игнорирование уже калиброванных.
+Калибровка.
+Косметика.
+Создание структуры папок.
+Выравнивание, если есть ref.fit
+ */
 
 //////////////////////////////////////////////////////
-/* 
-					Глобальные переменные
-*/
+/*
+Глобальные переменные
+ */
 //////////////////////////////////////////////////////
-  
-																	
+
+
 // for FITS HEADER parsing
 var headers = {
-      'XBINNING': null,
-      'OBSERVER': null,
-      'TELESCOP': null,
-	  'INSTRUME': null,
-      'DATE-OBS': null,
-      'EXPTIME':  null,
-      'CCD-TEMP': null,
-      'XPIXSZ':   null,
-      'FOCALLEN':   null,
-      'FILTER':   null,
-      'OBJECT':   null,
-      'OBJCTRA':  null,
-      'OBJCTDEC': null
-      };
-	 
-// DEBUG	 
-var dbgNormal = 1; 	//  минимальное количество сообщений
-var dbgNotice = 2;	// максимальное количество сообщений 
-var dbgCurrent = 0;	// максимальное количество сообщений 
+    'XBINNING': null,
+    'OBSERVER': null,
+    'TELESCOP': null,
+    'INSTRUME': null,
+    'DATE-OBS': null,
+    'EXPTIME': null,
+    'CCD-TEMP': null,
+    'XPIXSZ': null,
+    'FOCALLEN': null,
+    'FILTER': null,
+    'OBJECT': null,
+    'OBJCTRA': null,
+    'OBJCTDEC': null
+};
+
+// DEBUG
+var dbgNormal = 1; //  минимальное количество сообщений
+var dbgNotice = 2; // максимальное количество сообщений
+var dbgCurrent = 0; // максимальное количество сообщений
 
 
 ////////////////////////////////////////////////////////////////////////////////
-var BaseCalibratedOutputPath = ""; 	// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var CalibratedOutputPath = ""; 		// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var CosmetizedOutputPath = ""; 		// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var RegisteredOutputPath= ""; 		// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var NormalizedOutputPath= ""; 		// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var ApprovedOutputPath="";			// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var BaseCalibratedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var CalibratedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var CosmetizedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var RegisteredOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var NormalizedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var ApprovedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 
-var CosmeticsIconTemperature = 0; 	// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
-var CosmeticsIconExposure  = 0;		// инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var CosmeticsIconTemperature = 0; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var CosmeticsIconExposure = 0; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 
-var busy = false;					// Осталась от Олега
-var needRefresh = true;				// Осталась от Олега
+var busy = false; // Осталась от Олега
+var needRefresh = true; // Осталась от Олега
 
-var cfgDefObjectName = "Obj";		// имя объекта, в случае если FITS не содержит имя объекта
+var cfgDefObjectName = "Obj"; // имя объекта, в случае если FITS не содержит имя объекта
 
-var requestToCopy = []; 			//массив для хранения файлов, которые нужно будет скопировать как финальные (если такой режим установлен)
+var requestToCopy = []; //массив для хранения файлов, которые нужно будет скопировать как финальные (если такой режим установлен)
 
 ////////////////////////////////////////////////////////////////////////////////
-var PATHMODE = { UNSET : -1, AUTO : 0, PUT_IN_ROOT_SUBFOLDER : 1, PUT_IN_OBJECT_SUBFOLDER : 2, ABSOLUTE : 3, RELATIVE : 4, RELATIVE_WITH_OBJECT_FOLDER : 5, PUT_FINALS_IN_OBJECT_SUBFOLDER :6 };// Типы расположения файлов, см. documentation.txt
+var PATHMODE = {
+    UNSET: -1,
+    AUTO: 0,
+    PUT_IN_ROOT_SUBFOLDER: 1,
+    PUT_IN_OBJECT_SUBFOLDER: 2,
+    ABSOLUTE: 3,
+    RELATIVE: 4,
+    RELATIVE_WITH_OBJECT_FOLDER: 5,
+    PUT_FINALS_IN_OBJECT_SUBFOLDER: 6
+}; // Типы расположения файлов, см. documentation.txt
 
 
-var FITS = { UNKNOWN : -1, ORIGINAL : 0, CALIBRATED : 1, COSMETIZED : 2, REGISTERED : 3, NORMALIZED : 4, APPROVED: 5 }; // Типы файлов
-var FILEARRAY = [];	// базовый массив хранения файлов, куда вносятся результаты сканирования
+var FITS = {
+    UNKNOWN: -1,
+    ORIGINAL: 0,
+    CALIBRATED: 1,
+    COSMETIZED: 2,
+    REGISTERED: 3,
+    NORMALIZED: 4,
+    APPROVED: 5
+}; // Типы файлов
+var FILEARRAY = []; // базовый массив хранения файлов, куда вносятся результаты сканирования
 /*      FILEARRAY.push({
-            fits: signaturename,
-            fullname:   (type == FITS.ORIGINAL     ? fullname : null),
-            calibrated: (type == FITS.CALIBRATED   ? fullname : null),
-            cosmetized: (type == FITS.COSMETIZED   ? fullname : null),
-            registered: (type == FITS.REGISTERED   ? fullname : null),
-            normalized: (type == FITS.NORMALIZED   ? fullname : null),
-            approved:   (type == FITS.APPROVED     ? fullname : null),
-         });
-*/
-
-
+fits: signaturename,
+fullname:   (type == FITS.ORIGINAL     ? fullname : null),
+calibrated: (type == FITS.CALIBRATED   ? fullname : null),
+cosmetized: (type == FITS.COSMETIZED   ? fullname : null),
+registered: (type == FITS.REGISTERED   ? fullname : null),
+normalized: (type == FITS.NORMALIZED   ? fullname : null),
+approved:   (type == FITS.APPROVED     ? fullname : null),
+});
+ */
 
 /**
  * Вернуть название поле для объекта FILEARRAY по типу
@@ -193,31 +209,29 @@ var FILEARRAY = [];	// базовый массив хранения файлов
  * @param type FITS тип файла
  * @return string
  */
-function getFILEARRPropertyName(type)
-{
-   var st="";
-   switch (type)
-   {
-      case FITS.ORIGINAL:
-         st="fullname";
-         break;
-      case FITS.CALIBRATED:
-         st="calibrated";
-         break;
-      case FITS.COSMETIZED:
-         st="cosmetized";
-         break;
-      case FITS.REGISTERED:
-         st="registered";
-         break;
-      case FITS.NORMALIZED:
-         st="normalized";
-         break;
-      case FITS.APPROVED:
-         st="approved";
-         break;
-   }
-   return st;
+function getFILEARRPropertyName(type) {
+    var st = "";
+    switch (type) {
+    case FITS.ORIGINAL:
+        st = "fullname";
+        break;
+    case FITS.CALIBRATED:
+        st = "calibrated";
+        break;
+    case FITS.COSMETIZED:
+        st = "cosmetized";
+        break;
+    case FITS.REGISTERED:
+        st = "registered";
+        break;
+    case FITS.NORMALIZED:
+        st = "normalized";
+        break;
+    case FITS.APPROVED:
+        st = "approved";
+        break;
+    }
+    return st;
 }
 
 /**
@@ -226,43 +240,35 @@ function getFILEARRPropertyName(type)
  * @param property string
  * @return string
  */
-function getFILEARRPrecedingName(property)
-{
-   if (property == getFILEARRPropertyName (FITS.ORIGINAL))
-      return getFILEARRPropertyName (FITS.ORIGINAL)
-   else if (property == getFILEARRPropertyName (FITS.CALIBRATED))
-      return getFILEARRPropertyName (FITS.ORIGINAL)
-   else if (property == getFILEARRPropertyName (FITS.COSMETIZED))
-      return getFILEARRPropertyName (FITS.CALIBRATED)
-   else if (property == getFILEARRPropertyName (FITS.REGISTERED))
-      return getFILEARRPropertyName (FITS.COSMETIZED)
-   else if (property == getFILEARRPropertyName (FITS.NORMALIZED))
-      return getFILEARRPropertyName (FITS.REGISTERED)
-   else if (property == getFILEARRPropertyName (FITS.APPROVED))
-      return getFILEARRPropertyName (FITS.NORMALIZED)
-   else 
-      return getFILEARRPropertyName (FITS.ORIGINAL);
-     
+function getFILEARRPrecedingName(property) {
+    if (property == getFILEARRPropertyName(FITS.ORIGINAL))
+        return getFILEARRPropertyName(FITS.ORIGINAL)
+    else if (property == getFILEARRPropertyName(FITS.CALIBRATED))
+        return getFILEARRPropertyName(FITS.ORIGINAL)
+    else if (property == getFILEARRPropertyName(FITS.COSMETIZED))
+        return getFILEARRPropertyName(FITS.CALIBRATED)
+    else if (property == getFILEARRPropertyName(FITS.REGISTERED))
+        return getFILEARRPropertyName(FITS.COSMETIZED)
+    else if (property == getFILEARRPropertyName(FITS.NORMALIZED))
+        return getFILEARRPropertyName(FITS.REGISTERED)
+    else if (property == getFILEARRPropertyName(FITS.APPROVED))
+        return getFILEARRPropertyName(FITS.NORMALIZED)
+    else
+        return getFILEARRPropertyName(FITS.ORIGINAL);
+
 }
 
-
-function debug(st, level = dbgCurrent)
-{
-   if (DEBUG && level <= cfgDebugLevel)
-   {
-		if (level == dbgNotice) 
-		{
-			console.write ("<sub>");
-			console.write (st);
-			console.writeln ("</sub>");
-		}
-		else
-		{
-			console.writeln (st);
-		}
-   }
+function debug(st, level = dbgCurrent) {
+    if (DEBUG && level <= cfgDebugLevel) {
+        if (level == dbgNotice) {
+            console.write("<sub>");
+            console.write(st);
+            console.writeln("</sub>");
+        } else {
+            console.writeln(st);
+        }
+    }
 }
-
 
 /**
  * Переименование фита и копирование в папку объекта
@@ -270,128 +276,113 @@ function debug(st, level = dbgCurrent)
  * @param fileName string Имя файла_c_cc.fit
  * @return object
  */
-function renameCopyFit(fileName)
-{
-   console.writeln('rename and copy fit: '+ fileName);
+function renameCopyFit(fileName) {
+    console.writeln('rename and copy fit: ' + fileName);
 
-   var file = getFileHeaderData(fileName);
-   if (!file)
-      return false;
+    var file = getFileHeaderData(fileName);
+    if (!file)
+        return false;
 
-   file.dst = file.instrument.replace('/', '_') +'-'+
-      file.date +'-'+ file.time +'-'+
-      file.object +'-'+ file.filter +'-bin'+ file.bin +'-'+
-      file.duration +'s';
-   console.writeln('.. to: '+ file.dst);
+    file.dst = file.instrument.replace('/', '_') + '-' +
+        file.date + '-' + file.time + '-' +
+        file.object + '-' + file.filter + '-bin' + file.bin + '-' +
+        file.duration + 's';
+    console.writeln('.. to: ' + file.dst);
 
-   if (Config.NeedCalibration) {
-      // удаляю _с файл
-      File.remove(fileName.replace(/_c_cc\.fit$/, '_c.fit'));
-   }
+    if (Config.NeedCalibration) {
+        // удаляю _с файл
+        File.remove(fileName.replace(/_c_cc\.fit$/, '_c.fit'));
+    }
 
-   // создаю папки Config.OutputPath / object / filter / сс и / src
-   if (!File.directoryExists(Config.OutputPath +'/'+ file.object +'/'+ file.filter + '/cc'))
-      File.createDirectory(Config.OutputPath +'/'+ file.object +'/'+ file.filter + '/cc', true);
-   if (!File.directoryExists(Config.OutputPath +'/'+ file.object +'/'+ file.filter + '/src'))
-      File.createDirectory(Config.OutputPath +'/'+ file.object +'/'+ file.filter + '/src', true);
+    // создаю папки Config.OutputPath / object / filter / сс и / src
+    if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/' + file.filter + '/cc'))
+        File.createDirectory(Config.OutputPath + '/' + file.object + '/' + file.filter + '/cc', true);
+    if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/' + file.filter + '/src'))
+        File.createDirectory(Config.OutputPath + '/' + file.object + '/' + file.filter + '/src', true);
 
-   // добавляю префикс файлу src и cc
-   // переношу исходник в Config.OutputPath / filter / src
-   // переношу _cc в Config.OutputPath / filter / cc
+    // добавляю префикс файлу src и cc
+    // переношу исходник в Config.OutputPath / filter / src
+    // переношу _cc в Config.OutputPath / filter / cc
 
-   console.writeln('move: '+ fileName +' to: '+Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/cc/'+ file.dst +'_c_cc.fit');
-   File.move(
-      fileName,
-      Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/cc/'+ file.dst +'_c_cc.fit'
-   );
+    console.writeln('move: ' + fileName + ' to: ' + Config.OutputPath + '/' + file.object + '/' + file.filter + '/cc/' + file.dst + '_c_cc.fit');
+    File.move(
+        fileName,
+        Config.OutputPath + '/' + file.object + '/' + file.filter + '/cc/' + file.dst + '_c_cc.fit');
 
-   if (Config.NeedCalibration) {
-      console.writeln('move: '+ fileName.replace(/_c_cc\.fit$/, '.fit') +' to: '+Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/src/'+ file.dst +'.fit');
-      File.move(
-         fileName.replace(/_c_cc\.fit$/, '.fit'),
-         Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/src/'+ file.dst +'.fit'
-      );
-   }
+    if (Config.NeedCalibration) {
+        console.writeln('move: ' + fileName.replace(/_c_cc\.fit$/, '.fit') + ' to: ' + Config.OutputPath + '/' + file.object + '/' + file.filter + '/src/' + file.dst + '.fit');
+        File.move(
+            fileName.replace(/_c_cc\.fit$/, '.fit'),
+            Config.OutputPath + '/' + file.object + '/' + file.filter + '/src/' + file.dst + '.fit');
+    }
 
-   return file;
+    return file;
 }
-
 
 // from script / fitsKeywords.js
-function copyFile( sourceFilePath, targetFilePath )
-{
-   var f = new File;
+function copyFile(sourceFilePath, targetFilePath) {
+    var f = new File;
 
-   f.openForReading( sourceFilePath );
-   var buffer = f.read( DataType_ByteArray, f.size );
-   f.close();
+    f.openForReading(sourceFilePath);
+    var buffer = f.read(DataType_ByteArray, f.size);
+    f.close();
 
-   f.createForWriting( targetFilePath );
-   f.write( buffer );
-   //f.flush(); // optional; remove if immediate writing is not required
-   f.close();
+    f.createForWriting(targetFilePath);
+    f.write(buffer);
+    //f.flush(); // optional; remove if immediate writing is not required
+    f.close();
 }
-
-
 
 /*
  * Returns a readable textual representation of a file size in bytes with
  * automatic units conversion.
  */
-function fileSizeAsString( bytes, precision )
-{
-   const kb = 1024;
-   const mb = 1024 * kb;
-   const gb = 1024 * mb;
-   const tb = 1024 * gb;
-   if ( bytes >= tb )
-      return format( "%.*g TiB", precision, bytes/tb );
-   if ( bytes >= gb )
-      return format( "%.*g GiB", precision, bytes/gb );
-   if ( bytes >= mb )
-      return format( "%.*g MiB", precision, bytes/mb );
-   if ( bytes >= kb )
-      return format( "%.*g KiB", precision, bytes/kb );
-   return format( "%lld B", bytes );
+function fileSizeAsString(bytes, precision) {
+    const kb = 1024;
+    const mb = 1024 * kb;
+    const gb = 1024 * mb;
+    const tb = 1024 * gb;
+    if (bytes >= tb)
+        return format("%.*g TiB", precision, bytes / tb);
+    if (bytes >= gb)
+        return format("%.*g GiB", precision, bytes / gb);
+    if (bytes >= mb)
+        return format("%.*g MiB", precision, bytes / mb);
+    if (bytes >= kb)
+        return format("%.*g KiB", precision, bytes / kb);
+    return format("%lld B", bytes);
 };
-
 
 /**
  * Поиск расширения файла
  */
-function fileExtension(file)
-{
-   //console.writeln('ext file='+ file);
-   var ext = file.match(/\.([^.]+)$/);
+function fileExtension(file) {
+    //console.writeln('ext file='+ file);
+    var ext = file.match(/\.([^.]+)$/);
 
-   return ext && ext.length ? ext[1] : false
+    return ext && ext.length ? ext[1] : false
 }
 
 /**
- * Проверка, содержит ли имя директории dirName любую из строк из массива SkipDirsContains 
+ * Проверка, содержит ли имя директории dirName любую из строк из массива SkipDirsContains
  */
-function DirNameContains(dirName, SkipDirsContains)
-{
-	var bF=false;
-	SkipDirsContains.forEach(
-		function(element) {
-			//console.writeln(element);
-			if (dirName.indexOf(element) > -1)
-				bF=true;
-		}
-	);
-	return bF;
+function DirNameContains(dirName, SkipDirsContains) {
+    var bF = false;
+    SkipDirsContains.forEach(
+        function (element) {
+        //console.writeln(element);
+        if (dirName.indexOf(element) > -1)
+            bF = true;
+    });
+    return bF;
 }
 
-function print_array(arr, level = dbgCurrent)
-{
-   if (DEBUG && level <= cfgDebugLevel)
-   {
-      console.writeln ("Printing array contents:");
-	  arr.forEach(
-		function(element) {
-			console.writeln(element);
-			}
-		)
-	}
+function print_array(arr, level = dbgCurrent) {
+    if (DEBUG && level <= cfgDebugLevel) {
+        console.writeln("Printing array contents:");
+        arr.forEach(
+            function (element) {
+            console.writeln(element);
+        })
+    }
 }
