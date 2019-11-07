@@ -13,7 +13,7 @@
    Changelog:
    1.0.0: First release in PixInsight Forum
    1.1.0: GUI, previews selection list, target selection list, preserve previews option
-   1.1.0b1: Boris Emchenko edit bases on 1.1.0
+   1.1.0b1: Boris Emchenko edit based on 1.1.0: only visible windows are included, and default check off
 */
 
 /*
@@ -22,12 +22,12 @@ TODO
 - Some code cleaning
 */
 
-#feature-id    Utilities > PropagatePreviews++
+#feature-id    Utilities2 > PropagatePreviews++
 
 #feature-info  "<p>Script that allows you to copy selected previews from active image to selected open images.</p>"
 
 #define TITLE  "PropagatePreviews"
-#define VERSION "1.1.0"
+#define VERSION "1.1.0b1"
 
 #include <pjsr/Sizer.jsh>
 #include <pjsr/FrameStyle.jsh>

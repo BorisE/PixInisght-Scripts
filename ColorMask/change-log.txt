@@ -1,0 +1,14 @@
+===============================================================================
+ColorMask Script Changelog
+===============================================================================
+
+1.0  - 2017 July 7
+
+      Initial release as part of the official PixInsight 1.8.5 distribution.
+
+-------------------------------------------------------------------------------
+
+0.2  - 2014 November 14
+
+      Initial release on PixInsight Forum:
+         https://pixinsight.com/forum/index.php?topic=7751.0
