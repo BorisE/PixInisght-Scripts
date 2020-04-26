@@ -2078,13 +2078,19 @@ function AutoCalibrateEngine() {
         var filter = String.toUpperCase(headers.FILTER);
         //debug('Filter name after normalization: '+ headers.FILTER +'',2);
 
+        // Возьмем камеру, заменим его по справочнику
+        var camera = headers.INSTRUME;
+        if (typeof CAMERA_DICTIONARY[headers.INSTRUME] != 'undefined') {
+            camera = CAMERA_DICTIONARY[headers.INSTRUME];
+        }
+
         image.close();
 
         // @todo date midnight / midday
         // @todo utc
         return {
             instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + headers.TELESCOP, // was Vitar/MakF10 or (for me) just SW250
-            camera: (CAMERA_DICTIONARY.includes(headers.INSTRUME) ? CAMERA_DICTIONARY[headers.INSTRUME] : headers.INSTRUME) , // ArtemisHSC
+            camera: camera , // ArtemisHSC
             date: headers['DATE-OBS'].substr(0, "2017-01-01".length), // 2016-10-13
             time: headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
             name: fileName.split('/').reverse()[0], // pix-001.fit
