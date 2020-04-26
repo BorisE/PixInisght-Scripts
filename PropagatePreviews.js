@@ -22,7 +22,7 @@ TODO
 - Some code cleaning
 */
 
-#feature-id    Utilities2 > PropagatePreviews++
+#feature-id    Utilities2 > PropagatePreviews+
 
 #feature-info  "<p>Script that allows you to copy selected previews from active image to selected open images.</p>"
 

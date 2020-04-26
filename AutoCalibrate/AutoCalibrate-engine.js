@@ -625,7 +625,7 @@ function AutoCalibrateEngine() {
                 }
 
                 // Get Masters files names
-                var mastersFiles = matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseBiningFolder ? "/bin" + fileData.bin : ""), fileData);
+                var mastersFiles = matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "") + (Config.UseBiningFolder ? "/bin" + fileData.bin : ""), fileData);
                 if (!mastersFiles) {
                     Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
                     return fileName;
@@ -2084,7 +2084,7 @@ function AutoCalibrateEngine() {
         // @todo utc
         return {
             instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + headers.TELESCOP, // was Vitar/MakF10 or (for me) just SW250
-            camera: headers.INSTRUME, // ArtemisHSC
+            camera: (CAMERA_DICTIONARY.includes(headers.INSTRUME) ? CAMERA_DICTIONARY[headers.INSTRUME] : headers.INSTRUME) , // ArtemisHSC
             date: headers['DATE-OBS'].substr(0, "2017-01-01".length), // 2016-10-13
             time: headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
             name: fileName.split('/').reverse()[0], // pix-001.fit

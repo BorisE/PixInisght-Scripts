@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "4.04"
- #define COMPILE_DATE "2019/11/01"
+ #define VERSION "4.1"
+ #define COMPILE_DATE "2020/04/26"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -23,6 +23,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 - добавить ABE в мониторинг второго прохода (????)
+
+v 4.1 [2020/04/26]
+- имя камеры может быть включено в путь калибровочных кадров
+- словарь CAMERA_DICTIONARY для замены имен камеры на френдли имена
 
 v 4.04 [2019/11/02]
 - Форматирование кода
