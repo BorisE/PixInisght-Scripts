@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "4.1a"
- #define COMPILE_DATE "2020/04/26"
+ #define VERSION "4.1b"
+ #define COMPILE_DATE "2020/05/05"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -23,6 +23,9 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 - добавить ABE в мониторинг второго прохода (????)
+
+v 4.1b [2020/05/05]
+- local distorsion during registration gives some abnormal results and was switched off
 
 v 4.1 [2020/04/26]
 - имя камеры может быть включено в путь калибровочных кадров

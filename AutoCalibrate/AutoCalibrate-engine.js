@@ -609,116 +609,127 @@ function AutoCalibrateEngine() {
 
         // make new file name
         var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-            var newFileName = FileName.replace(/\.fit$/i, '_c.fit')
-            newFileName = CalibratedOutputPath + '/' + newFileName
+        var newFileName = FileName.replace(/\.fit$/i, '_c.fit')
+        newFileName = CalibratedOutputPath + '/' + newFileName
 
-            //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
-            if (Config.SkipExistingFiles && File.exists(newFileName)) {
-                Console.warningln('File ' + newFileName + ' already exists, skipping calibration');
-            } else {
+        //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
+        if (Config.SkipExistingFiles && File.exists(newFileName)) {
+            Console.warningln('File ' + newFileName + ' already exists, skipping calibration');
+        } else {
 
-                if (!fileData)
-                    var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
-                if (!fileData) {
-                    console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
-                    return false;
-                }
-
-                // Get Masters files names
-                var mastersFiles = matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "") + (Config.UseBiningFolder ? "/bin" + fileData.bin : ""), fileData);
-                if (!mastersFiles) {
-                    Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
-                    return fileName;
-                }
-
-                // Check if folder for calibrated files exists
-                if (!File.directoryExists(CalibratedOutputPath))
-                    File.createDirectory(CalibratedOutputPath, true);
-
-                var P = new ImageCalibration;
-                P.targetFrames = [// enabled, path
-                    [true, fileName]
-                ];
-                P.inputHints = "";
-                P.outputHints = "";
-                P.pedestal = 0;
-                P.pedestalMode = ImageCalibration.prototype.Keyword;
-                P.pedestalKeyword = "";
-                P.overscanEnabled = false;
-                P.overscanImageX0 = 0;
-                P.overscanImageY0 = 0;
-                P.overscanImageX1 = 0;
-                P.overscanImageY1 = 0;
-                P.overscanRegions = [// enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
-                    [false, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [false, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [false, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [false, 0, 0, 0, 0, 0, 0, 0, 0]
-                ];
-
-                P.masterBiasEnabled = true;
-                P.masterBiasPath = mastersFiles.masterbias;
-
-                P.masterDarkEnabled = true;
-                P.masterDarkPath = mastersFiles.masterdark;
-
-                P.masterFlatEnabled = true;
-                P.masterFlatPath = mastersFiles.masterflat;
-
-                P.calibrateBias = false;
-                P.calibrateDark = true; // понять бы - нужно или нет?!
-                P.calibrateFlat = false; // понять бы - нужно или нет?!
-
-                P.optimizeDarks = true;
-                P.darkOptimizationThreshold = 0.00000;
-                P.darkOptimizationLow = 3.0000;
-                P.darkOptimizationWindow = 1024;
-
-                P.darkCFADetectionMode = (fileData.cfa)
-                 ? ImageCalibration.prototype.ForceCFA
-                 : ImageCalibration.prototype.IgnoreCFA;
-
-                P.evaluateNoise = true;
-                P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
-
-                P.outputDirectory = CalibratedOutputPath;
-                P.outputExtension = ".fit";
-                P.outputPrefix = "";
-                P.outputPostfix = "_c";
-                P.outputSampleFormat = Config.OutputFormatIC;
-                P.outputPedestal = 0; // Нужно поискать
-
-                P.overwriteExistingFiles = Config.OverwriteAllFiles;
-                P.onError = ImageCalibration.prototype.Continue;
-                P.noGUIMessages = true;
-
-                var status = P.executeGlobal();
-                this.CalibratedCount++;
-                this.ProcessesCompleted++;
-
-                console.noteln("<end><cbr><br>",
-                    "-------------------------------------------------------------");
-                console.noteln(" [" + this.FileTotalCount + "] End of calibration");
-                console.noteln("-------------------------------------------------------------");
-
-            }
-
-            if (File.exists(newFileName)) {
-                // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
-                var fn = "";
-                if ((fn = newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null) {
-                    debug("path: " + fn[1], dbgNotice);
-                    debug("matched: " + fn[2], dbgNotice);
-                    debug("file is calibrated of " + fn[2], dbgNotice);
-
-                    AddFileToArray(FITS.CALIBRATED, newFileName, fn[2], fn[1]); //type, full name, signature, path
-                } else {
-                    debug("PATTERN NOT FOUND");
-                }
-                return newFileName;
-            } else {
+            if (!fileData)
+                var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
+            if (!fileData) {
+                console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
                 return false;
             }
+
+            // Get Masters files names
+            var mastersFiles = matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "") + (Config.UseBiningFolder ? "/bin" + fileData.bin : ""), fileData);
+            if (!mastersFiles) {
+                Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
+                return fileName;
+            }
+
+            // Check if folder for calibrated files exists
+            if (!File.directoryExists(CalibratedOutputPath))
+                File.createDirectory(CalibratedOutputPath, true);
+
+            var P = new ImageCalibration;
+            P.targetFrames = [// enabled, path
+                [true, fileName]
+            ];
+            P.inputHints = "";
+            P.outputHints = "";
+            P.pedestal = 0;
+            P.pedestalMode = ImageCalibration.prototype.Keyword;
+            P.pedestalKeyword = "";
+            P.overscanEnabled = false;
+            P.overscanImageX0 = 0;
+            P.overscanImageY0 = 0;
+            P.overscanImageX1 = 0;
+            P.overscanImageY1 = 0;
+            P.overscanRegions = [// enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
+                [false, 0, 0, 0, 0, 0, 0, 0, 0],
+                [false, 0, 0, 0, 0, 0, 0, 0, 0],
+                [false, 0, 0, 0, 0, 0, 0, 0, 0],
+                [false, 0, 0, 0, 0, 0, 0, 0, 0]
+            ];
+
+            P.masterBiasEnabled = true;
+            P.masterBiasPath = mastersFiles.masterbias;
+
+            P.masterDarkEnabled = true;
+            P.masterDarkPath = mastersFiles.masterdark;
+
+            P.masterFlatEnabled = true;
+            P.masterFlatPath = mastersFiles.masterflat;
+
+            P.calibrateBias = false;
+            P.calibrateDark = true; // понять бы - нужно или нет?!
+            P.calibrateFlat = false; // понять бы - нужно или нет?!
+
+            P.optimizeDarks = true;
+            P.darkOptimizationThreshold = 0.00000;
+            P.darkOptimizationLow = 3.0000;
+            P.darkOptimizationWindow = 1024;
+
+            P.darkCFADetectionMode = (fileData.cfa)
+             ? ImageCalibration.prototype.ForceCFA
+             : ImageCalibration.prototype.IgnoreCFA;
+
+            P.evaluateNoise = true;
+            P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+
+            P.outputDirectory = CalibratedOutputPath;
+            P.outputExtension = ".fit";
+            P.outputPrefix = "";
+            P.outputPostfix = "_c";
+            P.outputSampleFormat = Config.OutputFormatIC;
+            P.outputPedestal = 0; // Нужно поискать
+
+            P.overwriteExistingFiles = Config.OverwriteAllFiles;
+            P.onError = ImageCalibration.prototype.Continue;
+            P.noGUIMessages = true;
+
+            var status = P.executeGlobal();
+            
+            console.noteln("<end><cbr><br>",
+                "-------------------------------------------------------------");
+
+            if (status) 
+            {
+                this.CalibratedCount++;
+                this.ProcessesCompleted++;
+                
+                console.noteln(" [" + this.FileTotalCount + "] End of calibration");
+                console.noteln("-------------------------------------------------------------");
+            } 
+            else 
+            {
+                console.criticalln(" [" + this.FileTotalCount + "] End of calibration with error");
+                console.noteln("-------------------------------------------------------------");
+                return false;
+            }
+
+        }
+
+        if (File.exists(newFileName)) {
+            // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
+            var fn = "";
+            if ((fn = newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null) {
+                debug("path: " + fn[1], dbgNotice);
+                debug("matched: " + fn[2], dbgNotice);
+                debug("file is calibrated of " + fn[2], dbgNotice);
+
+                AddFileToArray(FITS.CALIBRATED, newFileName, fn[2], fn[1]); //type, full name, signature, path
+            } else {
+                debug("PATTERN NOT FOUND");
+            }
+            return newFileName;
+        } else {
+            return false;
+        }
 
     }
 
@@ -734,8 +745,8 @@ function AutoCalibrateEngine() {
             return fileName;
         }
         if (!Config.NeedCosmeticCorrection) {
-            return fileName;
             debug("Cosmetic correction is off (with calibration)", dbgNormal);
+            return fileName;
         }
 
         // Start cosmetic correction
@@ -755,7 +766,7 @@ function AutoCalibrateEngine() {
 
         // return new file name
         var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-            var newFileName = FileName.replace(/_c\.fit$/, '_c_cc.fit');
+        var newFileName = FileName.replace(/_c\.fit$/, '_c_cc.fit');
         newFileName = CosmetizedOutputPath + '/' + newFileName;
 
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
@@ -797,7 +808,7 @@ function AutoCalibrateEngine() {
             CC.overwrite = Config.OverwriteAllFiles;
             //CC.cfa             = false;
 
-            CC.executeGlobal();
+            var status = CC.executeGlobal();
             this.ProcessesCompleted++;
             this.CosmetizedCount++;
 
@@ -807,19 +818,23 @@ function AutoCalibrateEngine() {
             console.noteln("-------------------------------------------------------------");
         }
 
-        // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
-        var fn = "";
-        if ((fn = newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is cosmetized of " + fn[2], dbgNotice);
+        if (File.exists(newFileName)) {
+            // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
+            var fn = "";
+            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null) {
+                debug("path: " + fn[1], dbgNotice);
+                debug("matched: " + fn[2], dbgNotice);
+                debug("file is cosmetized of " + fn[2], dbgNotice);
 
-            AddFileToArray(FITS.COSMETIZED, newFileName, fn[2], fn[1]); //type, full name, signature, path
+                AddFileToArray(FITS.COSMETIZED, newFileName, fn[2], fn[1]); //type, full name, signature, path
+            } else {
+                debug("PATTERN NOT FOUND");
+            }
+            return newFileName;
         } else {
-            debug("PATTERN NOT FOUND");
+            return fileName;
         }
 
-        return newFileName;
     }
 
     /************************************************************************************************************
@@ -1130,14 +1145,14 @@ function AutoCalibrateEngine() {
                     P.distortionCorrection = true;
                     P.distortionMaxIterations = 100;
                     P.distortionTolerance = 0.001;
+
                     P.distortionAmplitude = 2;
-                    P.localDistortion = true;
+                    P.localDistortion = false;
                     P.localDistortionScale = 256;
                     P.localDistortionTolerance = 0.050;
                     P.localDistortionRejection = 2.50;
                     P.localDistortionRejectionWindow = 64;
                     P.localDistortionRegularization = 0.010;
-
                     P.extrapolateLocalDistortion = true;
 
                     P.matcherTolerance = 0.0500;
@@ -1152,7 +1167,9 @@ function AutoCalibrateEngine() {
                     P.psfTolerance = 0.50;
                     P.useTriangles = false;
                     P.polygonSides = 5;
+                    
                     P.descriptorsPerStar = 20;
+
                     P.restrictToPreviews = true;
                     P.intersection = StarAlignment.prototype.MosaicOnly;
                     P.useBrightnessRelations = false;
@@ -1162,7 +1179,6 @@ function AutoCalibrateEngine() {
                     P.generateDistortionMaps = false;
                     P.randomizeMosaic = true;
                     P.distortionMapPostfix = "_dm";
-                    debug('PI Version higher than 1.8.7, so using new StarAlignment parameters', dbgNotice);
                 } else {
                     P.distortionModel = "";
                     P.undistortedReference = false;
