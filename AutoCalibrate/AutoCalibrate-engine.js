@@ -158,6 +158,7 @@ function AutoCalibrateEngine() {
             this.DirCount = 0;
             this.FileTotalCount = 0;
             this.ProcessesCompleted = 0;
+
             this.ScanArray();
 
             //Finish working
@@ -253,6 +254,10 @@ function AutoCalibrateEngine() {
                                                             this.calibrateFITSFile(searchPath + '/' + objFileFind.name)))))));
 
                                 }
+                                else
+                                {
+                                    debug('Skipping any actions on file found: ' + searchPath + '/' + objFileFind.name, dbgNotice);                                         
+                                }
                             }
                         }
                     }
@@ -273,6 +278,12 @@ function AutoCalibrateEngine() {
      * @return object
      */
     this.ScanArray = function () {
+
+        console.noteln("<end><cbr><br>",
+            "************************************************************");
+        Console.noteln('* Starting second pass');
+        console.noteln("************************************************************");
+
         // Print array
         console.writeln("Need to proccess (total count = " + FILEARRAY.length + ")");
         for (var i = 0; i < FILEARRAY.length; i++) {
@@ -281,10 +292,20 @@ function AutoCalibrateEngine() {
                 if (property == "fits")
                     console.note("<b>", FILEARRAY[i].fits, "</b> | ");
                 else
-                    console.write(property, ": ", FILEARRAY[i][property], " | ");
+                    console.write("<b>", property, "</b>: ", FILEARRAY[i][property], " | ");
             }
             console.writeln();
         }
+        
+        
+        // @TODO ABE: 
+        // ok   getFILEARRPrecedingName()
+        // ok   getFILEARRPropertyName()
+        // ok   константы FITS.ORIGINAL
+        // ok   AddFileToArray
+        // ok   как формируется FILEARRAY
+        // ok   checkFileNeedCalibratation_and_PopulateArray
+        // модифицифировать цикл ниже
 
         // Переопределяем режимы размещения папок
         // Размещать файлы по объектам
@@ -343,6 +364,15 @@ function AutoCalibrateEngine() {
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
                         }
+                        // if missing ABED
+                        if (property == getFILEARRPropertyName(FITS.ABED) && FILEARRAY[i][preceding] != null) {
+                            this.FileTotalCount++;
+                            // Process
+                            var res = this.ABEprocess([FILEARRAY[i][preceding]]);
+                            // Check and modify array
+                            if (checkFileNeedCalibratation_and_PopulateArray(res))
+                                debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
+                        }
                         // if missing REGISTERED
                         if (property == getFILEARRPropertyName(FITS.REGISTERED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
@@ -397,7 +427,7 @@ function AutoCalibrateEngine() {
                 if (property == "fits")
                     console.noteln("<b>", FILEARRAY[i].fits, "</b> | ");
                 else
-                    console.writeln(property, ": ", FILEARRAY[i][property], " | ");
+                    console.write("<b>", property, "</b>: ", FILEARRAY[i][property], " | ");
             }
             console.writeln();
         }
@@ -478,12 +508,13 @@ function AutoCalibrateEngine() {
             //no line, add data
             FILEARRAY.push({
                 fits: signaturename,
-                fullname: (type == FITS.ORIGINAL ? fullname : null),
-                calibrated: (type == FITS.CALIBRATED ? fullname : null),
-                cosmetized: (type == FITS.COSMETIZED ? fullname : null),
-                registered: (type == FITS.REGISTERED ? fullname : null),
-                normalized: (type == FITS.NORMALIZED ? fullname : null),
-                approved: (type == FITS.APPROVED ? fullname : null),
+                fullname:       (type == FITS.ORIGINAL ? fullname : null),
+                calibrated:     (type == FITS.CALIBRATED ? fullname : null),
+                cosmetized:     (type == FITS.COSMETIZED ? fullname : null),
+                abed:           (type == FITS.ABED ? fullname : null),
+                registered:     (type == FITS.REGISTERED ? fullname : null),
+                normalized:     (type == FITS.NORMALIZED ? fullname : null),
+                approved:       (type == FITS.APPROVED ? fullname : null),
             });
         }
     }
@@ -529,7 +560,14 @@ function AutoCalibrateEngine() {
 
             AddFileToArray(FITS.COSMETIZED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b.fit$/i)) != null) {
+            debug("path: " + fn[1], dbgNotice);
+            debug("matched: " + fn[2], dbgNotice);
+            debug("file is abed of " + fn[2], dbgNotice);
+
+            AddFileToArray(FITS.ABED, file, fn[2], fn[1]); //type, full name, signature, path
+            return false;
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is registered of " + fn[2], dbgNotice);
@@ -537,7 +575,7 @@ function AutoCalibrateEngine() {
             AddFileToArray(FITS.REGISTERED, file, fn[2], fn[1]); //type, full name, signature, path
 
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is normalized of " + fn[2], dbgNotice);
@@ -545,7 +583,7 @@ function AutoCalibrateEngine() {
             AddFileToArray(FITS.NORMALIZED, file, fn[2], fn[1]); //type, full name, signature, path
 
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_r_n_a.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_a.fit$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is approved of " + fn[2], dbgNotice);
@@ -822,9 +860,9 @@ function AutoCalibrateEngine() {
             // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
             var fn = "";
             if ((fn = newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null) {
-                debug("path: " + fn[1], dbgNotice);
-                debug("matched: " + fn[2], dbgNotice);
-                debug("file is cosmetized of " + fn[2], dbgNotice);
+                //debug("path: " + fn[1], dbgNotice);
+                //debug("matched: " + fn[2], dbgNotice);
+                //ebug("file is cosmetized of " + fn[2], dbgNotice);
 
                 AddFileToArray(FITS.COSMETIZED, newFileName, fn[2], fn[1]); //type, full name, signature, path
             } else {
@@ -845,6 +883,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.ABEprocess = function (files) {
+        debug("ABE processing", dbgNotice);
         if (files == false) {
             debug("Skipping ABE processing", dbgNormal);
             return false;
@@ -876,7 +915,7 @@ function AutoCalibrateEngine() {
         }
         ABEOutputPath = ABEOutputPath + "/" + Config.ABEFolderName;
 
-        // Start registration for all files
+        // Start ABE for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
 
@@ -920,7 +959,6 @@ function AutoCalibrateEngine() {
                     debug("The specified icon does not exists or instance of AutomaticBackgroundExtractor: " + ProcessIconName, dbgNormal);
 
                     //Using default
-
                     ABEproc = new AutomaticBackgroundExtractor;
                     with (ABEproc) {
                         tolerance = 1.000;
@@ -977,24 +1015,21 @@ function AutoCalibrateEngine() {
 
             }
 
-            /*
-            if (File.exists( newFiles[i] )){
-            // Добавим в массив файлов информацию о создании регистрируемого файла, что бы второй раз не делать
-            var fn="";
-            if ((fn=newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null){
-            debug("path: " +fn[1], dbgNotice);
-            debug("matched: " +fn[2], dbgNotice);
-            debug("file is registered of " +fn[2], dbgNotice);
+            if (File.exists(newFiles[i])) {
+                // Добавим в массив файлов информацию о создании регистрируемого файла, чтобы второй раз не делать
+                var fn = "";
+                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b.fit$/i)) != null || (fn = newFiles[i].match(/(.+)\/(.+)_c_b.fit$/i)) != null) {
+                    debug("path: " + fn[1], dbgNotice);
+                    debug("matched: " + fn[2], dbgNotice);
+                    debug("file is abed of " + fn[2], dbgNotice);
 
-            AddFileToArray(FITS.REGISTERED, newFiles[i],fn[2],fn[1]); //type, full name, signature, path
-            }else{
-            debug ("PATTERN NOT FOUND");
+                    AddFileToArray(FITS.ABED, newFiles[i], fn[2], fn[1]); //type, full name, signature, path
+                } else {
+                    debug("PATTERN NOT FOUND");
+                }
+            } else {
+                return false;
             }
-            }
-            else{
-            return false;
-            }
-             */
         }
 
         return newFiles;
@@ -1219,7 +1254,11 @@ function AutoCalibrateEngine() {
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
                 var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null) {
+                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null 
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b_r.fit$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_r.fit$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_b_r.fit$/i)) != null
+                   ) {
                     debug("path: " + fn[1], dbgNotice);
                     debug("matched: " + fn[2], dbgNotice);
                     debug("file is registered of " + fn[2], dbgNotice);

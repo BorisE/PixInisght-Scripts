@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "4.1b"
- #define COMPILE_DATE "2020/05/05"
+ #define VERSION "4.2"
+ #define COMPILE_DATE "2020/05/13"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -13,7 +13,7 @@
 
 /*
 Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-Developed 2019 by Boris Emchenko http://astromania.info
+Developed 2019-2020 by Boris Emchenko http://astromania.info
  */
 
 /*
@@ -22,7 +22,11 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
-- добавить ABE в мониторинг второго прохода (????)
+
+
+v 4.2 [2020/05/13]
+- ABE to second pass
+- исправление по обработке разных ситуаций, возникающих в конвейере при отключении опци (с косметикой - без, с ABE - без, ...)
 
 v 4.1b [2020/05/05]
 - local distorsion during registration gives some abnormal results and was switched off
@@ -162,6 +166,7 @@ var dbgCurrent = 0; // максимальное количество сообщ�
 var BaseCalibratedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 var CalibratedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 var CosmetizedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
+var ABEOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 var RegisteredOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 var NormalizedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
 var ApprovedOutputPath = ""; // инициализация как глобальной переменной. Дальше ей будет присваиваться значение внутри функции
@@ -194,9 +199,10 @@ var FITS = {
     ORIGINAL: 0,
     CALIBRATED: 1,
     COSMETIZED: 2,
-    REGISTERED: 3,
-    NORMALIZED: 4,
-    APPROVED: 5
+    ABED: 3,
+    REGISTERED: 4,
+    NORMALIZED: 5,
+    APPROVED: 6
 }; // Типы файлов
 var FILEARRAY = []; // базовый массив хранения файлов, куда вносятся результаты сканирования
 /*      FILEARRAY.push({
@@ -228,6 +234,9 @@ function getFILEARRPropertyName(type) {
     case FITS.COSMETIZED:
         st = "cosmetized";
         break;
+    case FITS.ABED:
+        st = "abed";
+        break;
     case FITS.REGISTERED:
         st = "registered";
         break;
@@ -254,8 +263,10 @@ function getFILEARRPrecedingName(property) {
         return getFILEARRPropertyName(FITS.ORIGINAL)
     else if (property == getFILEARRPropertyName(FITS.COSMETIZED))
         return getFILEARRPropertyName(FITS.CALIBRATED)
-    else if (property == getFILEARRPropertyName(FITS.REGISTERED))
+    else if (property == getFILEARRPropertyName(FITS.ABED))
         return getFILEARRPropertyName(FITS.COSMETIZED)
+    else if (property == getFILEARRPropertyName(FITS.REGISTERED))
+        return getFILEARRPropertyName(FITS.ABED)
     else if (property == getFILEARRPropertyName(FITS.NORMALIZED))
         return getFILEARRPropertyName(FITS.REGISTERED)
     else if (property == getFILEARRPropertyName(FITS.APPROVED))
