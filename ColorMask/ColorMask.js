@@ -65,11 +65,13 @@
 #include <pjsr/StdButton.jsh>
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/UndoFlag.jsh>
+#include <pjsr/DataType.jsh>
 
-#define VERSION   "1.0"
+#define VERSION   "1.1"
 #define TITLE     "ColorMask"
 
-#define DEBUG     false
+#define DEBUG     true
+#define SETTINGS_KEY_BASE "ColorMask/"
 
 // Predefined hue ranges.
 #define MIN_RED         300
@@ -328,6 +330,60 @@ function importParameters() {
       data.blurLayers = Parameters.getInteger("blurLayers");
 }
 
+
+//Helper functions
+function load(key, type) {
+	return Settings.read(SETTINGS_KEY_BASE + key, type);
+}
+function loadIndexed(key, index, type) {
+	return load(key + '_' + index.toString(), type);
+}
+function save(key, type, value) {
+	Settings.write(SETTINGS_KEY_BASE + key, type, value);
+}
+function saveIndexed(key, index, type, value) {
+	save(key + '_' + index.toString(), type, value);
+}
+
+/*
+ * Load / Save from Settings Storage
+ */
+function loadSettings () {
+	var o;
+	if ((o = load("minHue", DataType_Float)) != null)
+		data.minHue = o;
+	if ((o = load("maxHue", DataType_Float)) != null)
+		data.maxHue = o;
+	if ((o = load("maskType", DataType_Int16)) != null)
+		data.maskType = o;
+	if ((o = load("maskStrength", DataType_Float)) != null)
+		data.maskStrength = o;
+	if ((o = load("blurLayers", DataType_Int16)) != null)
+		data.blurLayers = o;
+
+}
+
+function saveSettings () {
+	save("minHue", DataType_Float, data.minHue);
+	save("maxHue", DataType_Float, data.maxHue);
+	save("maskType", DataType_Int16, data.maskType);
+	save("maskStrength", DataType_Float, data.maskStrength);
+	save("blurLayers", DataType_Int16, data.blurLayers);
+
+	if (DEBUG) {
+		console.writeln("\n<b>Settings saved:</b>");
+		this.printParameters();
+		console.writeln("\n");
+	};
+}
+
+function printParameters () {
+	console.writeln("minHue:		" + data.minHue);
+	console.writeln("maxHue:		" + data.maxHue);
+	console.writeln("maskType:		" + data.maskType);
+	console.writeln("maskStrength:	" + data.maskStrength);
+	console.writeln("blurLayers:	" + data.blurLayers);
+}
 
 /*
  * Set up a canned color range.
@@ -641,6 +697,10 @@ function main()
          console.writeln("Script instance");
       importParameters();
    }
+   else
+   {
+	  loadSettings();
+   }
 
    if (Parameters.isViewTarget) {
       if (DEBUG)
@@ -686,6 +746,8 @@ function main()
 
       var t1 = new Date;
       console.writeln(format("<end><cbr>ColorMask: %.2f s", (t1.getTime() - t0.getTime())/1000));
+	  
+	  saveSettings();
 
       // Quit after successful execution.
       break;
