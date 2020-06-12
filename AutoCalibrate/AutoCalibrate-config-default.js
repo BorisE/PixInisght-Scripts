@@ -128,7 +128,8 @@ var FILTERS_DICTIONARY = {
 
 var CAMERA_DICTIONARY = {
     'ArtemisHSC': 'Atik383',
-    'QSI 683ws S/N 00602566 HW 10.00.00 FW 06.03.01 PI 7.6.2971.17': 'QSI683ws'
+    'QSI 683ws S/N 00602566 HW 10.00.00 FW 06.03.01 PI 7.6.2971.17': 'QSI683ws',
+    'Moravian Instruments, G4-16000' : 'MI G4-16000'
 };
 
 
