@@ -47,11 +47,14 @@
 // ----------------------------------------------------------------------------
 
 /*
- * ColorMask v1.0
+ * ColorMask v1.2
  *
  * Build a mask to select a color range in an image.
  *
  * Copyright (C) 2015-2017 Rick Stevenson (rsj.stevenson@gmail.com). All rights reserved.
+ *
+ * 1.2 [2020/06/14] luminance & chrominance filter
+ * 1.1 [2020/06/12] saving settings
  */
 
 #feature-id    Utilities2 > ColorMask
@@ -66,8 +69,9 @@
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/UndoFlag.jsh>
 #include <pjsr/DataType.jsh>
+#include <pjsr/Color.jsh>
 
-#define VERSION   "1.1"
+#define VERSION   "1.2"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
@@ -111,6 +115,10 @@ function ColorMask(image, name) {
       console.writeln("ColorMask: ", name);
       console.writeln("Minpoint: ", format("%6.3f", data.minHue));
       console.writeln("Maxpoint: ", format("%6.3f", data.maxHue));
+      console.writeln("Lum filter min: ", format("%6.3f", data.minLum));
+      console.writeln("Lum filter max: ", format("%6.3f", data.maxLum));
+      console.writeln("Chrom filter min: ", format("%6.3f", data.minChrom));
+      console.writeln("Chrom filter max: ", format("%6.3f", data.maxChrom));
       console.writeln("Mask type: ", format("%d", data.maskType));
       console.writeln("Mask strength: ", format("%4.3f", data.maskStrength));
       console.writeln("Mask suffix: ", data.maskSuff);
@@ -158,6 +166,12 @@ function ColorMask(image, name) {
          break;
    }
 
+   //Luminance filter
+   var lumFilter = "*iif(CIEL($T)>=" + data.minLum + " && CIEL($T)<= " + data.maxLum + " ,1 ,0)";
+   //Chrominance filter
+   var chromFilter = "*iif(CIEc($T)>=" + data.minChrom + " && CIEc($T)<= " + data.maxChrom + " ,1 ,0)";
+   
+
    if (min < max) {
       // Range: 0..min..mid..max..1
       if (DEBUG)
@@ -173,7 +187,7 @@ function ColorMask(image, name) {
          if (mid < 1) {
             // Range: 0..max..min..mid..1
             if (DEBUG)
-            console.writeln("Range: 0..max..min..mid..1");
+				console.writeln("Range: 0..max..min..mid..1");
             ldist = mid - min;
             rdist = max + 1 - mid;
             PM.expression = "iif(CIEh($T)<=" + max + ",~mtf((" + max + "-CIEh($T))/" + rdist + "," + mtfBal + ")" + maskMod + "," +
@@ -193,6 +207,9 @@ function ColorMask(image, name) {
          }
    }
 
+   PM.expression += lumFilter;
+   PM.expression += chromFilter;
+      
    PM.expression1 = "";
    PM.expression2 = "";
    PM.expression3 = "";
@@ -293,6 +310,14 @@ function ColorMaskData() {
    this.minHue_control = null;
    this.maxHue = 0.0;
    this.maxHue_control = null;
+   this.minLum = 0.0;
+   this.minLum_control = null;
+   this.maxLum = 0.0;
+   this.maxLum_control = null;
+   this.minChrom = 0.0;
+   this.minChrom_control = null;
+   this.maxChrom = 0.0;
+   this.maxChrom_control = null;
    this.maskType = MASK_CHROMINANCE;
    this.maskStrength = DEFAULT_STRENGTH;
    this.maskStrength_control = null;
@@ -309,6 +334,10 @@ var data = new ColorMaskData;
 function exportParameters() {
    Parameters.set("minHue", data.minHue);
    Parameters.set("maxHue", data.maxHue);
+   Parameters.set("minLum", data.minLum);
+   Parameters.set("maxLum", data.maxLum);
+   Parameters.set("minChrom", data.minChrom);
+   Parameters.set("maxChrom", data.maxChrom);
    Parameters.set("maskType", data.maskType);
    Parameters.set("maskStrength", data.maskStrength);
    Parameters.set("blurLayers", data.blurLayers);
@@ -322,6 +351,14 @@ function importParameters() {
       data.minHue = Parameters.getReal("minHue");
    if(Parameters.has("maxHue"))
       data.maxHue = Parameters.getReal("maxHue");
+   if(Parameters.has("minLum"))
+      data.minLum = Parameters.getReal("minLum");
+   if(Parameters.has("maxLum"))
+      data.maxLum = Parameters.getReal("maxLum");
+   if(Parameters.has("minChrom"))
+      data.minChrom = Parameters.getReal("minChrom");
+   if(Parameters.has("maxChrom"))
+      data.maxChrom = Parameters.getReal("maxChrom");
    if (Parameters.has("maskType"))
       data.maskType = Parameters.getInteger("maskType");
    if(Parameters.has("maskStrength"))
@@ -354,6 +391,14 @@ function loadSettings () {
 		data.minHue = o;
 	if ((o = load("maxHue", DataType_Float)) != null)
 		data.maxHue = o;
+	if ((o = load("minLum", DataType_Float)) != null)
+		data.minLum = o;
+	if ((o = load("maxLum", DataType_Float)) != null)
+		data.maxLum = o;
+	if ((o = load("minChrom", DataType_Float)) != null)
+		data.minChrom = o;
+	if ((o = load("maxChrom", DataType_Float)) != null)
+		data.maxChrom = o;
 	if ((o = load("maskType", DataType_Int16)) != null)
 		data.maskType = o;
 	if ((o = load("maskStrength", DataType_Float)) != null)
@@ -366,6 +411,10 @@ function loadSettings () {
 function saveSettings () {
 	save("minHue", DataType_Float, data.minHue);
 	save("maxHue", DataType_Float, data.maxHue);
+	save("minLum", DataType_Float, data.minLum);
+	save("maxLum", DataType_Float, data.maxLum);
+	save("minChrom", DataType_Float, data.minChrom);
+	save("maxChrom", DataType_Float, data.maxChrom);
 	save("maskType", DataType_Int16, data.maskType);
 	save("maskStrength", DataType_Float, data.maskStrength);
 	save("blurLayers", DataType_Int16, data.blurLayers);
@@ -380,6 +429,10 @@ function saveSettings () {
 function printParameters () {
 	console.writeln("minHue:		" + data.minHue);
 	console.writeln("maxHue:		" + data.maxHue);
+	console.writeln("minLum:		" + data.minLum);
+	console.writeln("maxLum:		" + data.maxLum);
+	console.writeln("minChrom:		" + data.minChrom);
+	console.writeln("maxChrom:		" + data.maxChrom);
 	console.writeln("maskType:		" + data.maskType);
 	console.writeln("maskStrength:	" + data.maskStrength);
 	console.writeln("blurLayers:	" + data.blurLayers);
@@ -424,8 +477,27 @@ function ColorMaskDialog() {
                          "selected range are included in the mask." +
                          "<p>Mask Blur provides the option to blur the mask by removing the specified " +
                          "number of small scale wavelet layers with MultiscaleLinearTransform." +
-                         "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved.</p>";
+                         "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved." +
+                         "Some enhancement made by Boris Emchenko 2020.</p>" +
+                         "<font color=#FF0000>0&nbsp;&nbsp;&nbsp; RED</font><br>" +
+                         "<font color=#FF8000>30&nbsp;&nbsp; orange</font><br>" +
+                         "<font color=#FFFF00>60&nbsp;&nbsp; yellow</font><br>" +
+                         "<font color=#80FF00>90&nbsp;&nbsp; light green</font><br>" +
+                         "<font color=#00FF00>120&nbsp; GREEN</font><br>" +
+                         "<font color=#00FF80>150&nbsp; green blue?</font><br>" +
+                         "<font color=#00FFFF>180&nbsp; cyan</font><br>" +
+                         "<font color=#007FFF>210&nbsp; light blue</font><br>" +
+                         "<font color=#0000FF>240&nbsp; BLUE</font><br>" +
+                         "<font color=#7F00FF>270&nbsp; dark magenta</font><br>" +
+                         "<font color=#FF00FF>300&nbsp; magenta</font><br>" +
+                         "<font color=#FF0080>330&nbsp; red magenta</font><br>" +
+                         "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved.";
 
+   this.colorRedLabel = new Label(this);
+   this.colorRedLabel.frameStyle = FrameStyle_Box;
+   this.colorRedLabel.margin = 4;
+   this.colorRedLabel.text = "0 Red";
+						 
    this.targetImage_Sizer = new HorizontalSizer;
    this.targetImage_Sizer.spacing = 4;
 
@@ -547,6 +619,89 @@ function ColorMaskDialog() {
    this.CMY_ButtonPane.add(this.yellow_Button);
    this.hueParams_Sizer.add(this.CMY_ButtonPane);
 
+
+
+
+   this.lumParams_Sizer = new VerticalSizer;
+
+   this.lumParams_Sizer.margin = 6;
+   this.lumParams_Sizer.spacing = 4;
+
+   this.minLum = new NumericControl(this);
+   data.minLum_control = this.minLum;
+
+   this.minLum.label.text = "Min Lumninance value:";
+   this.minLum.label.minWidth = labelMinWidth;
+   this.minLum.slider.setRange(0, 1000);
+   this.minLum.slider.minWidth = sliderMinWidth;
+   this.minLum.setRange(0.0, 1.0);
+   this.minLum.setPrecision(4);
+   this.minLum.setValue(data.minLum);
+   this.minLum.onValueUpdated = function(value) { data.minLum = value; data.maskSuff = ""; }
+   this.minLum.toolTip =
+      "<p>Min luminance value to include in mask.</p>";
+
+   this.lumParams_Sizer.add(this.minLum);
+
+   this.maxLum = new NumericControl(this);
+   data.maxLum_control = this.maxLum;
+
+   this.maxLum.label.text = "Max Lumninance value:";
+   this.maxLum.label.minWidth = labelMinWidth;
+   this.maxLum.slider.setRange(0, 1000);
+   this.maxLum.slider.minWidth = sliderMinWidth;
+   this.maxLum.setRange(0.0, 1.0);
+   this.maxLum.setPrecision(4);
+   this.maxLum.setValue(data.maxLum);
+   this.maxLum.onValueUpdated = function(value) { data.maxLum = value; data.maskSuff = ""; }
+   this.maxLum.toolTip =
+      "<p>Max luminance value to include in mask.</p>";
+
+   this.lumParams_Sizer.add(this.maxLum);
+
+
+   
+
+   this.chromParams_Sizer = new VerticalSizer;
+
+   this.chromParams_Sizer.margin = 6;
+   this.chromParams_Sizer.spacing = 4;
+
+   this.minChrom = new NumericControl(this);
+   data.minChrom_control = this.minChrom;
+
+   this.minChrom.label.text = "Min Chrominance value:";
+   this.minChrom.label.minWidth = labelMinWidth;
+   this.minChrom.slider.setRange(0, 1000);
+   this.minChrom.slider.minWidth = sliderMinWidth;
+   this.minChrom.setRange(0.0, 1.0);
+   this.minChrom.setPrecision(4);
+   this.minChrom.setValue(data.minChrom);
+   this.minChrom.onValueUpdated = function(value) { data.minChrom = value; data.maskSuff = ""; }
+   this.minChrom.toolTip =
+      "<p>Min chrominance value to include in mask.</p>";
+
+   this.chromParams_Sizer.add(this.minChrom);
+
+   this.maxChrom = new NumericControl(this);
+   data.maxChrom_control = this.maxChrom;
+
+   this.maxChrom.label.text = "Max Chrominance value:";
+   this.maxChrom.label.minWidth = labelMinWidth;
+   this.maxChrom.slider.setRange(0, 1000);
+   this.maxChrom.slider.minWidth = sliderMinWidth;
+   this.maxChrom.setRange(0.0, 1.0);
+   this.maxChrom.setPrecision(4);
+   this.maxChrom.setValue(data.maxChrom);
+   this.maxChrom.onValueUpdated = function(value) { data.maxChrom = value; data.maskSuff = ""; }
+   this.maxChrom.toolTip =
+      "<p>Max chrominance value to include in mask.</p>";
+
+   this.chromParams_Sizer.add(this.maxChrom);
+
+   
+   
+   
    this.maskParams_Sizer = new VerticalSizer;
 
    this.maskParams_Sizer.margin = 6;
@@ -672,6 +827,8 @@ function ColorMaskDialog() {
    this.sizer.addSpacing(4);
    this.sizer.add(this.targetImage_Sizer);
    this.sizer.add(this.hueParams_Sizer);
+   this.sizer.add(this.lumParams_Sizer);
+   this.sizer.add(this.chromParams_Sizer);
    this.sizer.add(this.maskParams_Sizer);
    this.sizer.add(this.maskPostprocess_Sizer);
    this.sizer.add(this.buttons_Sizer);
