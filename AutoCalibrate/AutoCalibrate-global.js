@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "4.2"
- #define COMPILE_DATE "2020/05/13"
+ #define VERSION "4.3"
+ #define COMPILE_DATE "2020/07/16"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
@@ -23,6 +23,9 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+
+v 4.3 [2020/07/16]
+- Camera name in CC process icon (if specified in configuration UseCameraInCosmeticsIcons)
 
 v 4.2 [2020/05/13]
 - ABE to second pass

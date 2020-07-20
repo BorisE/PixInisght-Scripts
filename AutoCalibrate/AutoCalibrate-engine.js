@@ -819,7 +819,7 @@ function AutoCalibrateEngine() {
             }
 
             // Get CosmeticCorrection Process Icon
-            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseBiningFolder ? '_bin' + file.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
+            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + (Config.UseBiningFolder ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
             debug("Using ProcessIcon name: ", ProcessIconName, dbgNormal);
 
             // Check if folder for cosmetics files exists
@@ -1637,7 +1637,7 @@ function AutoCalibrateEngine() {
         }
 
         // Begin search for matching filter
-        debug("Scaning for avaliable filters in " + pathMasterLib + "/" + flatsdate_dirname_nearest + " ...", dbgNormal);
+        debug("Scaning for avaliable filters in flats pack " + pathMasterLib + "/" + flatsdate_dirname_nearest + " ...", dbgNormal);
         var flat_file_name = "";
         var flatsfileslib = [],
         flatsfileslib_filename = []; //empty array
@@ -2156,7 +2156,7 @@ function AutoCalibrateEngine() {
                 (filter == 'BGGR') ||
                 (filter == 'GBRG') ||
                 (filter == 'GRBG')),
-            temp: parseInt(headers['CCD-TEMP']), // 28 весто 28.28131291
+            temp: parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
             bin: parseInt(headers.XBINNING), // 1
             scale: parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.0, //
             duration: parseInt(headers.EXPTIME), // 1800

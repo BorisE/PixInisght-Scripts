@@ -71,19 +71,20 @@ Config.FinalsDirName = "Results";
 Config.SkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
 Config.SkipDirs = [Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
-Config.SkipDirs.push('asteroids', 'bad', 'Bad'); //User (чувствительно к регистру)
+Config.SkipDirs.push('asteroids', 'bad', 'Bad', 'Aligned'); //User (чувствительно к регистру)
 // Пропустить каталоги, если имя каталога содержит одну из строк
-Config.SkipDirsContains = ['.data', '.pxiproject'];
+Config.SkipDirsContains = ['.data', '.pxiproject', '_old'];
 
 
 //Структура:    Config.CalibratationMastersPath / [OBSERVER] / TELESCOP / [CAMERA] / [BIN] / 
 //Пример: ../Boris/Newton320/QSI/BIN1/
 Config.UseObserverName  = false;    // Использовать имя наблюдателя в иерархии папок? // Для меня не нужно, Олегу пригодиться
-Config.UseCameraName    = true;    // Использовать название камеры в иерархии папок?
+Config.UseCameraName    = false;    // Использовать название камеры в иерархии папок?
 Config.UseBiningFolder  = false;    // Использовать бининг в иерархии папок?
 
 // Использовать разные косметики для разной длительности?
 Config.UseExposureInCosmeticsIcons = false; // Для меня не нужно, может Олегу и перфекционистам пригодится
+Config.UseCameraInCosmeticsIcons = true; // Когда на одном инструменте несколько камер, как у меня с QSI и Atik
 
 Config.DarkExposureLenghtTolerance = 30; // В секундах; MasterDark  всегда подбирается самый ближайший их тех, которые длиннее экспозиции кадра.
 // Данный параметр разрешае ему быть на 30 сек короче! если задать 0, то будут рассматриваться только те дарки, которые длинее
@@ -107,6 +108,7 @@ Config.ApprovedExpression = 'FWHM > 4.5';
 //////////////////////////////////////////////////////
 
 //Filters dictionary
+//Всегда все в UPCASE
 var FILTERS_DICTIONARY = {
     'L': 'L',
     'R': 'R',
@@ -118,9 +120,11 @@ var FILTERS_DICTIONARY = {
     'LUMINANCE': 'L',
     'LIGHT': 'L',
     'LUM': 'L',
-    'H-ALPHA': 'Ha', //HA
-    'O-III': 'Oiii', //O3
-    'S-II': 'Sii', //S2
+    'H-ALPHA': 'HA', //HA
+    'O-III': 'OIII', //O3
+    'S-II': 'SII', //S2
+	'O3': 'OIII',
+	'S2': 'SII',
     'BLUE': 'B',
     'GREEN': 'G',
     'RED': 'R'
