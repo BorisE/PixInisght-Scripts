@@ -1616,9 +1616,9 @@ function AutoCalibrateEngine() {
 
         // Match folder that is earlier than FITS
         var filedateint = parseInt(fileData.date.substr(0, 4) + fileData.date.substr(5, 2) + fileData.date.substr(8, 2));
-        //debug("[" + filedateint +"]");
+        debug("[" + filedateint +"]");
         debug("Matching flat pack date for for FITS's date " + fileData.date + " in library through " + flatslib_date.length + " values", dbgNormal);
-        var mindiff = 100000,
+        var mindiff = 30000000,
         flatsdate_nearest = 0,
         flatsdate_dirname_nearest = "";
         for (i = 0; i < flatslib_date.length; i++) {
@@ -2097,9 +2097,9 @@ function AutoCalibrateEngine() {
         var image = ImageWindow.open(fileName)[0];
         var keywords = image.keywords;
         for (var k in keywords) {
-            keywords[k].trim();
 
             if (typeof headers[keywords[k].name] != 'undefined') {
+				keywords[k].trim();
                 headers[keywords[k].name] = keywords[k].strippedValue;
                 debug('header ' + keywords[k].name + '=' + keywords[k].strippedValue, dbgNotice);
             }

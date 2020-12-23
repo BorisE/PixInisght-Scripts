@@ -79,7 +79,7 @@ Config.SkipDirsContains = ['.data', '.pxiproject', '_old'];
 //Структура:    Config.CalibratationMastersPath / [OBSERVER] / TELESCOP / [CAMERA] / [BIN] / 
 //Пример: ../Boris/Newton320/QSI/BIN1/
 Config.UseObserverName  = false;    // Использовать имя наблюдателя в иерархии папок? // Для меня не нужно, Олегу пригодиться
-Config.UseCameraName    = false;    // Использовать название камеры в иерархии папок?
+Config.UseCameraName    = true;    // Использовать название камеры в иерархии папок?
 Config.UseBiningFolder  = false;    // Использовать бининг в иерархии папок?
 
 // Использовать разные косметики для разной длительности?
