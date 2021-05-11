@@ -120,8 +120,11 @@ function DataPersistence()
       {
          var s = elements[i][0];
          var t = elements[i][1];
-         tmp = Settings.read (SETTINGS_KEY + "/" + s, t);
-         if (Settings.lastReadOK) data[s] = tmp;
+		 console.noteln("s="+s);
+		 if (s) {
+			tmp = Settings.read (SETTINGS_KEY + "/" + s, t);
+			if (Settings.lastReadOK) data[s] = tmp;
+		 }
       }
       if (data.lastTargetID != window.mainView.id)
       {  // Different image so best to use default names and clipping
@@ -139,9 +142,11 @@ function DataPersistence()
    {
       for (var i in elements)
       {
-         var s = elements[i][0];
-         var t = elements[i][1];
-         Settings.write (SETTINGS_KEY + "/" + s, t, data[s]);
+        var s = elements[i][0];
+        var t = elements[i][1];
+		if (s) {
+		 Settings.write (SETTINGS_KEY + "/" + s, t, data[s]);
+		}
       }
    }
 
