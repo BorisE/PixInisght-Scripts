@@ -836,6 +836,8 @@ function AutoCalibrateEngine() {
                 return fileName;
             }
 
+			debug("<br>Using CC process icon: " + ProcessIconName, dbgNormal);
+			
             CC.targetFrames = [// enabled, path
                 [true, fileName]
             ];
