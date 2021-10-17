@@ -37,7 +37,8 @@
 /* Working modes:
 *    0 - unindentified
 *    1 - get overscan statistics for a given path (and put it to the file)
-*    2 - get overscan statistics for an active image window and make previews
+*    2 - get overscan statistics for an active image window and make previews (bin 1)
+*    3 - get overscan statistics for an active image window and make previews (bin 2)
 */
 _WorkingMode = 0;
 
@@ -153,12 +154,21 @@ function OverscanStatisticsDialog() {
         this.dialog.ok();
     }
 
+    ttStr = "<p>Get overscan stat for current window (bin 2).</p>";
+    this.runWindStat2_Button = new pushButton(this, "Get statistics (bin2)", "", ttStr);
+    this.runWindStat2_Button.onClick = function () {
+        _WorkingMode = 3;
+        this.dialog.ok();
+    }
+
+
     this.RunWindowsStat_Sizer = new HorizontalSizer;
     with (this.RunWindowsStat_Sizer) {
         margin = 6;
         spacing = 4;
         //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
         add(this.runWindStat_Button, 40);
+        add(this.runWindStat2_Button, 40);
         addStretch();
     }
     this.processWindow_GroupBox = new GroupBox(this);
@@ -170,8 +180,6 @@ function OverscanStatisticsDialog() {
         sizer.add(this.RunWindowsStat_Sizer);
     }
 
-
-    //
 
     //Instance button
     this.newInstance_Button = new ToolButton(this);
@@ -292,6 +300,9 @@ function mainGUI() {
                       break;
                    case 2:
                       Engine.processCurrentWindow();
+                      break;
+                   case 3:
+                      Engine.processCurrentWindow_bin2();
                       break;
                 }
                 break;

@@ -55,14 +55,14 @@ this.ProcessEngine = function () {
    };
 
    this.OptBlackRect_bin1 =   new Rect (   0,    0,   22, 6389);
-   this.BlackRect_bin1 =      new Rect (  22,    0,   24, 6389);
+   this.BlackRect_bin1 =      new Rect (  22,    0,   24, 6388);
    this.OverscanRect_bin1 =   new Rect (   0, 6389, 9600, 6422);
-   this.MainRect_bin1 =       new Rect (  24,    0, 9600, 6389);
+   this.MainRect_bin1 =       new Rect (  24,    0, 9600, 6388);
 
    this.OptBlackRect_bin2 =   new Rect (   0,    0,   11, 3195);
-   this.BlackRect_bin2 =      new Rect (  11,    0,   12, 3195);
+   this.BlackRect_bin2 =      new Rect (  11,    0,   12, 3194);
    this.OverscanRect_bin2 =   new Rect (   0, 3195, 4800, 6422);
-   this.MainRect_bin2 =       new Rect ( 12,    0, 4800, 3195);
+   this.MainRect_bin2 =       new Rect ( 12,     0, 4788, 3194);
 
 
    /**
@@ -273,6 +273,16 @@ this.ProcessEngine = function () {
 		Console.abortEnabled = true;
       console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
       this.processWindow(curWindow, 1, true, true);
+   }
+
+   this.processCurrentWindow_bin2 = function ()
+   {
+      var curWindow = ImageWindow.activeWindow;
+		if ( curWindow.isNull )
+			throw new Error( "No active image" );
+		Console.abortEnabled = true;
+      console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
+      this.processWindow(curWindow, 2, true, true);
 
    }
 

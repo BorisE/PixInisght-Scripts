@@ -3,7 +3,7 @@
  #endif
 
  #define TITLE "OverscanStatistics"
- #define VERSION "1.00"
+ #define VERSION "1.01"
  #define COMPILE_DATE "2021/10/17"
 
  #define INFO_STRING "A script for QHY600 overscan support tools"
@@ -19,11 +19,17 @@ Copyright (C) 2021 by Boris Emchenko http://astromania.info
 Version History
 
 TODO:
-
+- auto set binning mode
 
 /*
- * ver 1.00 [2021/10/16]
+ * ver 1.01 [2021/10/17]
+ * - bin2 button
+ * - rectagles positions corrections
+ *
+ * ver 1.00 [2021/10/17]
  * - GUI
+ * - code structuring
+ * - many more improvements
  *
  * ver 0.1 [2021/10/10]
  * - working release, but everything is manual
