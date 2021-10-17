@@ -54,15 +54,15 @@ this.ProcessEngine = function () {
 
    };
 
-   this.OptBlackRect_bin1 =   new Rect (   0,    0,   22, 6389);
+   this.OptBlackRect_bin1 =   new Rect (   0,    0,   22, 6388); //using x0,y0 - x1,y1 system, NOT x0,y0, W, H
    this.BlackRect_bin1 =      new Rect (  22,    0,   24, 6388);
    this.OverscanRect_bin1 =   new Rect (   0, 6389, 9600, 6422);
    this.MainRect_bin1 =       new Rect (  24,    0, 9600, 6388);
 
-   this.OptBlackRect_bin2 =   new Rect (   0,    0,   11, 3195);
+   this.OptBlackRect_bin2 =   new Rect (   0,    0,   11, 3194);
    this.BlackRect_bin2 =      new Rect (  11,    0,   12, 3194);
-   this.OverscanRect_bin2 =   new Rect (   0, 3195, 4800, 6422);
-   this.MainRect_bin2 =       new Rect ( 12,     0, 4788, 3194);
+   this.OverscanRect_bin2 =   new Rect (   0, 3195, 4800, 3211);
+   this.MainRect_bin2 =       new Rect ( 12,     0, 4800, 3194);
 
 
    /**
