@@ -3,7 +3,7 @@
  #endif
 
  #define TITLE "OverscanStatistics"
- #define VERSION "1.01"
+ #define VERSION "1.01b"
  #define COMPILE_DATE "2021/10/17"
 
  #define INFO_STRING "A script for QHY600 overscan support tools"
