@@ -1,42 +1,3 @@
-#feature-id Batch Processing > OverscanStatistics
-
-
-/* ver 0.1 [2021/10/10]
- * - working release, but everything is manual
- *
- * Use ProcessObj.processDirectory(path) to generate output csv file
- *
- * Use ProcessObj.processFile(WindowId) to process opened file (make previews and output stat to console)
- *
-*/
-#include <pjsr/Color.jsh>
-#include <pjsr/FrameStyle.jsh>
-#include <pjsr/TextAlign.jsh>
-#include <pjsr/StdButton.jsh>
-#include <pjsr/NumericControl.jsh>
-
-
-// Global switches
- #ifndef DEBUG
- #define DEBUG true
- #endif
-dbgCurrent = true;
-cfgDebugLevel = 2;
-
-// DEBUG
-var dbgNormal = 1; //  минимальное количество сообщений
-var dbgNotice = 2; // максимальное количество сообщений
-var dbgCurrent = 0; // максимальное количество сообщений
-
-var UseBinning = 2;
-
-/* ********************************************************************
- *
- * declaration of the Engine object
- *
- * ******************************************************************** */
-var textFile;
-
 this.ProcessEngine = function () {
 
    this.inputImageWindow = null;
@@ -73,7 +34,6 @@ this.ProcessEngine = function () {
    };
 
 
-
    /// Method to close current image window.
    ///
    this.closeImage = function()
@@ -105,26 +65,47 @@ this.ProcessEngine = function () {
    this.MainRect_bin2 =       new Rect ( 12,    0, 4800, 3195);
 
 
-
+   /**
+    * Create previews for a given bin
+    *
+    */
    this.createOverscanPreviews = function (targetWindow, binning = 1)
    {
+
       if (binning == 1)
       {
-         targetWindow.createPreview( this.OptBlackRect_bin1, "OptBlack");
-         targetWindow.createPreview( this.BlackRect_bin1,    "Black");
-         targetWindow.createPreview( this.OverscanRect_bin1, "Overscan");
-         targetWindow.createPreview( this.MainRect_bin1,     "Main");
+         if (!this.checkPreviewExist("OptBlack", targetWindow))  targetWindow.createPreview( this.OptBlackRect_bin1, "OptBlack");
+         if (!this.checkPreviewExist("Black", targetWindow))     targetWindow.createPreview( this.BlackRect_bin1,    "Black");
+         if (!this.checkPreviewExist("Overscan", targetWindow))  targetWindow.createPreview( this.OverscanRect_bin1, "Overscan");
+         if (!this.checkPreviewExist("Main", targetWindow))      targetWindow.createPreview( this.MainRect_bin1,     "Main");
       }
       else if (binning == 2)
       {
-         targetWindow.createPreview( this.OptBlackRect_bin2, "OptBlack");
-         targetWindow.createPreview( this.BlackRect_bin2,    "Black");
-         targetWindow.createPreview( this.OverscanRect_bin2, "Overscan");
-         targetWindow.createPreview( this.MainRect_bin2,     "Main");
+         if (!this.checkPreviewExist("OptBlack", targetWindow))  targetWindow.createPreview( this.OptBlackRect_bin2, "OptBlack");
+         if (!this.checkPreviewExist("Black", targetWindow))     targetWindow.createPreview( this.BlackRect_bin2,    "Black");
+         if (!this.checkPreviewExist("Overscan", targetWindow))  targetWindow.createPreview( this.OverscanRect_bin2, "Overscan");
+         if (!this.checkPreviewExist("Main", targetWindow))      targetWindow.createPreview( this.MainRect_bin2,     "Main");
       }
    }
 
+  /**
+   * Check if previews already exists
+   *
+   */
+   this.checkPreviewExist = function (previewId, windowId)
+   {
+      var bFnd = false;
+      for (var key in windowId.previews) {
+         if (windowId.previews[key].id.startsWith(previewId))
+            bFnd = true;
+      }
+      return bFnd;
+   }
 
+  /**
+   * Get statistics for all areas
+   *
+   */
    this.getStatistics = function (targetWindow, binning = 1)
    {
       /*
@@ -153,6 +134,11 @@ this.ProcessEngine = function () {
       this.res2[5] = (String)(this.res2[3] - this.res2[2]);
    }
 
+
+  /**
+   * Display statistics
+   *
+   */
    this.displayStatistics = function ()
    {
       console.write(this.res2[0]);
@@ -170,7 +156,16 @@ this.ProcessEngine = function () {
 
    }
 
-   this.processFile=function (curWindow, binnig = 1, makePreviews = true, leavePreviews = true)
+   /**
+    * Функция для обработки открытого файла
+    *
+    * @param   curWindow      string   WindowId for ImageWindow object
+    * @param   binnig         integer  binning value
+    * @param   makePreviews   bool     create Previews
+    * @param   leavePreviews  bool     don't delete previews
+    * @return  void
+    */
+   this.processWindow= function (curWindow, binnig = 1, makePreviews = true, leavePreviews = true)
    {
       if (makePreviews)
          this.createOverscanPreviews (curWindow, binnig);
@@ -185,10 +180,11 @@ this.ProcessEngine = function () {
    this.DirCount=0;
 
    /**
-   * Базовая функция для 1го прохода
+   * Функция для обработки каталога
    *
-   * @param file string
-   * @return object
+   * @param searchPath string
+   * @param binnig     integer
+   * @return void
    */
    this.processDirectory = function (searchPath, binnig)
    {
@@ -204,7 +200,7 @@ this.ProcessEngine = function () {
       try
       {
          textFile = new File;
-         textFile.createForWriting( searchPath + '/overscandata.txt');
+         textFile.createForWriting( searchPath + '/' + Config.OutputCSVFile);
       }
       catch ( error )
       {
@@ -240,7 +236,7 @@ this.ProcessEngine = function () {
 
                      this.readImage(searchPath + '/' + objFileFind.name);
 
-                     this.processFile(this.inputImageWindow[0], binnig, false);
+                     this.processWindow(this.inputImageWindow[0], binnig, false);
 
                      textFile.outText( this.res2[0] + ",\t");
                      textFile.outText( this.res2[1] + ",\t");
@@ -269,56 +265,27 @@ this.ProcessEngine = function () {
       }
    }
 
+   this.processCurrentWindow = function ()
+   {
+      var curWindow = ImageWindow.activeWindow;
+		if ( curWindow.isNull )
+			throw new Error( "No active image" );
+		Console.abortEnabled = true;
+      console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
+      this.processWindow(curWindow, 1, true, true);
+
+   }
+
 } //end of class
 
 
 
-	function main()
-	{
-		var curWindow = ImageWindow.activeWindow;
-		if ( curWindow.isNull )
-			throw new Error( "No active image" );
-		Console.abortEnabled = true;
-		//Console.show();
-
-
-      var ProcessObj = new ProcessEngine();
-
-      console.noteln("Filename|Main|OptBlack|Overscan|Black|");
-
-      //ProcessObj.processDirectory("e:/DSlrRemote/_labs/qhy600 overscan/Bias -20 Bin1 P3", 1);
-      //ProcessObj.processDirectory("e:/DSlrRemote/_labs/qhy600 overscan/Darks -20 Bin1 300s P3", 1);
-      //ProcessObj.processDirectory("e:/DSlrRemote/_labs/qhy600 overscan/Bias -25 Bin1 P3", 1);
-      //ProcessObj.processDirectory("e:/DSlrRemote/-NGC7217/2021-10-09", 1);
-
-      ProcessObj.processDirectory("e:/DSlrRemote/_labs/qhy600 overscan/Bias -20 Bin2 P3", 2);
-
-      //ProcessObj.processFile(curWindow, 1);
-
+#ifndef OverscanStatistics_Main
+   function mainTestEngine()
+   {
+      var Engine = new ProcessEngine();
+      Engine.processCurrentWindow();
    }
 
-
-main();
-
-
-function debug(st, level = dbgCurrent) {
-    if (DEBUG && level <= cfgDebugLevel) {
-        if (level == dbgNotice) {
-            console.write("<sub>");
-            console.write(st);
-            console.writeln("</sub>");
-        } else {
-            console.writeln(st);
-        }
-    }
-}
-
-/**
-* Поиск расширения файла
-*/
-function fileExtension(file) {
-    //console.writeln('ext file='+ file);
-    var ext = file.match(/\.([^.]+)$/);
-
-    return ext && ext.length ? ext[1] : false
-}
+    mainTestEngine();
+#endif
