@@ -154,21 +154,12 @@ function OverscanStatisticsDialog() {
         this.dialog.ok();
     }
 
-    ttStr = "<p>Get overscan stat for current window (bin 2).</p>";
-    this.runWindStat2_Button = new pushButton(this, "Get statistics (bin2)", "", ttStr);
-    this.runWindStat2_Button.onClick = function () {
-        _WorkingMode = 3;
-        this.dialog.ok();
-    }
-
-
     this.RunWindowsStat_Sizer = new HorizontalSizer;
     with (this.RunWindowsStat_Sizer) {
         margin = 6;
         spacing = 4;
         //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
         add(this.runWindStat_Button, 40);
-        add(this.runWindStat2_Button, 40);
         addStretch();
     }
     this.processWindow_GroupBox = new GroupBox(this);
@@ -193,7 +184,7 @@ function OverscanStatisticsDialog() {
     };
 
     // Dialog control buttons
-    ttStr = "Run the AutoCalibration routines";
+    ttStr = "Run all routines";
     this.ok_Button = new pushButton(this, btnText[4], "", ttStr);
     this.ok_Button.onClick = function () {
         _WorkingMode = 2;
@@ -302,7 +293,6 @@ function mainGUI() {
                       Engine.processCurrentWindow();
                       break;
                    case 3:
-                      Engine.processCurrentWindow_bin2();
                       break;
                 }
                 break;

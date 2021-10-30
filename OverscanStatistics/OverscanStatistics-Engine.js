@@ -1,11 +1,14 @@
 this.ProcessEngine = function () {
 
-   this.inputImageWindow = null;
+   this.inputImageWindow = null; //current opened image file (ImageWindow object)
 
    this.res = [];
    this.res2 = [];
 
-   /// Method to read an image from a file in to this.inputImageWindow .
+   this.DirCount=0;
+   this.textFile = null;
+
+   /// Method to read an image from a file in to this.inputImageWindow (ImageWindow object).
    ///
    /// @param {string} filePath path to image file.
    this.readImage = function( filePath )
@@ -53,6 +56,40 @@ this.ProcessEngine = function () {
       debug("BatchStatisticsDialog.closeImage");
 
    };
+
+   // Полезные FITS поля
+   var headers = {
+       'XBINNING': null,
+       'OBSERVER': null,
+       'TELESCOP': null,
+       'INSTRUME': null,
+       'DATE-OBS': null,
+       'EXPTIME': null,
+       'CCD-TEMP': null,
+       'XPIXSZ': null,
+       'FOCALLEN': null,
+       'FILTER': null,
+       'OBJECT': null,
+       'OBJCTRA': null,
+       'OBJCTDEC': null
+   };
+
+
+   this.getImageBinning = function (curImageWindow)
+   {
+        var keywords = curImageWindow.keywords;
+        for (var k in keywords) {
+            if (typeof headers[keywords[k].name] != 'undefined') {
+				keywords[k].trim();
+                headers[keywords[k].name] = keywords[k].strippedValue;
+                debug('header ' + keywords[k].name + '=' + keywords[k].strippedValue, dbgNotice);
+            }
+        }
+
+        return parseInt(headers.XBINNING);
+
+   }
+
 
    this.OptBlackRect_bin1 =   new Rect (   0,    0,   22, 6388); //using x0,y0 - x1,y1 system, NOT x0,y0, W, H
    this.BlackRect_bin1 =      new Rect (  22,    0,   24, 6388);
@@ -116,7 +153,8 @@ this.ProcessEngine = function () {
       this.res[4] = targetWindow.previews[1].image.median();
       */
 
-      this.res2[0] = targetWindow.mainView.id;
+      //this.res2[0] = targetWindow.mainView.id;
+      this.res2[0] = targetWindow.filePath;
       if (binning == 1)
       {
          this.res2[1] = targetWindow.mainView.image.median(this.MainRect_bin1);
@@ -160,33 +198,33 @@ this.ProcessEngine = function () {
     * Функция для обработки открытого файла
     *
     * @param   curWindow      string   WindowId for ImageWindow object
-    * @param   binnig         integer  binning value
     * @param   makePreviews   bool     create Previews
     * @param   leavePreviews  bool     don't delete previews
     * @return  void
     */
-   this.processWindow= function (curWindow, binnig = 1, makePreviews = true, leavePreviews = true)
+   this.processWindow= function (curWindow, makePreviews = true, leavePreviews = true)
    {
-      if (makePreviews)
-         this.createOverscanPreviews (curWindow, binnig);
+      curbin = this.getImageBinning(curWindow);
+      console.noteln("Binning " + curbin);
 
-      this.getStatistics(curWindow, binnig);
+      if (makePreviews)
+         this.createOverscanPreviews (curWindow, curbin);
+
+      this.getStatistics(curWindow, curbin);
       this.displayStatistics();
 
       if (makePreviews && !leavePreviews)
          curWindow.deletePreviews();
    }
 
-   this.DirCount=0;
 
    /**
    * Функция для обработки каталога
    *
    * @param searchPath string
-   * @param binnig     integer
    * @return void
    */
-   this.processDirectory = function (searchPath, binnig)
+   this.processDirectory = function (searchPath)
    {
       this.DirCount++;
       var FileCount = 0;
@@ -197,20 +235,26 @@ this.ProcessEngine = function () {
 
 
       // Open outputfile
-      try
+      MainThread = false;
+      if (this.textFile == null)
       {
-         textFile = new File;
-         textFile.createForWriting( searchPath + '/' + Config.OutputCSVFile);
-      }
-      catch ( error )
-      {
-         // Unable to create file.
-         console.warningln( "WARNING: Unable to create file: " + outputFile + " Outputting to console only. (" + error.message + ")." );
-         textFile = null;
-      }
+         // First thread, create file
+         MainThread = true;
+         try
+         {
+            this.textFile = new File;
+            this.textFile.createForWriting( searchPath + '/' + Config.OutputCSVFile);
 
-      // output header
-      textFile.outText("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
+            // output header
+            this.textFile.outText("Filename\tMain\tOptBlack\tOverscan\tBlack\tDiff" + String.fromCharCode( 13, 10 ));
+         }
+         catch ( error )
+         {
+            // Unable to create file.
+            console.warningln( "WARNING: Unable to create file: " + outputFile + " Outputting to console only. (" + error.message + ")." );
+            this.textFile = null;
+         }
+      }
 
       // Begin search
       var objFileFind = new FileFind;
@@ -221,10 +265,10 @@ this.ProcessEngine = function () {
             if (objFileFind.name != "." && objFileFind.name != "..") {
 
                // if this is Directory and recursion is enabled
-               if (objFileFind.isDirectory && this.SearchInSubDirs) {
+               if (objFileFind.isDirectory && Config.SearchInSubDirs) {
                     // Run recursion search
                     busy = false; // на будущее для асихнронного блока
-                    this.searchDirectory(searchPath + '/' + objFileFind.name);
+                    this.processDirectory(searchPath + '/' + objFileFind.name);
                     busy = true;
                }
                // if File
@@ -234,18 +278,22 @@ this.ProcessEngine = function () {
                   // if this is FIT
                   if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
 
+                     // Open image
                      this.readImage(searchPath + '/' + objFileFind.name);
 
-                     this.processWindow(this.inputImageWindow[0], binnig, false);
+                     //Process data
+                     this.processWindow(this.inputImageWindow[0], false);
 
-                     textFile.outText( this.res2[0] + ",\t");
-                     textFile.outText( this.res2[1] + ",\t");
-                     textFile.outText( this.res2[2] + ",\t");
-                     textFile.outText( this.res2[3] + ",\t");
-                     textFile.outText( this.res2[4] + ",\t");
-                     textFile.outText( this.res2[5] );
-                     textFile.outText( String.fromCharCode( 13, 10 ));
+                     //Write data to csv file
+                     this.textFile.outText( this.res2[0] + "\t");
+                     this.textFile.outText( this.res2[1] + "\t");
+                     this.textFile.outText( this.res2[2] + "\t");
+                     this.textFile.outText( this.res2[3] + "\t");
+                     this.textFile.outText( this.res2[4] + "\t");
+                     this.textFile.outText( this.res2[5] );
+                     this.textFile.outText( String.fromCharCode( 13, 10 ));
 
+                     //Close image
                      this.closeImage();
 
                   }
@@ -258,10 +306,10 @@ this.ProcessEngine = function () {
       }
 
       // Close statistics output file.
-      if ( textFile != null )
+      if ( MainThread && this.textFile != null )
       {
-         textFile.close();
-         textFile = null;
+         this.textFile.close();
+         this.textFile = null;
       }
    }
 
@@ -272,19 +320,9 @@ this.ProcessEngine = function () {
 			throw new Error( "No active image" );
 		Console.abortEnabled = true;
       console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
-      this.processWindow(curWindow, 1, true, true);
+      this.processWindow(curWindow, true, true);
    }
 
-   this.processCurrentWindow_bin2 = function ()
-   {
-      var curWindow = ImageWindow.activeWindow;
-		if ( curWindow.isNull )
-			throw new Error( "No active image" );
-		Console.abortEnabled = true;
-      console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
-      this.processWindow(curWindow, 2, true, true);
-
-   }
 
 } //end of class
 

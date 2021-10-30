@@ -11,7 +11,7 @@
 //////////////////////////////////////////////////////
 Config.InputPath = 'e:/DSlrRemote/+M77'; //ПАПКА С ИСХОДНЫМИ ФИТАМИ
 Config.OutputCSVFile = "overscandata.txt";
-
+Config.SearchInSubDirs = true;
 
 // Настройки для отладчика
 dbgCurrent = true;

@@ -104,10 +104,8 @@ function main()
                    case 2:
                       Engine.processCurrentWindow();
                       break;
-                   case 3:
-                      Engine.processCurrentWindow_bin2();
-                      break;
                 }
+                Config.saveSettings();
                 break;
             }
         } else {
