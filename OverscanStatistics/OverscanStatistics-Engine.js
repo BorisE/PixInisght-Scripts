@@ -45,7 +45,7 @@ this.ProcessEngine = function () {
       {
          if ( this.inputImageWindow != null )
          {
-            this.inputImageWindow[0].close();
+            this.inputImageWindow[0].forceClose();
             this.inputImageWindow  = null;
          }
       }
@@ -56,6 +56,33 @@ this.ProcessEngine = function () {
       debug("BatchStatisticsDialog.closeImage");
 
    };
+
+   /**
+    *  Method to save current image window with new name.
+    *
+    * @param   curWindow      ImageWindow    ImageWindow object
+    * @return  void
+    */
+   this.saveNormalizedImage = function( curWindow )
+   {
+      try
+      {
+         if ( curWindow != null )
+         {
+             var ext = curWindow.filePath.match(/^(.*)(\.)([^.]+)$/);
+             var newFileName = ext[1] + "_ovr" + ext[2] + ext[3];
+             debug("Save As :" + newFileName, dbgNotice);
+             curWindow.saveAs(newFileName, false, false, true, false);
+         }
+      }
+      catch ( error )
+      {
+         (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Yes, StdButton_No )).execute();
+      }
+      debug("BatchStatisticsDialog.closeImage");
+
+   };
+
 
    // Полезные FITS поля
    var headers = {
@@ -71,7 +98,14 @@ this.ProcessEngine = function () {
        'FILTER': null,
        'OBJECT': null,
        'OBJCTRA': null,
-       'OBJCTDEC': null
+       'OBJCTDEC': null,
+
+       'READOUTM': null,
+       'GAIN': null,
+       'OFFSET': null,
+       'QOVERSCN': null,
+       'QPRESET': null,
+       'USBLIMIT': null
    };
 
 
@@ -89,6 +123,38 @@ this.ProcessEngine = function () {
         return parseInt(headers.XBINNING);
 
    }
+
+   this.getImageNormalizationLevel = function (curImageWindow)
+   {
+      var BinIDX = 'bin'+ parseInt(headers.XBINNING);
+      debug("Bin Idx: " + BinIDX, dbgNotice);
+      debug("temp: " + headers['CCD-TEMP'], dbgNotice);
+      //var Temp = parseInt(headers.XBINNING);
+      var PresetIDX = 'P'+ parseInt(headers['QPRESET']);
+      debug("Preset Index: " + PresetIDX, dbgNotice);
+
+      var TempArr = Object.keys(Config.NormalizationTable[PresetIDX][BinIDX]);
+      var TempArr_diff = new Array(TempArr.length);
+      for (var i = 0; i < TempArr.length; i++) {
+         TempArr_diff[i] = Math.abs(TempArr[i] - headers['CCD-TEMP']);
+         debug("Look in "  + TempArr[i] + ", diff=" + TempArr_diff[i], dbgNotice);
+      }
+      var min_TempArr_diff = 100000;
+      var min_TempArr_diff_idx  = -1;
+      for (var i = 0; i < TempArr_diff.length; i++) {
+         if (TempArr_diff[i] < min_TempArr_diff) {
+            min_TempArr_diff = TempArr_diff[i];
+            min_TempArr_diff_idx = i;
+         }
+      }
+      if (min_TempArr_diff_idx >=0)
+         debug("Nearest bias temp value is " + TempArr[min_TempArr_diff_idx]);
+
+      var NormLevel = Config.NormalizationTable[PresetIDX][BinIDX][TempArr[min_TempArr_diff_idx]]
+      debug("Normlevel: " + NormLevel);
+      return NormLevel;
+   }
+
 
 
    this.OptBlackRect_bin1 =   new Rect (   0,    0,   22, 6388); //using x0,y0 - x1,y1 system, NOT x0,y0, W, H
@@ -141,16 +207,19 @@ this.ProcessEngine = function () {
 
   /**
    * Get statistics for all areas
-   *
+   * * @param   targetWindow  ImageWindow    ImageWindow object
+   * * @param   binning       int            binning value for current image
    */
    this.getStatistics = function (targetWindow, binning = 1)
    {
       /*
-      this.res[0] = targetWindow.mainView.id;
-      this.res[1] = targetWindow.previews[3].image.median();
-      this.res[2] = targetWindow.previews[0].image.median();
-      this.res[3] = targetWindow.previews[2].image.median();
-      this.res[4] = targetWindow.previews[1].image.median();
+      this.res[0] : full file name
+      this.res[1] : Main part median
+      this.res[2] : OptBlack part median
+      this.res[3] : Overscan part median
+      this.res[4] : Black part median
+      this.res[5] : difference Overscan - OptBlack
+      this.res[6] : normalize adjustment
       */
 
       //this.res2[0] = targetWindow.mainView.id;
@@ -170,6 +239,7 @@ this.ProcessEngine = function () {
          this.res2[4] = targetWindow.mainView.image.median(this.BlackRect_bin2);
       }
       this.res2[5] = (String)(this.res2[3] - this.res2[2]);
+      this.res2[6] = 0;
    }
 
 
@@ -191,18 +261,20 @@ this.ProcessEngine = function () {
       console.note("|");
       console.write(this.res2[5]);
       console.noteln();
+      console.write(this.res2[6]);
+      console.noteln();
 
    }
 
    /**
     * Функция для обработки открытого файла
     *
-    * @param   curWindow      string   WindowId for ImageWindow object
-    * @param   makePreviews   bool     create Previews
-    * @param   leavePreviews  bool     don't delete previews
+    * @param   curWindow      ImageWindow ImageWindow object
+    * @param   makePreviews   bool        create Previews
+    * @param   leavePreviews  bool        don't delete previews
     * @return  void
     */
-   this.processWindow= function (curWindow, makePreviews = true, leavePreviews = true)
+   this.processWindowStat= function (curWindow, makePreviews = true, leavePreviews = true)
    {
       curbin = this.getImageBinning(curWindow);
       console.noteln("Binning " + curbin);
@@ -224,7 +296,7 @@ this.ProcessEngine = function () {
    * @param searchPath string
    * @return void
    */
-   this.processDirectory = function (searchPath)
+   this.processDirectoryStat = function (searchPath)
    {
       this.DirCount++;
       var FileCount = 0;
@@ -268,7 +340,7 @@ this.ProcessEngine = function () {
                if (objFileFind.isDirectory && Config.SearchInSubDirs) {
                     // Run recursion search
                     busy = false; // на будущее для асихнронного блока
-                    this.processDirectory(searchPath + '/' + objFileFind.name);
+                    this.processDirectoryStat(searchPath + '/' + objFileFind.name);
                     busy = true;
                }
                // if File
@@ -282,7 +354,7 @@ this.ProcessEngine = function () {
                      this.readImage(searchPath + '/' + objFileFind.name);
 
                      //Process data
-                     this.processWindow(this.inputImageWindow[0], false);
+                     this.processWindowStat(this.inputImageWindow[0], false);
 
                      //Write data to csv file
                      this.textFile.outText( this.res2[0] + "\t");
@@ -313,16 +385,132 @@ this.ProcessEngine = function () {
       }
    }
 
-   this.processCurrentWindow = function ()
+
+   /**
+    * Функция для обработки открытого файла
+    *
+    * @param   curWindow      ImageWindow    ImageWindow object
+    * @param   makePreviews   bool           create Previews
+    * @param   leavePreviews  bool           don't delete previews
+    * @return  void
+    */
+   this.normalizeWindow = function (curWindow, makePreviews = true, leavePreviews = true)
+   {
+      var curbin = this.getImageBinning(curWindow);
+      var normLevel = this.getImageNormalizationLevel(curWindow);
+      console.noteln("Binning " + curbin);
+
+      if (makePreviews)
+         this.createOverscanPreviews (curWindow, curbin);
+
+      this.getStatistics(curWindow, curbin);
+      this.displayStatistics();
+
+            var P = new PixelMath;
+      P.expression = curWindow.mainView.id + " + " + normLevel + "/65535 - " + this.res2[2].toString();
+      console.noteln("Expression: " + P.expression + " [NormLevel="+normLevel+", CurrentLevel=" + this.res2[2]*65535 + "]");
+      P.useSingleExpression = true;
+      P.clearImageCacheAndExit = false;
+      P.cacheGeneratedImages = false;
+      P.generateOutput = true;
+      P.singleThreaded = false;
+      P.optimization = true;
+      P.rescale = false;
+      P.truncate = true;
+      P.createNewImage = false;
+
+      var status = P.executeOn(curWindow.mainView);
+
+      if (makePreviews && !leavePreviews)
+         curWindow.deletePreviews();
+   }
+
+
+
+
+/**
+   * Функция для обработки каталога
+   * Нормализация по уровню OptBlack
+   *
+   * @param searchPath string
+   * @return void
+   */
+   this.processNormalizeDir = function (searchPath)
+   {
+      this.DirCount++;
+      var FileCount = 0;
+      console.noteln("<end><cbr><br>",
+         "************************************************************");
+      Console.noteln('* ' + this.DirCount + '. Searching dir: ' + searchPath + ' for fits');
+      console.noteln("************************************************************");
+
+
+      // Open outputfile
+      MainThread = false;
+
+      // Begin search
+      var objFileFind = new FileFind;
+
+      if (objFileFind.begin(searchPath + "/*")) {
+         do {
+            // if not upper dir links
+            if (objFileFind.name != "." && objFileFind.name != "..") {
+
+               // if this is Directory and recursion is enabled
+               if (objFileFind.isDirectory && Config.SearchInSubDirs) {
+                    // Run recursion search
+                    busy = false; // на будущее для асихнронного блока
+                    this.processNormalizeDir(searchPath + '/' + objFileFind.name);
+                    busy = true;
+               }
+               // if File
+               else {
+                  debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
+                  debug('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
+                  // if this is FIT
+                  if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
+
+                     // Open image
+                     this.readImage(searchPath + '/' + objFileFind.name);
+
+                     //Process data
+                     this.normalizeWindow(this.inputImageWindow[0], false);
+
+                     this.saveNormalizedImage(this.inputImageWindow[0]);
+
+                        //Close image
+                     this.closeImage();
+
+                  }
+                  else {
+                     debug('Skipping any actions on file found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
+                  }
+               }
+            }
+         } while (objFileFind.next());
+      }
+
+   }
+
+   this.processCurrentWindowStat = function ()
    {
       var curWindow = ImageWindow.activeWindow;
 		if ( curWindow.isNull )
 			throw new Error( "No active image" );
 		Console.abortEnabled = true;
       console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
-      this.processWindow(curWindow, true, true);
+      this.processWindowStat(curWindow, true, true);
    }
 
+   this.processCurrentWindowNorm = function ()
+   {
+      var curWindow = ImageWindow.activeWindow;
+		if ( curWindow.isNull )
+			throw new Error( "No active image" );
+		Console.abortEnabled = true;
+      console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
+      this.normalizeWindow(curWindow, true, true);
+   }
 
 } //end of class
 
@@ -332,7 +520,7 @@ this.ProcessEngine = function () {
    function mainTestEngine()
    {
       var Engine = new ProcessEngine();
-      Engine.processCurrentWindow();
+      Engine.processCurrentWindowStat();
    }
 
     mainTestEngine();

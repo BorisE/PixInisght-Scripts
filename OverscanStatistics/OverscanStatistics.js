@@ -99,10 +99,16 @@ function main()
                 switch (_WorkingMode)
                 {
                    case 1:
-                      Engine.processDirectory(Config.InputPath);
+                      Engine.processDirectoryStat(Config.InputPath);
                       break;
                    case 2:
-                      Engine.processCurrentWindow();
+                      Engine.processCurrentWindowStat();
+                      break;
+                   case 3:
+                      Engine.processNormalizeDir(Config.InputPath);
+                      break;
+                   case 4:
+                      Engine.processCurrentWindowNorm();
                       break;
                 }
                 Config.saveSettings();

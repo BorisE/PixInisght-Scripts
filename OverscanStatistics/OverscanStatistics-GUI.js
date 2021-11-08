@@ -77,7 +77,7 @@ function OverscanStatisticsDialog() {
     }
 
     //
-    // 2. Proccess Directory Statistics
+    // 2. Calculate Statistics
     //
     this.inputDir_Edit = new Edit(this);
     this.inputDir_Edit.readOnly = true;
@@ -117,12 +117,19 @@ function OverscanStatisticsDialog() {
         this.dialog.ok();
     }
 
-    this.RunDirStat_Sizer = new HorizontalSizer;
-    with (this.RunDirStat_Sizer) {
+    ttStr = "<p>Get overscan stat for current window.</p>";
+    this.runWindStat_Button = new pushButton(this, "Get statistics for current window", "", ttStr);
+    this.runWindStat_Button.onClick = function () {
+        _WorkingMode = 2;
+        this.dialog.ok();
+    }
+    this.RunStat_Sizer = new HorizontalSizer;
+    with (this.RunStat_Sizer) {
         margin = 6;
         spacing = 4;
         //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
         add(this.runDirStat_Button, 40);
+        add(this.runWindStat_Button, 80);
         addStretch();
     }
 
@@ -131,12 +138,12 @@ function OverscanStatisticsDialog() {
 
     this.processDir_GroupBox = new GroupBox(this);
     with (this.processDir_GroupBox) {
-        title = "Processing path";
+        title = "Overscan statistics";
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
         sizer.add(this.GetDir_Sizer);
-        sizer.add(this.RunDirStat_Sizer);
+        sizer.add(this.RunStat_Sizer);
     }
 
 
@@ -144,33 +151,75 @@ function OverscanStatisticsDialog() {
 
 
     //
-    // 2. Proccess current window
+    // 4. Normalize Process
     //
+    this.inputDir2_Edit = new Edit(this);
+    this.inputDir2_Edit.readOnly = true;
+    this.inputDir2_Edit.text = Config.InputPath;
+    this.inputDir2_Edit.minWidth = labelWidth1;
+    this.inputDir2_Edit.toolTip =
+        "<p>Specify which input directory to process.</p>" +
+        "</p>";
 
-    ttStr = "<p>Get overscan stat for current window.</p>";
-    this.runWindStat_Button = new pushButton(this, "Get statistics", "", ttStr);
-    this.runWindStat_Button.onClick = function () {
-        _WorkingMode = 2;
+    this.inputDirSelect2_Button = new ToolButton(this);
+    this.inputDirSelect2_Button.icon = this.scaledResource(":/browser/select-file.png");
+    this.inputDirSelect2_Button.setScaledFixedSize(20, 20);
+    this.inputDirSelect2_Button.toolTip = "<p>Select the input directory.</p>";
+    this.inputDirSelect2_Button.onClick = function () {
+        var gdd = new GetDirectoryDialog;
+        gdd.initialPath = Config.InputPath;
+        gdd.caption = "Select input directory";
+
+        if (gdd.execute()) {
+            Config.InputPath = gdd.directory;
+            this.dialog.inputDir_Edit2.text = Config.InputPath;
+        }
+    };
+
+    this.GetDir2_Sizer = new HorizontalSizer;
+    with (this.GetDir2_Sizer) {
+        margin = 6;
+        spacing = 4;
+        add(this.inputDir2_Edit, 100);
+        add(this.inputDirSelect2_Button);
+    }
+
+    ttStr = "<p>Normalize bias level for files in a given path.</p>";
+    this.runDirNorm_Button = new pushButton(this, "Normalize", "", ttStr);
+    this.runDirNorm_Button.onClick = function () {
+        _WorkingMode = 3;
         this.dialog.ok();
     }
 
-    this.RunWindowsStat_Sizer = new HorizontalSizer;
-    with (this.RunWindowsStat_Sizer) {
+    ttStr = "<p>Normalize bias level for cuurent window.</p>";
+    this.runWindNorm_Button = new pushButton(this, "Normalize Window", "", ttStr);
+    this.runWindNorm_Button.onClick = function () {
+        _WorkingMode = 4;
+        this.dialog.ok();
+    }
+
+    this.RunDirNormalize_Sizer = new HorizontalSizer;
+    with (this.RunDirNormalize_Sizer) {
         margin = 6;
         spacing = 4;
         //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
-        add(this.runWindStat_Button, 40);
+        add(this.runDirNorm_Button, 40);
+        add(this.runWindNorm_Button, 40);
         addStretch();
     }
-    this.processWindow_GroupBox = new GroupBox(this);
-    with (this.processWindow_GroupBox) {
-        title = "Processing current window";
+
+
+    //
+
+    this.normalizeDir_GroupBox = new GroupBox(this);
+    with (this.normalizeDir_GroupBox) {
+        title = "Normalize by optblack value";
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
-        sizer.add(this.RunWindowsStat_Sizer);
+        sizer.add(this.GetDir2_Sizer);
+        sizer.add(this.RunDirNormalize_Sizer);
     }
-
 
     //Instance button
     this.newInstance_Button = new ToolButton(this);
@@ -216,7 +265,7 @@ function OverscanStatisticsDialog() {
         add(this.helpLabel);
         addSpacing(4);
         add(this.processDir_GroupBox);
-        add(this.processWindow_GroupBox);
+        add(this.normalizeDir_GroupBox);
 
         //add(this.clearConsoleCheckBox_Sizer);
         addSpacing(10);
