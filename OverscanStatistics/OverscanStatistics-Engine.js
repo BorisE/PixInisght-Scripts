@@ -3,7 +3,7 @@ this.ProcessEngine = function () {
    this.inputImageWindow = null; //current opened image file (ImageWindow object)
 
    this.res = [];
-   this.res2 = [];
+   this.statData = [];
 
    this.DirCount=0;
    this.textFile = null;
@@ -63,15 +63,12 @@ this.ProcessEngine = function () {
     * @param   curWindow      ImageWindow    ImageWindow object
     * @return  void
     */
-   this.saveNormalizedImage = function( curWindow )
+   this.saveAsImage = function( curWindow, newFileName )
    {
       try
       {
          if ( curWindow != null )
          {
-             var ext = curWindow.filePath.match(/^(.*)(\.)([^.]+)$/);
-             var newFileName = ext[1] + "_ovr" + ext[2] + ext[3];
-             debug("Save As :" + newFileName, dbgNotice);
              curWindow.saveAs(newFileName, false, false, true, false);
          }
       }
@@ -109,23 +106,48 @@ this.ProcessEngine = function () {
    };
 
 
-   this.getImageBinning = function (curImageWindow)
+   /**
+    *  Get FITS headers
+    *
+    * @param   curWindow    ImageWindow     ImageWindow object
+    * @return               void
+    */
+   this.getImageHeaders = function (curImageWindow)
    {
-        var keywords = curImageWindow.keywords;
-        for (var k in keywords) {
+       if (headers.XBINNING != null) return;
+
+       var keywords = curImageWindow.keywords;
+       for (var k in keywords) {
             if (typeof headers[keywords[k].name] != 'undefined') {
-				keywords[k].trim();
-                headers[keywords[k].name] = keywords[k].strippedValue;
-                debug('header ' + keywords[k].name + '=' + keywords[k].strippedValue, dbgNotice);
+				   keywords[k].trim();
+               headers[keywords[k].name] = keywords[k].strippedValue;
+               debug('header ' + keywords[k].name + '=' + keywords[k].strippedValue, dbgNotice);
             }
-        }
-
-        return parseInt(headers.XBINNING);
-
+       }
    }
 
+
+   /**
+    *  Get FITS headers and return binnig for a curImageWindow
+    *
+    * @param   curWindow    ImageWindow     ImageWindow object
+    * @return               int             binning value
+    */
+   this.getImageBinning = function (curImageWindow)
+   {
+        this.getImageHeaders(curImageWindow);
+        return parseInt(headers.XBINNING);
+   }
+
+   /**
+    *  return Normalization level for a curImageWindow
+    *
+    * @param   curWindow    ImageWindow     ImageWindow object
+    * @return               int             Normalization bias value
+    */
    this.getImageNormalizationLevel = function (curImageWindow)
    {
+      this.getImageHeaders(curImageWindow);
       var BinIDX = 'bin'+ parseInt(headers.XBINNING);
       debug("Bin Idx: " + BinIDX, dbgNotice);
       debug("temp: " + headers['CCD-TEMP'], dbgNotice);
@@ -168,9 +190,12 @@ this.ProcessEngine = function () {
    this.MainRect_bin2 =       new Rect ( 12,     0, 4800, 3194);
 
 
-   /**
-    * Create previews for a given bin
+    /**
+    *  Create Overscan Previews
     *
+    * @param   targetWindow    ImageWindow      ImageWindow object
+    * @param   binning         int              binning for targetWindow
+    * @return                  void
     */
    this.createOverscanPreviews = function (targetWindow, binning = 1)
    {
@@ -191,10 +216,14 @@ this.ProcessEngine = function () {
       }
    }
 
-  /**
-   * Check if previews already exists
-   *
-   */
+
+    /**
+    *  check if preview exists
+    *
+    * @param   previewId   string           preview name
+    * @param   windowId    ImageWindow      ImageWindow object
+    * @return              boolean          true if exists, false if not
+    */
    this.checkPreviewExist = function (previewId, windowId)
    {
       var bFnd = false;
@@ -206,7 +235,7 @@ this.ProcessEngine = function () {
    }
 
   /**
-   * Get statistics for all areas
+   * Get statistics for all areas and put in statData array
    * * @param   targetWindow  ImageWindow    ImageWindow object
    * * @param   binning       int            binning value for current image
    */
@@ -222,52 +251,51 @@ this.ProcessEngine = function () {
       this.res[6] : normalize adjustment
       */
 
-      //this.res2[0] = targetWindow.mainView.id;
-      this.res2[0] = targetWindow.filePath;
+      //this.statData[0] = targetWindow.mainView.id;
+      this.statData[0] = targetWindow.filePath;
       if (binning == 1)
       {
-         this.res2[1] = targetWindow.mainView.image.median(this.MainRect_bin1);
-         this.res2[2] = targetWindow.mainView.image.median(this.OptBlackRect_bin1);
-         this.res2[3] = targetWindow.mainView.image.median(this.OverscanRect_bin1);
-         this.res2[4] = targetWindow.mainView.image.median(this.BlackRect_bin1);
+         this.statData[1] = targetWindow.mainView.image.median(this.MainRect_bin1);
+         this.statData[2] = targetWindow.mainView.image.median(this.OptBlackRect_bin1);
+         this.statData[3] = targetWindow.mainView.image.median(this.OverscanRect_bin1);
+         this.statData[4] = targetWindow.mainView.image.median(this.BlackRect_bin1);
       }
       else if (binning == 2)
       {
-         this.res2[1] = targetWindow.mainView.image.median(this.MainRect_bin2);
-         this.res2[2] = targetWindow.mainView.image.median(this.OptBlackRect_bin2);
-         this.res2[3] = targetWindow.mainView.image.median(this.OverscanRect_bin2);
-         this.res2[4] = targetWindow.mainView.image.median(this.BlackRect_bin2);
+         this.statData[1] = targetWindow.mainView.image.median(this.MainRect_bin2);
+         this.statData[2] = targetWindow.mainView.image.median(this.OptBlackRect_bin2);
+         this.statData[3] = targetWindow.mainView.image.median(this.OverscanRect_bin2);
+         this.statData[4] = targetWindow.mainView.image.median(this.BlackRect_bin2);
       }
-      this.res2[5] = (String)(this.res2[3] - this.res2[2]);
-      this.res2[6] = 0;
+      this.statData[5] = (String)(this.statData[3] - this.statData[2]);
+      this.statData[6] = 0;
    }
 
 
   /**
-   * Display statistics
-   *
+   * Output current statistics to console (in int16 format)
    */
    this.displayStatistics = function ()
    {
-      console.write(this.res2[0]);
+      console.write(this.statData[0] * 65535);
       console.note("|");
-      console.write(this.res2[1]);
+      console.write(this.statData[1] * 65535);
       console.note("|");
-      console.write(this.res2[2]);
+      console.write(this.statData[2] * 65535);
       console.note("|");
-      console.write(this.res2[3]);
+      console.write(this.statData[3] * 65535);
       console.note("|");
-      console.write(this.res2[4]);
+      console.write(this.statData[4] * 65535);
       console.note("|");
-      console.write(this.res2[5]);
+      console.write(this.statData[5] * 65535);
       console.noteln();
-      console.write(this.res2[6]);
+      console.write(this.statData[6] * 65535);
       console.noteln();
 
    }
 
    /**
-    * Функция для обработки открытого файла
+    * Process curWindow for getting Statistics
     *
     * @param   curWindow      ImageWindow ImageWindow object
     * @param   makePreviews   bool        create Previews
@@ -291,7 +319,7 @@ this.ProcessEngine = function () {
 
 
    /**
-   * Функция для обработки каталога
+   * Process directory for getting Statistics
    *
    * @param searchPath string
    * @return void
@@ -357,12 +385,12 @@ this.ProcessEngine = function () {
                      this.processWindowStat(this.inputImageWindow[0], false);
 
                      //Write data to csv file
-                     this.textFile.outText( this.res2[0] + "\t");
-                     this.textFile.outText( this.res2[1] + "\t");
-                     this.textFile.outText( this.res2[2] + "\t");
-                     this.textFile.outText( this.res2[3] + "\t");
-                     this.textFile.outText( this.res2[4] + "\t");
-                     this.textFile.outText( this.res2[5] );
+                     this.textFile.outText( this.statData[0] + "\t");
+                     this.textFile.outText( this.statData[1] + "\t");
+                     this.textFile.outText( this.statData[2] + "\t");
+                     this.textFile.outText( this.statData[3] + "\t");
+                     this.textFile.outText( this.statData[4] + "\t");
+                     this.textFile.outText( this.statData[5] );
                      this.textFile.outText( String.fromCharCode( 13, 10 ));
 
                      //Close image
@@ -387,7 +415,8 @@ this.ProcessEngine = function () {
 
 
    /**
-    * Функция для обработки открытого файла
+    * Process curWindow for normalizing its bias level
+    * Нормализация по уровню OptBlack
     *
     * @param   curWindow      ImageWindow    ImageWindow object
     * @param   makePreviews   bool           create Previews
@@ -407,8 +436,8 @@ this.ProcessEngine = function () {
       this.displayStatistics();
 
             var P = new PixelMath;
-      P.expression = curWindow.mainView.id + " + " + normLevel + "/65535 - " + this.res2[2].toString();
-      console.noteln("Expression: " + P.expression + " [NormLevel="+normLevel+", CurrentLevel=" + this.res2[2]*65535 + "]");
+      P.expression = curWindow.mainView.id + " + " + normLevel + "/65535 - " + this.statData[2].toString();
+      console.noteln("Expression: " + P.expression + " [NormLevel="+normLevel+", CurrentLevel=" + this.statData[2]*65535 + "]");
       P.useSingleExpression = true;
       P.clearImageCacheAndExit = false;
       P.cacheGeneratedImages = false;
@@ -426,11 +455,8 @@ this.ProcessEngine = function () {
    }
 
 
-
-
-/**
-   * Функция для обработки каталога
-   * Нормализация по уровню OptBlack
+   /**
+   * Process directory for  normalizing its bias level
    *
    * @param searchPath string
    * @return void
@@ -476,9 +502,13 @@ this.ProcessEngine = function () {
                      //Process data
                      this.normalizeWindow(this.inputImageWindow[0], false);
 
-                     this.saveNormalizedImage(this.inputImageWindow[0]);
+                     //Save as
+                     var ext = this.inputImageWindow[0].filePath.match(/^(.*)(\.)([^.]+)$/);
+                     var newFileName = ext[1] + "_ovr" + ext[2] + ext[3];
+                     debug("Save As :" + newFileName, dbgNotice);
+                     this.saveAsImage(this.inputImageWindow[0], newFileName);
 
-                        //Close image
+                     //Close image
                      this.closeImage();
 
                   }
@@ -492,24 +522,167 @@ this.ProcessEngine = function () {
 
    }
 
+   // Полезные FITS поля
+   var QHYHeaders = {
+       'READOUTM': null,
+       'GAIN': null,
+       'OFFSET': null,
+       'QOVERSCN': null,
+       'QPRESET': null,
+       'USBLIMIT': null
+   };
+   /**
+    * Process curWindow for adding QHY data into FITS Header
+    *
+    * @return  void
+    */
+   this.addQHYDataWindow = function (curWindow)
+   {
+      //this.getImageHeaders(curWindow);
+
+     
+      var keywords_for_process = Array();
+
+      var keywords = curWindow.keywords;
+      for (var k in keywords) {
+         var newline = [keywords[k].name, keywords[k].strippedValue, ""];
+         keywords_for_process.push(newline);
+         if (typeof QHYHeaders[keywords[k].name] != 'undefined') {
+            keywords[k].trim();
+            QHYHeaders[keywords[k].name] = keywords[k].strippedValue;
+         }
+      }
+
+      // Check QHY fields and add data if empty
+      if (QHYHeaders.GAIN == null) {
+         var newline = ["GAIN", "0", "Relative gain value"];
+         keywords_for_process.push(newline);
+      }
+      if (QHYHeaders.OFFSET == null) {
+         var newline = ["OFFSET", "10", "Offset value"];
+         keywords_for_process.push(newline);
+      }
+      if (QHYHeaders.READOUTM == null) {
+         var newline = ["READOUTM", "'1'", "Readout mode number of image"];
+         keywords_for_process.push(newline);
+      }
+      if (QHYHeaders.QPRESET == null) {
+         var newline = ["QPRESET", "3", "Preset id"];
+         keywords_for_process.push(newline);
+      }
+      if (QHYHeaders.QOVERSCN == null) {
+         var newline = ["QOVERSCN", "'true'", "Overscan present"];
+         keywords_for_process.push(newline);
+      }
+      if (QHYHeaders.USBLIMIT == null) {
+         var newline = ["USBLIMIT", "50", "USB limit"];
+         keywords_for_process.push(newline);
+      }
+
+      debug(keywords_for_process);
+
+      var P = new FITSHeader;
+
+      P.keywords = keywords_for_process;
+
+      P.writeIcon("savedFH");
+      var status = P.executeOn(curWindow.mainView);
+
+   }
+
+   /**
+   * Process directory for  normalizing its bias level
+   *
+   * @param searchPath string
+   * @return void
+   */
+   this.processQHYDataDir = function (searchPath)
+   {
+      this.DirCount++;
+      var FileCount = 0;
+      console.noteln("<end><cbr><br>", "************************************************************");
+      Console.noteln('* ' + this.DirCount + '. Searching dir: ' + searchPath + ' for fits');
+      console.noteln("************************************************************");
+
+
+      // Open outputfile
+      MainThread = false;
+
+      // Begin search
+      var objFileFind = new FileFind;
+
+      if (objFileFind.begin(searchPath + "/*")) {
+         do {
+            // if not upper dir links
+            if (objFileFind.name != "." && objFileFind.name != "..") {
+
+               // if this is Directory and recursion is enabled
+               if (objFileFind.isDirectory && Config.SearchInSubDirs) {
+                    // Run recursion search
+                    busy = false; // на будущее для асихнронного блока
+                    this.processNormalizeDir(searchPath + '/' + objFileFind.name);
+                    busy = true;
+               }
+               // if File
+               else {
+                  debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
+                  debug('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
+                  // if this is FIT
+                  if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
+
+                     // Open image
+                     this.readImage(searchPath + '/' + objFileFind.name);
+
+                     //Process data
+                     this.addQHYDataWindow(this.inputImageWindow[0], false);
+
+                     //Save as
+                     var ext = this.inputImageWindow[0].filePath.match(/^(.*)(\.)([^.]+)$/);    //[1] = name, [2] = ".", [3] = extension
+                     var newFileName = ext[1] + "_qhy" + ext[2] + ext[3];
+                     debug("Save As :" + newFileName, dbgNotice);
+                     this.saveAsImage(this.inputImageWindow[0], newFileName);
+
+                     //Close image
+                     this.closeImage();
+                  }
+                  else {
+                     debug('Skipping any actions on file found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
+                  }
+               }
+            }
+         } while (objFileFind.next());
+      }
+
+   }
+
+   /**
+   * Wrapper for getting Statistics for Active Window
+   *
+   * @return void
+   */
    this.processCurrentWindowStat = function ()
    {
       var curWindow = ImageWindow.activeWindow;
-		if ( curWindow.isNull )
+      if ( curWindow.isNull )
 			throw new Error( "No active image" );
-		Console.abortEnabled = true;
+      Console.abortEnabled = true;
       console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
       this.processWindowStat(curWindow, true, true);
    }
 
+   /**
+   * Wrapper for Normalizing bias level of Active Window
+   *
+   * @return void
+   */
    this.processCurrentWindowNorm = function ()
    {
-      var curWindow = ImageWindow.activeWindow;
-		if ( curWindow.isNull )
-			throw new Error( "No active image" );
-		Console.abortEnabled = true;
-      console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
-      this.normalizeWindow(curWindow, true, true);
+        var curWindow = ImageWindow.activeWindow;
+        if ( curWindow.isNull )
+            throw new Error( "No active image" );
+        Console.abortEnabled = true;
+        console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
+        this.normalizeWindow(curWindow, true, true);
    }
 
 } //end of class
@@ -520,7 +693,8 @@ this.ProcessEngine = function () {
    function mainTestEngine()
    {
       var Engine = new ProcessEngine();
-      Engine.processCurrentWindowStat();
+      var curWindow = ImageWindow.activeWindow;
+      Engine.addQHYDataWindow(curWindow);
    }
 
     mainTestEngine();
