@@ -1,3 +1,25 @@
+#ifndef OverscanStatistics_ProcessEngine_js
+#define OverscanStatistics_ProcessEngine_js
+#endif
+// Global switches
+ #ifndef DEBUG
+    #define DEBUG true
+ #endif
+
+// Includes
+ #ifndef OverscanStatistics_Global_js
+    #include "OverscanStatistics-global.js" // Ver, Title and other info
+ #endif
+ #ifndef OverscanStatistics_settings_js
+    #include "OverscanStatistics-settings.js" // Settings
+   var Config = new ConfigData(); // Variable for global access to script data
+ #endif
+ #ifndef OverscanStatistics_config_default_js
+   #include "OverscanStatistics-config-default.js" // Load default config values
+ #endif
+
+ #include "OverscanStatistics-QHYHeaders.js" // include QHY object lib
+
 this.ProcessEngine = function () {
 
    this.inputImageWindow = null; //current opened image file (ImageWindow object)
@@ -8,9 +30,14 @@ this.ProcessEngine = function () {
    this.DirCount=0;
    this.textFile = null;
 
-   /// Method to read an image from a file in to this.inputImageWindow (ImageWindow object).
-   ///
-   /// @param {string} filePath path to image file.
+   this.QHYHeadersSubEngine = new ProcessQHYHeaders();
+
+    /**
+    *  Method to read an image from a file in to this.inputImageWindow (ImageWindow object).
+    *
+    *  @param   filePath   string   path to image file
+    *  @return             bool     true if success
+    */
    this.readImage = function( filePath )
    {
       // Check that filePath exists.
@@ -32,28 +59,62 @@ this.ProcessEngine = function () {
             console.warningln( "WARNING: Unable to open image file: " + filePath + " (" + error.message + ")." );
          }
       }
-      debug("BatchStatisticsDialog.readImage: "+ filePath);
+
+      debug("OverscanUtils.readImage: "+ filePath, dbgNotice);
       return ( !this.inputImageWindow.isNull );
    };
 
 
-   /// Method to close current image window.
-   ///
-   this.closeImage = function()
+    /**
+    *  Method to close current image
+    *
+    *  @param   curWindow      ImageWindow    ImageWindow object
+    *  @return  void
+    */
+   this.closeImage = function(curWindow)
    {
       try
       {
-         if ( this.inputImageWindow != null )
+         if ( curWindow == null )
          {
-            this.inputImageWindow[0].forceClose();
+            curWindow = this.inputImageWindow[0];
+         }
+         if ( curWindow != null )
+         {
+            curWindow.forceClose();
             this.inputImageWindow  = null;
          }
       }
       catch ( error )
       {
-         (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Yes, StdButton_No )).execute();
+         console.warningln( "WARNING: Unable to close image : " + this.inputImageWindow.filePath + " (" + error.message + ")." );
+         if (dbgCurrentPopupMessages) (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Yes, StdButton_No )).execute();
       }
-      debug("BatchStatisticsDialog.closeImage");
+      debug("OverscanUtils.closeImage", dbgNotice);
+
+   };
+
+    /**
+    *  Method to save current image
+    *
+    *  @param   curWindow      ImageWindow    ImageWindow object
+    *  @return  void
+    */
+   this.saveImage = function( curWindow, newFileName )
+   {
+      try
+      {
+         if ( curWindow != null )
+         {
+             curWindow.save(false, true);
+         }
+      }
+      catch ( error )
+      {
+         console.warningln( "WARNING: Unable to save image : " + this.inputImageWindow.filePath + " (" + error.message + ")." );
+         if (dbgCurrentPopupMessages) (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Yes, StdButton_No )).execute();
+      }
+      debug("OverscanUtils.saveImage", dbgNotice);
 
    };
 
@@ -74,11 +135,72 @@ this.ProcessEngine = function () {
       }
       catch ( error )
       {
-         (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Yes, StdButton_No )).execute();
+         console.warningln( "WARNING: Unable to save as image : " + newFileName + " (" + error.message + ")." );
+         if (dbgCurrentPopupMessages) (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Yes, StdButton_No )).execute();
       }
-      debug("BatchStatisticsDialog.closeImage");
+      debug("OverscanUtils.saveAsImage: " + newFileName, dbgNotice);
 
    };
+
+   /**
+    *  Get file lastModified date
+    *
+    * @param   curWindow      ImageWindow    ImageWindow object
+    * @return  Date
+    */
+   this.getImageDate = function( curWindow )
+   {
+      try
+      {
+         if ( curWindow != null )
+         {
+             var FI = new FileInfo (curWindow.filePath);
+             var FD = FI.lastModified;
+             debug(FD);
+             var DateSt = FD.getFullYear()+"-"+(FD.getMonth()+1)+"-"+FD.getDate() + " " + FD.getHours()+":"+FD.getMinutes()+":"+FD.getSeconds();
+             debug(DateSt);
+         }
+         else
+         {
+            throw new Error('curWindow in null');
+         }
+      }
+      catch ( error )
+      {
+         console.warningln( "WARNING: Unable to get image date: " + (curWindow == null ? "null" : curWindow.filePath) + " (" + error.message + ")." );
+         if (dbgCurrentPopupMessages) (new MessageBox(error.message)).execute();
+      }
+      debug("OverscanUtils.getImageDate", dbgNotice);
+      return DateSt;
+   };
+
+   /**
+    *  Run external program to restore lastModified date
+    *
+    * @param   fileName    string    full file name (with path)
+    * @param   date        string    date string "YYYY-MM-dd HH:ii:ss"
+    * @return  result      int       external result
+    */
+   this.restoreDate = function (fileName, date)
+   {
+      try
+      {
+         var res = ExternalProcess.execute("cscript.exe", [Config.restoreDateJSScript, fileName, date]);
+         if (res==0) {
+            debug("FileDate for [" + fileName +"] restored to [" + date + "]");
+         }
+         else{
+            Console.criticalln("FileDate for [" + fileName +"] can't be restored. Error " + res);
+         }
+      }
+      catch ( error )
+      {
+         console.criticalln( "CRITICAL: Unable to run js restore script for " + fileName  + " [" + date+ "]" + " (" + error.message + ").");
+         if (dbgCurrentPopupMessages) (new MessageBox(error.message)).execute();
+      }
+      debug("OverscanUtils.restoreDate", dbgNotice);
+      return res;
+   }
 
 
    // Полезные FITS поля
@@ -148,6 +270,7 @@ this.ProcessEngine = function () {
    this.getImageNormalizationLevel = function (curImageWindow)
    {
       this.getImageHeaders(curImageWindow);
+
       var BinIDX = 'bin'+ parseInt(headers.XBINNING);
       debug("Bin Idx: " + BinIDX, dbgNotice);
       debug("temp: " + headers['CCD-TEMP'], dbgNotice);
@@ -522,76 +645,9 @@ this.ProcessEngine = function () {
 
    }
 
-   // Полезные FITS поля
-   var QHYHeaders = {
-       'READOUTM': null,
-       'GAIN': null,
-       'OFFSET': null,
-       'QOVERSCN': null,
-       'QPRESET': null,
-       'USBLIMIT': null
-   };
-   /**
-    * Process curWindow for adding QHY data into FITS Header
-    *
-    * @return  void
-    */
-   this.addQHYDataWindow = function (curWindow)
-   {
-      //this.getImageHeaders(curWindow);
-
-     
-      var keywords_for_process = Array();
-
-      var keywords = curWindow.keywords;
-      for (var k in keywords) {
-         var newline = [keywords[k].name, keywords[k].strippedValue, ""];
-         keywords_for_process.push(newline);
-         if (typeof QHYHeaders[keywords[k].name] != 'undefined') {
-            keywords[k].trim();
-            QHYHeaders[keywords[k].name] = keywords[k].strippedValue;
-         }
-      }
-
-      // Check QHY fields and add data if empty
-      if (QHYHeaders.GAIN == null) {
-         var newline = ["GAIN", "0", "Relative gain value"];
-         keywords_for_process.push(newline);
-      }
-      if (QHYHeaders.OFFSET == null) {
-         var newline = ["OFFSET", "10", "Offset value"];
-         keywords_for_process.push(newline);
-      }
-      if (QHYHeaders.READOUTM == null) {
-         var newline = ["READOUTM", "'1'", "Readout mode number of image"];
-         keywords_for_process.push(newline);
-      }
-      if (QHYHeaders.QPRESET == null) {
-         var newline = ["QPRESET", "3", "Preset id"];
-         keywords_for_process.push(newline);
-      }
-      if (QHYHeaders.QOVERSCN == null) {
-         var newline = ["QOVERSCN", "'true'", "Overscan present"];
-         keywords_for_process.push(newline);
-      }
-      if (QHYHeaders.USBLIMIT == null) {
-         var newline = ["USBLIMIT", "50", "USB limit"];
-         keywords_for_process.push(newline);
-      }
-
-      debug(keywords_for_process);
-
-      var P = new FITSHeader;
-
-      P.keywords = keywords_for_process;
-
-      P.writeIcon("savedFH");
-      var status = P.executeOn(curWindow.mainView);
-
-   }
 
    /**
-   * Process directory for  normalizing its bias level
+   * Process directory for  adding QHY camera data into FITS header
    *
    * @param searchPath string
    * @return void
@@ -605,8 +661,6 @@ this.ProcessEngine = function () {
       console.noteln("************************************************************");
 
 
-      // Open outputfile
-      MainThread = false;
 
       // Begin search
       var objFileFind = new FileFind;
@@ -625,25 +679,32 @@ this.ProcessEngine = function () {
                }
                // if File
                else {
+                  debug('****************************************', dbgNotice);
                   debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
-                  debug('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
+                  debug('****************************************', dbgNotice);
                   // if this is FIT
                   if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
 
                      // Open image
                      this.readImage(searchPath + '/' + objFileFind.name);
 
+
                      //Process data
-                     this.addQHYDataWindow(this.inputImageWindow[0], false);
+                     if (this.QHYHeadersSubEngine.addQHYDataWindow(this.inputImageWindow[0]))
+                     {
+                        // Get original date
+                        var origImagePath = this.inputImageWindow[0].filePath;
+                        var origDate = this.getImageDate(this.inputImageWindow[0]);
 
-                     //Save as
-                     var ext = this.inputImageWindow[0].filePath.match(/^(.*)(\.)([^.]+)$/);    //[1] = name, [2] = ".", [3] = extension
-                     var newFileName = ext[1] + "_qhy" + ext[2] + ext[3];
-                     debug("Save As :" + newFileName, dbgNotice);
-                     this.saveAsImage(this.inputImageWindow[0], newFileName);
+                        //Save
+                        this.saveImage(this.inputImageWindow[0]);
 
-                     //Close image
-                     this.closeImage();
+                        //Close image
+                        this.closeImage(this.inputImageWindow[0]);
+
+                        //Restore filedate to original
+                        this.restoreDate(origImagePath,origDate);
+                     }
                   }
                   else {
                      debug('Skipping any actions on file found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
@@ -654,6 +715,7 @@ this.ProcessEngine = function () {
       }
 
    }
+
 
    /**
    * Wrapper for getting Statistics for Active Window
@@ -681,9 +743,25 @@ this.ProcessEngine = function () {
         if ( curWindow.isNull )
             throw new Error( "No active image" );
         Console.abortEnabled = true;
-        console.noteln("Filename,\tMain,\tOptBlack,\tOverscan,\tBlack,\tDiff" + String.fromCharCode( 13, 10 ));
         this.normalizeWindow(curWindow, true, true);
    }
+
+
+   /**
+   * Wrapper for adding QHY data into FITS header of Active Window
+   *
+   * @return void
+   */
+   this.processQHYDataWindow = function ()
+   {
+        var curWindow = ImageWindow.activeWindow;
+        if ( curWindow.isNull )
+            throw new Error( "No active image" );
+        Console.abortEnabled = true;
+        this.QHYHeadersSubEngine.addQHYDataWindow(curWindow)
+   }
+
+
 
 } //end of class
 
@@ -694,7 +772,16 @@ this.ProcessEngine = function () {
    {
       var Engine = new ProcessEngine();
       var curWindow = ImageWindow.activeWindow;
-      Engine.addQHYDataWindow(curWindow);
+      //Engine.QHYHeadersSubEngine.addQHYDataWindow(curWindow);
+      //var FD = Engine.getImageDate(curWindow);
+      /*debug(FD.toISOString());
+      debug(FD.toJSON());
+      debug(FD.toLocaleString());
+      debug(FD.toUTCString());
+      debug(FD.toString());
+      debug(FD.toLocaleDateString());*/
+      //Engine.restoreDate("d:/BiasTest_bin1_noos.fit", FD);
+      Engine.processQHYDataDir("d:/DSlrRemote/QHY600/qhyutils test/test" );
    }
 
     mainTestEngine();

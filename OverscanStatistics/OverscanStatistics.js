@@ -110,6 +110,14 @@ function main()
                    case 4:
                       Engine.processCurrentWindowNorm();
                       break;
+                   case 5:
+                      Engine.QHYHeadersSubEngine.loadCameraParameters();
+                      Engine.processQHYDataDir(Config.InputPath);
+                      break;
+                   case 6:
+                      Engine.QHYHeadersSubEngine.loadCameraParameters();
+                      Engine.processQHYDataWindow();
+                      break;
                 }
                 Config.saveSettings();
                 break;

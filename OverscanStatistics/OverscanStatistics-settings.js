@@ -31,12 +31,26 @@ function ConfigData() {
      */
     this.loadSettings = function () {
         var o;
-        if ((o = load("InputPath", DataType_String)) != null)
+        if ((o = load("InputPath",        DataType_String)) != null)
             this.InputPath = o;
+        if ((o = load("AddData_Gain",     DataType_Int16)) != null)
+            this.AddData_Gain = o;
+        if ((o = load("AddData_Offset",   DataType_Int16)) != null)
+            this.AddData_Offset = o;
+        if ((o = load("AddData_ReadMode", DataType_Int16)) != null)
+            this.AddData_ReadMode = o;
+        if ((o = load("AddData_USBLimit", DataType_Int16)) != null)
+            this.AddData_USBLimit = o;
+
     }
 
     this.saveSettings = function () {
-        save("InputPath", DataType_String, this.InputPath);
+        save("InputPath",           DataType_String,  this.InputPath);
+        save("AddData_Gain",        DataType_Int16,   this.AddData_Gain);
+        save("AddData_Offset",      DataType_Int16,   this.AddData_Offset);
+        save("AddData_ReadMode",    DataType_Int16,   this.AddData_ReadMode);
+        save("AddData_USBLimit",    DataType_Int16,   this.AddData_USBLimit);
+
 
         if (DEBUG) {
             console.writeln("\n<b>Settings saved:</b>");
@@ -76,6 +90,10 @@ function ConfigData() {
 
     this.printParameters = function () {
         console.writeln("InputPath:                      " + this.InputPath);
+        console.writeln("AddData_Gain:                   " + this.AddData_Gain);
+        console.writeln("AddData_Offset:                 " + this.AddData_Offset);
+        console.writeln("AddData_ReadMode:               " + this.AddData_ReadMode);
+        console.writeln("AddData_USBLimit:               " + this.AddData_USBLimit);
     }
 
     this.checkPathValidity = function () {

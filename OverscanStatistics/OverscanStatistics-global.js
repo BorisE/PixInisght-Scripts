@@ -3,10 +3,10 @@
  #endif
 
  #define TITLE "OverscanStatistics"
- #define VERSION "2.0"
- #define COMPILE_DATE "2021/11/08"
+ #define VERSION "3.0"
+ #define COMPILE_DATE "2021/11/13"
 
- #define INFO_STRING "A script for QHY600 overscan support tools"
+ #define INFO_STRING "A script for QHY600 overscan and other support tools"
  #define COPYRIGHT_STRING "Copyright &copy; 2021 by Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "OverscanStatistics/"
@@ -19,6 +19,11 @@ Copyright (C) 2021 by Boris Emchenko http://astromania.info
 Version History
 
 /*
+ * ver 3.0 [2021/11/13]
+ * - add QHY camera parameters into FITS header
+ * - dialog redesign
+ * - saving options
+ *
  * ver 2.0 [2021/11/08]
  * - normalize fits by using optblack value reference
  *
