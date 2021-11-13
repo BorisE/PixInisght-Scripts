@@ -35,66 +35,74 @@ this.ProcessQHYHeaders = function () {
 
       var keywords = curWindow.keywords;
       for (var k in keywords) {
-         var newline = [keywords[k].name, keywords[k].value, keywords[k].comment];
-         keywords_for_process.push(newline);
          if (typeof QHYHeaders[keywords[k].name] != 'undefined') {
             keywords[k].trim();
             QHYHeaders[keywords[k].name] = keywords[k].strippedValue;
+         } else {
+            var newline = [keywords[k].name, keywords[k].value, keywords[k].comment];
+            keywords_for_process.push(newline);
          }
       }
 
       // Check QHY fields and add data if empty
       if (QHYHeaders.GAIN == null || Config.ForceHeaderModification) {
          var newline = ["GAIN", this.Gain, "Relative gain value"];
-         keywords_for_process.push(newline);
          debug("Added GAIN " + this.Gain);
          modified = true;
+      } else {
+         var newline = ["GAIN", QHYHeaders.GAIN, "Relative gain value"];
       }
+      keywords_for_process.push(newline);
+
       if (QHYHeaders.OFFSET == null || Config.ForceHeaderModification) {
          var newline = ["OFFSET", this.Offset, "Offset value"];
-         keywords_for_process.push(newline);
          debug("Added OFFSET " + this.Offset);
          modified = true;
+      } else {
+         var newline = ["OFFSET", QHYHeaders.OFFSET, "Offset value"];
       }
+      keywords_for_process.push(newline);
+
       if (QHYHeaders.READOUTM == null || Config.ForceHeaderModification) {
          var newline = ["READOUTM", this.ReadOutMode, "Readout mode number of image"];
-         keywords_for_process.push(newline);
          debug("Added READOUTM " + this.ReadOutMode);
          modified = true;
+      } else {
+         var newline = ["READOUTM", QHYHeaders.READOUTM, "Readout mode number of image"];
       }
+      keywords_for_process.push(newline);
+
       if (QHYHeaders.QPRESET == null || Config.ForceHeaderModification) {
-         if (this.ReadOutMode=="1")
-         {
-            if (this.Gain=="0" && this.Offset == "10") this.QPreset = "3";
-            else if (this.Gain=="56" && this.Offset == "10") this.QPreset = "4";
-         }
-         else if (this.ReadOutMode=="0")
-         {
-            if (this.Gain=="0" && this.Offset == "10") this.QPreset = "1";
-            else if (this.Gain=="27" && this.Offset == "10") this.QPreset = "2";
-         }
+         this.QPreset = this.calcPresetIndex(this.ReadOutMode, this.Gain, this.Offset);
          var newline = ["QPRESET", this.QPreset, "Preset id"];
-         keywords_for_process.push(newline);
          debug("Added QPRESET " + this.QPreset);
          modified = true;
+      } else {
+         var newline = ["QPRESET", this.calcPresetIndex(QHYHeaders.READOUTM, QHYHeaders.GAIN, QHYHeaders.OFFSET), "Preset id"];
       }
+      keywords_for_process.push(newline);
+
+
+      var ovscan_ret = this.calcOverscanPresent (curWindow);
+      if (ovscan_ret == 1)
+         this.OverscanPresent = "true";
+      else if (ovscan_ret == 0)
+         this.OverscanPresent = "false";
+      var newline = ["QOVERSCN", this.OverscanPresent , "Overscan present or not"];
       if (QHYHeaders.QOVERSCN == null || Config.ForceHeaderModification) {
-         var ovscan_ret = this.calcOverscanPresent (curWindow);
-         if (ovscan_ret == 1)
-            this.OverscanPresent = "true";
-         else if (ovscan_ret == 0)
-            this.OverscanPresent = "false";
-         var newline = ["QOVERSCN", this.OverscanPresent , "Overscan present or not"];
-         keywords_for_process.push(newline);
          debug("Added QOVERSCN " + this.OverscanPresent);
          modified = true;
       }
+      keywords_for_process.push(newline);
+
       if (QHYHeaders.USBLIMIT == null || Config.ForceHeaderModification) {
          var newline = ["USBLIMIT", this.USBLimit, "USB limit"];
-         keywords_for_process.push(newline);
          debug("Added USBLIMIT " + this.USBLimit);
          modified = true;
+      } else {
+         var newline = ["USBLIMIT", QHYHeaders.USBLIMIT, "USB limit"];
       }
+      keywords_for_process.push(newline);
 
       //debug(keywords_for_process);
       if (modified)
@@ -131,6 +139,22 @@ this.ProcessQHYHeaders = function () {
          return 0;
       else
          return -1;
+   }
+
+   this.calcPresetIndex = function (readmode, gain, offset)
+   {
+      if (readmode=="1")
+      {
+         if (gain=="0" && offset == "10") this.QPreset = "3";
+         else if (gain=="56" && offset == "10") this.QPreset = "4";
+      }
+      else if (readmode=="0")
+      {
+         if (gain=="0" && offset == "10") this.QPreset = "1";
+         else if (gain=="27" && offset == "10") this.QPreset = "2";
+      }
+
+      return this.QPreset;
    }
 
 
