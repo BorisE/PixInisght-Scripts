@@ -107,6 +107,23 @@ function OverscanStatisticsDialog() {
         add(this.inputDir_Edit, 100);
         add(this.inputDirSelect_Button);
     }
+
+    this.searchSubdirs_CheckBox = new CheckBox(this);
+    this.searchSubdirs_CheckBox.text = "Search in subdirs";
+    this.searchSubdirs_CheckBox.checked = Config.SearchInSubDirs;
+    this.searchSubdirs_CheckBox.toolTip =
+        "<p>Search in subdirs.</p>";
+    this.searchSubdirs_CheckBox.onClick = function (checked) {
+        Config.SearchInSubDirs = checked;
+    };
+
+    this.GetDirOptions_Sizer = new HorizontalSizer;
+    with (this.GetDirOptions_Sizer) {
+        margin = 6;
+        spacing = 4;
+        add(this.searchSubdirs_CheckBox);
+    }
+
     this.inputDir_GroupBox = new GroupBox(this);
     with (this.inputDir_GroupBox) {
         title = "Input folder";
@@ -114,6 +131,8 @@ function OverscanStatisticsDialog() {
         sizer.margin = 6;
         sizer.spacing = 4;
         sizer.add(this.GetDir_Sizer);
+        sizer.add(this.GetDirOptions_Sizer);
+
     }
 
     //
@@ -290,6 +309,24 @@ function OverscanStatisticsDialog() {
     }
 
 
+    this.forceModify_CheckBox = new CheckBox(this);
+    this.forceModify_CheckBox.text = "Force add data";
+    this.forceModify_CheckBox.checked = Config.ForceHeaderModification;
+    this.forceModify_CheckBox.toolTip =
+        "<p>Force add data even if it is already in.</p>";
+    this.forceModify_CheckBox.onClick = function (checked) {
+        Config.ForceHeaderModification = checked;
+    };
+    this.otherOptionsAddData_Sizer = new HorizontalSizer;
+    with (this.otherOptionsAddData_Sizer) {
+        margin = 6;
+        spacing = 4;
+        //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+        add(this.forceModify_CheckBox, 80);
+        addStretch();
+    }
+
+
     ttStr = "<p>Add data for files in a given path.</p>";
     this.runDirAddData_Button = new pushButton(this, "Add data to files", "", ttStr);
     this.runDirAddData_Button.onClick = function () {
@@ -318,12 +355,13 @@ function OverscanStatisticsDialog() {
 
     this.addData_GroupBox = new GroupBox(this);
     with (this.addData_GroupBox) {
-        title = "Normalize by optblack value";
+        title = "Add camera data to FITS header";
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
 
         sizer.add(this.parametersAddData_Sizer);
+        sizer.add(this.otherOptionsAddData_Sizer);
         sizer.add(this.RunAddData_Sizer);
     }
 
@@ -376,17 +414,6 @@ function OverscanStatisticsDialog() {
 
     this.windowTitle = TITLE + " Script";
     this.adjustToContents();
-
-    this.saveAddParameters = function ()
-    {
-         Config.AddData_Gain = this.gain_SpinBox.value;
-         Config.AddData_Offset =  this.offset_SpinBox.value;
-         Config.AddData_ReadMode = this.readmode_SpinBox.value;
-         Config.AddData_USBLimit = this.usblimit_SpinBox.value;
-
-         Config.saveSettings();
-    };
-
 } // end of GUI function
 
 //main
