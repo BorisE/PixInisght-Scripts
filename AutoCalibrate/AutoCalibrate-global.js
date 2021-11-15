@@ -3,17 +3,17 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "4.3b"
- #define COMPILE_DATE "2020/12/22"
+ #define VERSION "4.4"
+ #define COMPILE_DATE "2021/11/13"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
- #define COPYRIGHT_STRING "Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko<br/>"
+ #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "AutoCalibrate/"
 
 /*
 Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-Developed 2019-2020 by Boris Emchenko http://astromania.info
+Developed 2019-2021 by Boris Emchenko http://astromania.info
  */
 
 /*
@@ -23,6 +23,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+v 4.4 [2021/11/13]
+- Adopted to QHY camera
+- Code optimization
+- more verbose output
 
 v 4.3b [2020/12/22]
 - Minor bugfixes
@@ -144,23 +148,6 @@ v0.1  10/18/2016    Продумал структуру входа, калибр
  */
 //////////////////////////////////////////////////////
 
-
-// for FITS HEADER parsing
-var headers = {
-    'XBINNING': null,
-    'OBSERVER': null,
-    'TELESCOP': null,
-    'INSTRUME': null,
-    'DATE-OBS': null,
-    'EXPTIME': null,
-    'CCD-TEMP': null,
-    'XPIXSZ': null,
-    'FOCALLEN': null,
-    'FILTER': null,
-    'OBJECT': null,
-    'OBJCTRA': null,
-    'OBJCTDEC': null
-};
 
 // DEBUG
 var dbgNormal = 1; //  минимальное количество сообщений

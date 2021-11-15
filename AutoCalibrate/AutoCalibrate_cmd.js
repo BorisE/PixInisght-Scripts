@@ -44,12 +44,12 @@ var Config = new ConfigData(); // Variable for global access to script data
 // ПЕРЕОПРЕДЕЛЕНИЕ ДЕФОЛТНОЙ КОНФИГУРАЦИИ
 //////////////////////////////////////////
 
-Config.InputPath = 'e:/DSlrRemote/M77/test'; // без финального "/" (@todo убрать. если есть)
+Config.InputPath = 'd:/DSlrRemote/Comet67P'; // без финального "/" (@todo убрать. если есть)
 Config.OutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
-Config.PathMode = PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER;
+Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;
 Config.UseSecnodPass = false;
-Config.NeedABE = true;
+Config.NeedABE = false;
 
 //////////////////////////////////////////
 if (!DEBUG)

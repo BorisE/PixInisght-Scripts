@@ -4,8 +4,8 @@
    <br/> \
    @todo \
    <br/> \
-   Copyright &copy; 2016-2019 Oleg Milantiev, Boris Emchenko
-
+   Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>
+   
 #feature-icon AutoCalibration.xpm
 
 //File id
