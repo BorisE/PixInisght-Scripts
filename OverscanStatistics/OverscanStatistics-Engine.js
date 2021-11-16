@@ -400,19 +400,19 @@ this.ProcessEngine = function () {
    */
    this.displayStatistics = function ()
    {
-      console.write(this.statData[0] * 65535);
-      console.note("|");
-      console.write(this.statData[1] * 65535);
-      console.note("|");
-      console.write(this.statData[2] * 65535);
-      console.note("|");
-      console.write(this.statData[3] * 65535);
-      console.note("|");
-      console.write(this.statData[4] * 65535);
-      console.note("|");
-      console.write(this.statData[5] * 65535);
+      console.noteln(this.statData[0] + ":");
+      console.note("Main: ");
+      console.write((this.statData[1] * 65535).toFixed(1));
+      console.note("| OptBlack: ");
+      console.write((this.statData[2] * 65535).toFixed(1));
+      console.note("| Overscan: ");
+      console.write((this.statData[3] * 65535).toFixed(1));
+      console.note("| Black: ");
+      console.write((this.statData[4] * 65535).toFixed(1));
+      console.note("| Overscan - OptBlack: ");
+      console.write((this.statData[5] * 65535).toFixed(1));
       console.noteln();
-      console.write(this.statData[6] * 65535);
+      console.write((this.statData[6] * 65535).toFixed(1));
       console.noteln();
 
    }
@@ -427,7 +427,7 @@ this.ProcessEngine = function () {
     */
    this.processWindowStat= function (curWindow, makePreviews = true, leavePreviews = true)
    {
-      curbin = this.getImageBinning(curWindow);
+      var curbin = this.getImageBinning(curWindow);
       console.noteln("Binning " + curbin);
 
       if (makePreviews)

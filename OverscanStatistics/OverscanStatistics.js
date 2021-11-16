@@ -95,8 +95,8 @@ function main()
             } else {
                 console.show();
                 processEvents();
-                console.noteln("Working mode: " + _WorkingMode);
-                switch (_WorkingMode)
+                console.noteln("Working mode: " + Config.WorkingMode);
+                switch (Config.WorkingMode)
                 {
                    case 1:
                       Engine.processDirectoryStat(Config.InputPath);

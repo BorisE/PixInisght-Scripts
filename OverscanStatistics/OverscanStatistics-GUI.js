@@ -31,14 +31,6 @@
  #include <pjsr/SectionBar.jsh>
 
 
-/* Working modes:
-*    0 - unindentified
-*    1 - get overscan statistics for a given path (and put it to the file)
-*    2 - get overscan statistics for an active image window and make previews (bin 1)
-*    3 - get overscan statistics for an active image window and make previews (bin 2)
-*/
-_WorkingMode = 0;
-
 
 /*
  * dialog
@@ -142,14 +134,14 @@ function OverscanStatisticsDialog() {
     ttStr = "<p>Get overscan stat for files in a given path.</p>";
     this.runDirStat_Button = new pushButton(this, "Get statistics fo files", "", ttStr);
     this.runDirStat_Button.onClick = function () {
-        _WorkingMode = 1;
+        Config.WorkingMode = WORKINGMODE.processDirectoryStat;
         this.dialog.ok();
     }
 
     ttStr = "<p>Get overscan stat for current window.</p>";
     this.runWindStat_Button = new pushButton(this, "Statistics for current window", "", ttStr);
     this.runWindStat_Button.onClick = function () {
-        _WorkingMode = 2;
+        Config.WorkingMode = WORKINGMODE.processCurrentWindowStat;
         this.dialog.ok();
     }
     this.RunStat_Sizer = new HorizontalSizer;
@@ -181,14 +173,14 @@ function OverscanStatisticsDialog() {
     ttStr = "<p>Normalize bias level for files in a given path.</p>";
     this.runDirNorm_Button = new pushButton(this, "Normalize files", "", ttStr);
     this.runDirNorm_Button.onClick = function () {
-        _WorkingMode = 3;
+        Config.WorkingMode = WORKINGMODE.processNormalizeDir;
         this.dialog.ok();
     }
 
     ttStr = "<p>Normalize bias level for current window.</p>";
     this.runWindNorm_Button = new pushButton(this, "Normalize current window", "", ttStr);
     this.runWindNorm_Button.onClick = function () {
-        _WorkingMode = 4;
+        Config.WorkingMode = WORKINGMODE.processCurrentWindowNorm;
         this.dialog.ok();
     }
 
@@ -330,7 +322,7 @@ function OverscanStatisticsDialog() {
     ttStr = "<p>Add data for files in a given path.</p>";
     this.runDirAddData_Button = new pushButton(this, "Add data to files", "", ttStr);
     this.runDirAddData_Button.onClick = function () {
-        _WorkingMode = 5;
+        Config.WorkingMode = WORKINGMODE.processQHYDataDir;
         //this.saveAddParameters();
         this.dialog.ok();
     }
@@ -338,7 +330,7 @@ function OverscanStatisticsDialog() {
     ttStr = "<p>Add datat for current window.</p>";
     this.runWindAddData_Button = new pushButton(this, "Add data to current window", "", ttStr);
     this.runWindAddData_Button.onClick = function () {
-        _WorkingMode = 6;
+        Config.WorkingMode = WORKINGMODE.processQHYDataWindow;
         //this.saveAddParameters;
         this.dialog.ok();
     }
@@ -469,8 +461,8 @@ function mainGUI() {
             } else {
                 console.show();
                 processEvents();
-                console.noteln("Working mode: " + _WorkingMode);
-                switch (_WorkingMode)
+                console.noteln("Working mode: " + Config.WorkingMode);
+                switch (Config.WorkingMode)
                 {
                    case 1:
                       Engine.processDirectory(Config.InputPath);

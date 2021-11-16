@@ -28,6 +28,7 @@ Config.InputPath = 'e:/DSlrRemote/+M77'; //ПАПКА С ИСХОДНЫМИ ФИ
 Config.OutputCSVFile = "overscandata.txt";
 Config.SearchInSubDirs = true;
 
+Config.WorkingMode = WORKINGMODE.processDirectoryStat;
 
 // Таблица нормализации
 Config.NormalizationTable = {
@@ -54,7 +55,7 @@ Config.AddData_USBLimit = 50;
 
 // Настройки для отладчика
 dbgCurrent = true;
-dbgCurrentPopupMessages = false;
+var dbgCurrentPopupMessages = false;
 var cfgDebugLevel = dbgNotice; //dbgNormal, dbgNotice  dbgCurrent
 //////////////////////////////////////////////////////
 

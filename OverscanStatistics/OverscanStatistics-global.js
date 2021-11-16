@@ -63,6 +63,16 @@ var dbgNormal = 1; //  минимальное количество сообще�
 var dbgNotice = 2; // максимальное количество сообщений
 var dbgCurrent = 0; // максимальное количество сообщений
 
+var WORKINGMODE = {
+    UNSET: -1,
+    processDirectoryStat: 1,
+    processCurrentWindowStat: 2,
+    processNormalizeDir: 3,
+    processCurrentWindowNorm: 4,
+    processQHYDataDir: 5,
+    processQHYDataWindow: 6,
+}; // Типы расположения файлов, см. documentation.txt
+
 // Global vars
 var textFile;
 
