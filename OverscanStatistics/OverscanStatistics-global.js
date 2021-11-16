@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "OverscanStatistics"
- #define VERSION "3.1a"
- #define COMPILE_DATE "2021/11/13"
+ #define VERSION "3.2"
+ #define COMPILE_DATE "2021/11/16"
 
  #define INFO_STRING "A script for QHY600 overscan and other support tools"
  #define COPYRIGHT_STRING "Copyright &copy; 2021 by Boris Emchenko<br/>"
@@ -19,6 +19,10 @@ Copyright (C) 2021 by Boris Emchenko http://astromania.info
 Version History
 
 /*
+ * ver 3.2 [2021/11/16]
+ * - checking if image has overscan area before GetStatistics and Normalize
+ * - small optimizations and bugfixes
+ *
  * ver 3.1 [2021/11/13]
  * - GUI: force modification and subdir checkbox
  * - small bugfixes

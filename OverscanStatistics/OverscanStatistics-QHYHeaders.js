@@ -126,7 +126,7 @@ this.ProcessQHYHeaders = function () {
    /**
     * check if curWindow has overscan area
     * @param   curWindow    ImageWindow     ImageWindow object
-    * @return  void
+    * @return  int							1 if image with oversan, 0 if withoud, -1 if can't say nothing about it :)
     */
    this.calcOverscanPresent  = function (curWindow)
    {

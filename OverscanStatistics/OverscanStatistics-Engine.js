@@ -427,7 +427,14 @@ this.ProcessEngine = function () {
     */
    this.processWindowStat= function (curWindow, makePreviews = true, leavePreviews = true)
    {
-      var curbin = this.getImageBinning(curWindow);
+      var ovscan_ret = this.QHYHeadersSubEngine.calcOverscanPresent (curWindow);
+      if (ovscan_ret != 1)
+	  {
+		 console.warningln("Seems image doesn't have overscan area, exiting");
+		 return; 
+	  }
+		  
+	  var curbin = this.getImageBinning(curWindow);
       console.noteln("Binning " + curbin);
 
       if (makePreviews)
@@ -544,11 +551,18 @@ this.ProcessEngine = function () {
     * @param   curWindow      ImageWindow    ImageWindow object
     * @param   makePreviews   bool           create Previews
     * @param   leavePreviews  bool           don't delete previews
-    * @return  void
+    * @return  				  bool 			 true if ok, false otherwise	
     */
    this.normalizeWindow = function (curWindow, makePreviews = true, leavePreviews = true)
    {
-      var curbin = this.getImageBinning(curWindow);
+      var ovscan_ret = this.QHYHeadersSubEngine.calcOverscanPresent (curWindow);
+      if (ovscan_ret != 1)
+	  {
+		 console.warningln("Seems image doesn't have overscan area, exiting");
+		 return false; 
+	  }
+	  
+	  var curbin = this.getImageBinning(curWindow);
       var normLevel = this.getImageNormalizationLevel(curWindow);
       console.noteln("Binning " + curbin);
 
@@ -575,6 +589,8 @@ this.ProcessEngine = function () {
 
       if (makePreviews && !leavePreviews)
          curWindow.deletePreviews();
+	 
+	  return true;
    }
 
 
@@ -621,7 +637,8 @@ this.ProcessEngine = function () {
                      this.readImage(searchPath + '/' + objFileFind.name);
 
                      //Process data
-                     this.normalizeWindow(this.inputImageWindow[0], false);
+                     if (!this.normalizeWindow(this.inputImageWindow[0], false)) 
+						 return;
 
                      //Save as
                      var ext = this.inputImageWindow[0].filePath.match(/^(.*)(\.)([^.]+)$/);
