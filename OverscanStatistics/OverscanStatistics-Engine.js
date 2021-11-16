@@ -453,7 +453,7 @@ this.ProcessEngine = function () {
       var FileCount = 0;
       console.noteln("<end><cbr><br>",
          "************************************************************");
-      Console.noteln('* ' + this.DirCount + '. Searching dir: ' + searchPath + ' for fits');
+      Console.noteln('* ' + this.DirCount + '. [processDirectoryStat] Searching dir: ' + searchPath + ' for fits');
       console.noteln("************************************************************");
 
 
@@ -590,12 +590,10 @@ this.ProcessEngine = function () {
       var FileCount = 0;
       console.noteln("<end><cbr><br>",
          "************************************************************");
-      Console.noteln('* ' + this.DirCount + '. Searching dir: ' + searchPath + ' for fits');
+      Console.noteln('* ' + this.DirCount + '. [processNormalizeDir] Searching dir: ' + searchPath + ' for fits');
       console.noteln("************************************************************");
 
 
-      // Open outputfile
-      MainThread = false;
 
       // Begin search
       var objFileFind = new FileFind;
@@ -657,7 +655,7 @@ this.ProcessEngine = function () {
       this.DirCount++;
       var FileCount = 0;
       console.noteln("<end><cbr><br>", "************************************************************");
-      Console.noteln('* ' + this.DirCount + '. Searching dir: ' + searchPath + ' for fits');
+      Console.noteln('* ' + this.DirCount + '. [processQHYDataDir] Searching dir: ' + searchPath + ' for fits');
       console.noteln("************************************************************");
 
 
