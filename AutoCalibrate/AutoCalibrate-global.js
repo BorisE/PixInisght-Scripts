@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "4.4"
- #define COMPILE_DATE "2021/11/13"
+ #define VERSION "5.1"
+ #define COMPILE_DATE "2021/11/16"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>"
@@ -23,7 +23,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
-v 4.4 [2021/11/13]
+v 5.1 [2021/11/16]
+- Cut QHY overscan if present
+
+v 5.0 [2021/11/13] (former 4.4)
 - Adopted to QHY camera
 - Code optimization
 - more verbose output

@@ -642,8 +642,9 @@ function AutoCalibrateEngine() {
 
         //Set calibrated output path
         CalibratedOutputPath = this.BaseCalibratedOutputPath;
+		var fileData = null;
         if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-            var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
+            fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
             fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
             CalibratedOutputPath = CalibratedOutputPath + "/" + fileData.object;
         }
@@ -660,7 +661,7 @@ function AutoCalibrateEngine() {
         } else {
 
             if (!fileData)
-                var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
+                fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
             if (!fileData) {
                 console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
                 return false;
@@ -689,11 +690,32 @@ function AutoCalibrateEngine() {
             P.pedestal = 0;
             P.pedestalMode = ImageCalibration.prototype.Keyword;
             P.pedestalKeyword = "";
-            P.overscanEnabled = false;
-            P.overscanImageX0 = 0;
-            P.overscanImageY0 = 0;
-            P.overscanImageX1 = 0;
-            P.overscanImageY1 = 0;
+			
+			//test for Overscan and cut it if present
+			if (this.QHYHeaders.checkQHY(fileData) && this.QHYHeaders.calcOverscanPresent(fileData.width)) {
+				P.overscanEnabled = true;
+				if (fileData.bin == 1) {
+					P.overscanImageX0 = this.QHYHeaders.MainRect_bin1.x0; //24
+					P.overscanImageY0 = this.QHYHeaders.MainRect_bin1.y0; //0
+					P.overscanImageX1 = this.QHYHeaders.MainRect_bin1.x1; //9600
+					P.overscanImageY1 = this.QHYHeaders.MainRect_bin1.y1; //6388
+				} else if (fileData.bin == 2) {
+					P.overscanImageX0 = this.QHYHeaders.MainRect_bin2.x0; //12
+					P.overscanImageY0 = this.QHYHeaders.MainRect_bin2.y0; //0
+					P.overscanImageX1 = this.QHYHeaders.MainRect_bin2.x1; //4800
+					P.overscanImageY1 = this.QHYHeaders.MainRect_bin2.y1; //3194
+				} else {
+					//no data provided for binning other than 1 and 2
+					P.overscanEnabled = false;
+				}
+			} else {
+				P.overscanEnabled = false;
+				P.overscanImageX0 = 0;
+				P.overscanImageY0 = 0;
+				P.overscanImageX1 = 0;
+				P.overscanImageY1 = 0;
+			}
+			
             P.overscanRegions = [// enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
                 [false, 0, 0, 0, 0, 0, 0, 0, 0],
                 [false, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -2160,6 +2182,11 @@ function AutoCalibrateEngine() {
             camera = CAMERA_DICTIONARY[headers.INSTRUME];
         }
 
+		// Сохраним геометрию
+		var Width = image.mainView.image.width;
+		var Height = image.mainView.image.height;
+		
+		
         image.close();
 
         // @todo date midnight / midday
@@ -2180,6 +2207,8 @@ function AutoCalibrateEngine() {
             temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
             bin:            parseInt(headers.XBINNING), // 1
             scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.0, //
+			width :			Width,
+			height:			Height,
             qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
             ReadOutMode:    headers.READOUTM,
             Gain:           headers.GAIN,

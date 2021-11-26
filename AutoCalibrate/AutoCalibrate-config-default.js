@@ -54,14 +54,12 @@ Config.CalibratedFolderName = 'calibrated';         // без финальног
 Config.CosmetizedFolderName = 'cosmetized';         // без финального "/"  //Подпапка с фитами после косметики
 Config.CosmetizedProcessName = 'Cosmetic';          // Префикс названия процесса косметики
 Config.DebayerdFolderName = "debayered";            // без финального "/" //Подпапка с фитами после дебайеризации
-
 Config.ABEFolderName = "dABE";                      // без финального "/" //Подпапка с результатом ABE
-Config.ABEProcessName = "ABE";                      // Название процесса ABE
-
 Config.RegisteredFolderName = "registered";         // без финального "/" 	//Подпапка с фитами после выравнивания
 Config.NormilizedFolderName = "rnormilized";        // без финального "/" 	//Подпапка с фитами после нормализации
 
 Config.ApprovedFolderName = "approved";             // без финального "/"   //Подпапка с отобранными фитами
+
 
 //Для режима PUT_FINALS_IN_OBJECT_SUBFOLDER
 Config.FinalsDirName = "Results";
@@ -102,6 +100,9 @@ Config.NormalizationNoScaleFlag = true;
 
 // Выражение для фильтрации кадров
 Config.ApprovedExpression = 'FWHM > 4.5';
+
+// Название процесса ABE
+Config.ABEProcessName = "ABE_autocalibration";      
 
 //////////////////////////////////////////////////////
 /*
@@ -183,9 +184,11 @@ var flats_dir_pattern = new RegExp('masterflats[_ -]*(\\d+)', 'i'); // [...maste
 // Примеры: masterflats_20180901 | masterflats 20190102 from 2019 | lib_masterflats_20180901_from20180905-20181010
 
 // Имя флет файла
-// [flat...filter_Sii-...] - начинается со слова flat и дальше должно быть FILTER_названиефильтра-
+// [flat...filter_Sii-...] - начинается со слова flat и дальше должно быть FILTER_названи ефильтра-
 // а потом еще должно встретиться BIN|BINNING число (можно без пробела или через _
+// ВАЖНО!!! не дожно ничего начинаться на _c
 // Примеры: flat-FILTER_B-BINNING_1.xisf, flat-FILTER_B-BIN1_20190201, masterflatimakesomedayFILETER_R-___bin_2
+
 var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');           // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*$
 var flats_file_pattern_wo_overscan = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');   // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*_c.*$
 var flats_file_pattern_filter   = 1;
