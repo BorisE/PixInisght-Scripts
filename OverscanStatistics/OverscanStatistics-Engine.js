@@ -190,7 +190,7 @@ this.ProcessEngine = function () {
             debug("FileDate for [" + fileName +"] restored to [" + date + "]");
          }
          else{
-            Console.criticalln("FileDate for [" + fileName +"] can't be restored. Error " + res);
+            Console.criticalln("FileDate for [" + fileName +"] can't be restored. Error " + res + ". Run String [" + Config.restoreDateJSScript + ", " + fileName + ", " + date);
          }
       }
       catch ( error )
