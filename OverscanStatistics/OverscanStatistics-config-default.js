@@ -52,6 +52,11 @@ Config.AddData_Gain = 0;
 Config.AddData_Offset = 10;
 Config.AddData_ReadMode = 1;
 Config.AddData_USBLimit = 50;
+Config.AddData_Gain_flag = true;
+Config.AddData_Offset_flag = true;
+Config.AddData_ReadMode_flag = true;
+Config.AddData_USBLimit_flag = true;
+Config.AddData_Recalculate_flag = true;
 
 // Настройки для отладчика
 dbgCurrent = true;

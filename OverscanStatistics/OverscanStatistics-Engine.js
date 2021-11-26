@@ -156,9 +156,9 @@ this.ProcessEngine = function () {
          {
              var FI = new FileInfo (curWindow.filePath);
              var FD = FI.lastModified;
-             debug(FD);
+             //debug(FD);
              var DateSt = FD.getFullYear()+"-"+(FD.getMonth()+1)+"-"+FD.getDate() + " " + FD.getHours()+":"+FD.getMinutes()+":"+FD.getSeconds();
-             debug(DateSt);
+             //debug(DateSt);
          }
          else
          {
@@ -431,9 +431,9 @@ this.ProcessEngine = function () {
       if (ovscan_ret != 1)
 	  {
 		 console.warningln("Seems image doesn't have overscan area, exiting");
-		 return; 
+		 return;
 	  }
-		  
+
 	  var curbin = this.getImageBinning(curWindow);
       console.noteln("Binning " + curbin);
 
@@ -551,7 +551,7 @@ this.ProcessEngine = function () {
     * @param   curWindow      ImageWindow    ImageWindow object
     * @param   makePreviews   bool           create Previews
     * @param   leavePreviews  bool           don't delete previews
-    * @return  				  bool 			 true if ok, false otherwise	
+    * @return  				  bool 			 true if ok, false otherwise
     */
    this.normalizeWindow = function (curWindow, makePreviews = true, leavePreviews = true)
    {
@@ -559,9 +559,9 @@ this.ProcessEngine = function () {
       if (ovscan_ret != 1)
 	  {
 		 console.warningln("Seems image doesn't have overscan area, exiting");
-		 return false; 
+		 return false;
 	  }
-	  
+
 	  var curbin = this.getImageBinning(curWindow);
       var normLevel = this.getImageNormalizationLevel(curWindow);
       console.noteln("Binning " + curbin);
@@ -589,7 +589,7 @@ this.ProcessEngine = function () {
 
       if (makePreviews && !leavePreviews)
          curWindow.deletePreviews();
-	 
+
 	  return true;
    }
 
@@ -637,7 +637,7 @@ this.ProcessEngine = function () {
                      this.readImage(searchPath + '/' + objFileFind.name);
 
                      //Process data
-                     if (!this.normalizeWindow(this.inputImageWindow[0], false)) 
+                     if (!this.normalizeWindow(this.inputImageWindow[0], false))
 						 return;
 
                      //Save as
@@ -689,7 +689,7 @@ this.ProcessEngine = function () {
                if (objFileFind.isDirectory && Config.SearchInSubDirs) {
                     // Run recursion search
                     busy = false; // на будущее для асихнронного блока
-                    this.processNormalizeDir(searchPath + '/' + objFileFind.name);
+                    this.processQHYDataDir(searchPath + '/' + objFileFind.name);
                     busy = true;
                }
                // if File

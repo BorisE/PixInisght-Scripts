@@ -1,6 +1,6 @@
-#feature-id Batch Processing > OverscanStatistics
+#feature-id Batch Processing > QHY600Utilities
 
-#feature-info  QHY600 overscan support tools<br/>\
+#feature-info  QHY600 support tools<br/>\
    <br/> \
    @todo \
    <br/> \

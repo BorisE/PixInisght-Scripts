@@ -26,13 +26,14 @@ this.ProcessQHYHeaders = function () {
     */
    this.addQHYDataWindow = function (curWindow)
    {
+      // init arrays
       var keywords_for_process = Array();
       for (var k in QHYHeaders) {
          QHYHeaders[k] = null;
       }
-
       var modified = false;
 
+      // Read all keywords
       var keywords = curWindow.keywords;
       for (var k in keywords) {
          if (typeof QHYHeaders[keywords[k].name] != 'undefined') {
@@ -45,64 +46,85 @@ this.ProcessQHYHeaders = function () {
       }
 
       // Check QHY fields and add data if empty
-      if (QHYHeaders.GAIN == null || Config.ForceHeaderModification) {
-         var newline = ["GAIN", this.Gain, "Relative gain value"];
+      var newline = [];
+      if (Config.AddData_Gain_flag && ((QHYHeaders.GAIN != null &&  Config.ForceHeaderModification) || QHYHeaders.GAIN == null)) {
+         newline = ["GAIN", this.Gain, "Relative gain value"];
          debug("Added GAIN " + this.Gain);
          modified = true;
-      } else {
-         var newline = ["GAIN", QHYHeaders.GAIN, "Relative gain value"];
+      } else if (QHYHeaders.GAIN != null) {
+         newline = ["GAIN", QHYHeaders.GAIN, "Relative gain value"];
       }
-      keywords_for_process.push(newline);
+      if (newline.length > 0) keywords_for_process.push(newline);
 
-      if (QHYHeaders.OFFSET == null || Config.ForceHeaderModification) {
-         var newline = ["OFFSET", this.Offset, "Offset value"];
+
+      var newline = [];
+      if (Config.AddData_Offset_flag && ((QHYHeaders.OFFSET != null &&  Config.ForceHeaderModification) || QHYHeaders.OFFSET == null)) {
+         newline = ["OFFSET", this.Offset, "Offset value"];
          debug("Added OFFSET " + this.Offset);
          modified = true;
-      } else {
-         var newline = ["OFFSET", QHYHeaders.OFFSET, "Offset value"];
+      } else if (QHYHeaders.OFFSET != null) {
+         newline = ["OFFSET", QHYHeaders.OFFSET, "Offset value"];
       }
-      keywords_for_process.push(newline);
+      if (newline.length > 0) keywords_for_process.push(newline);
 
-      if (QHYHeaders.READOUTM == null || Config.ForceHeaderModification) {
+
+      var newline = [];
+      if (Config.AddData_ReadMode_flag && ((QHYHeaders.READOUTM != null &&  Config.ForceHeaderModification) || QHYHeaders.READOUTM == null)) {
          var newline = ["READOUTM", this.ReadOutMode, "Readout mode number of image"];
          debug("Added READOUTM " + this.ReadOutMode);
          modified = true;
-      } else {
+      } else if (QHYHeaders.READOUTM != null) {
          var newline = ["READOUTM", QHYHeaders.READOUTM, "Readout mode number of image"];
       }
-      keywords_for_process.push(newline);
-
-      if (QHYHeaders.QPRESET == null || Config.ForceHeaderModification) {
-         this.QPreset = this.calcPresetIndex(this.ReadOutMode, this.Gain, this.Offset);
-         var newline = ["QPRESET", this.QPreset, "Preset id"];
-         debug("Added QPRESET " + this.QPreset);
-         modified = true;
-      } else {
-         var newline = ["QPRESET", this.calcPresetIndex(QHYHeaders.READOUTM, QHYHeaders.GAIN, QHYHeaders.OFFSET), "Preset id"];
-      }
-      keywords_for_process.push(newline);
+      if (newline.length > 0) keywords_for_process.push(newline);
 
 
-      var ovscan_ret = this.calcOverscanPresent (curWindow);
-      if (ovscan_ret == 1)
-         this.OverscanPresent = "true";
-      else if (ovscan_ret == 0)
-         this.OverscanPresent = "false";
-      var newline = ["QOVERSCN", this.OverscanPresent , "Overscan present or not"];
-      if (QHYHeaders.QOVERSCN == null || Config.ForceHeaderModification) {
-         debug("Added QOVERSCN " + this.OverscanPresent);
-         modified = true;
-      }
-      keywords_for_process.push(newline);
-
-      if (QHYHeaders.USBLIMIT == null || Config.ForceHeaderModification) {
+      var newline = [];
+      if (Config.AddData_USBLimit_flag && ((QHYHeaders.USBLIMIT != null &&  Config.ForceHeaderModification) || QHYHeaders.USBLIMIT == null)) {
          var newline = ["USBLIMIT", this.USBLimit, "USB limit"];
          debug("Added USBLIMIT " + this.USBLimit);
          modified = true;
-      } else {
+      } else if (QHYHeaders.USBLIMIT != null) {
          var newline = ["USBLIMIT", QHYHeaders.USBLIMIT, "USB limit"];
       }
-      keywords_for_process.push(newline);
+      if (newline.length > 0) keywords_for_process.push(newline);
+
+
+	  var newline = [];
+      if (Config.AddData_Recalculate_flag)
+      {
+         if (QHYHeaders.QPRESET != null &&  Config.ForceHeaderModification) {
+            this.QPreset = this.calcPresetIndex(QHYHeaders.READOUTM, QHYHeaders.GAIN, QHYHeaders.OFFSET);
+            var newline = ["QPRESET", this.QPreset, "Preset id"];
+            debug("Recalculated QPRESET " + this.QPreset);
+            modified = true;
+         }
+         else if (QHYHeaders.QPRESET == null) {
+            this.QPreset = this.calcPresetIndex(this.ReadOutMode, this.Gain, this.Offset);
+            var newline = ["QPRESET", this.QPreset, "Preset id"];
+            debug("Added QPRESET " + this.QPreset);
+            modified = true;
+         }
+      } else if (QHYHeaders.QPRESET != null) {
+         var newline = ["QPRESET", QHYHeaders.QPRESET, "Preset id"];
+      }
+      if (newline.length > 0) keywords_for_process.push(newline);
+
+
+	  var newline = [];
+ 	  if (Config.AddData_Recalculate_flag && ((QHYHeaders.QOVERSCN != null &&  Config.ForceHeaderModification) || QHYHeaders.QOVERSCN == null)) {
+		var ovscan_ret = this.calcOverscanPresent (curWindow);
+		if (ovscan_ret == 1)
+			this.OverscanPresent = "true";
+		else if (ovscan_ret == 0)
+			this.OverscanPresent = "false";
+		var newline = ["QOVERSCN", this.OverscanPresent , "Overscan present or not"];
+        debug("Added QOVERSCN " + this.OverscanPresent);
+        modified = true;
+      } else if (QHYHeaders.QOVERSCN != null) {
+         var newline = ["QOVERSCN", QHYHeaders.QOVERSCN,  "Overscan present or not"];
+      }
+      if (newline.length > 0) keywords_for_process.push(newline);
 
       //debug(keywords_for_process);
       if (modified)
@@ -143,15 +165,17 @@ this.ProcessQHYHeaders = function () {
 
    this.calcPresetIndex = function (readmode, gain, offset)
    {
-      if (readmode=="1")
+      this.QPreset = "-1";
+
+      if (Math.floor(readmode) == 1)
       {
-         if (gain=="0" && offset == "10") this.QPreset = "3";
-         else if (gain=="56" && offset == "10") this.QPreset = "4";
+         if (Math.floor(gain) == 0 && Math.floor(offset) == 10) this.QPreset = "3";
+         else if (Math.floor(gain)==56 && Math.floor(offset) == 10) this.QPreset = "4";
       }
-      else if (readmode=="0")
+      else if (readmode == 0)
       {
-         if (gain=="0" && offset == "10") this.QPreset = "1";
-         else if (gain=="27" && offset == "10") this.QPreset = "2";
+         if (Math.floor(gain) == 0 && Math.floor(offset) == 10) this.QPreset = "1";
+         else if (Math.floor(gain) == 27 && Math.floor(offset) == 10) this.QPreset = "2";
       }
 
       return this.QPreset;

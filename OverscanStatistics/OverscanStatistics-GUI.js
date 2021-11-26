@@ -207,16 +207,20 @@ function OverscanStatisticsDialog() {
     //
     // 3. Modify Header Process
     //
-    this.gain_Label = new Label(this);
-    with (this.gain_Label) {
-        margin = 4;
-        text = "Gain";
-        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.gain_CheckBox = new CheckBox(this);
+    with (this.gain_CheckBox) {
+       text = "Gain";
+       checked = Config.AddData_Gain_flag;
+       toolTip =
+           "<p>Change GAIN parameter.</p>";
+       onClick = function (checked) {
+           Config.AddData_Gain_flag = checked;
+       };
     }
     this.gain_SpinBox = new SpinBox(this);
     with (this.gain_SpinBox) {
         setFixedWidth(this.font.width("MMMM"));
-        toolTip = "P3: Mode 1, Gain 0, Offset 10<br>P4: Mode 1, Gain 56, Offset 10<br>";
+        toolTip = "P3: Gain 0, Offset 10, Mode 1<br>P4: Gain 56, Offset 10, Mode 1<br>P1: Gain 0, Offset 10, Mode 0<br>P2: Gain 27, Offset 10, Mode 0<br>";
         maxValue = 255;
         stepSize = 1;
         minValue = 0;
@@ -226,12 +230,23 @@ function OverscanStatisticsDialog() {
         }
     }
 
-    this.offset_Label = new Label(this);
+
+    this.offset_CheckBox = new CheckBox(this);
+    with (this.offset_CheckBox) {
+       text = "Offset";
+       checked = Config.AddData_Offset_flag;
+       toolTip =
+           "<p>Change OFFSET parameter.</p>";
+       onClick = function (checked) {
+           Config.AddData_Offset_flag = checked;
+       };
+    }
+   /* this.offset_Label = new Label(this);
     with (this.offset_Label) {
         margin = 4;
         text = "Offset";
         textAlignment = TextAlign_Right | TextAlign_VertCenter;
-    }
+    }*/
     this.offset_SpinBox = new SpinBox(this);
     with (this.offset_SpinBox) {
         setFixedWidth(this.font.width("MMMM"));
@@ -245,11 +260,16 @@ function OverscanStatisticsDialog() {
         }
     }
 
-    this.readmode_Label = new Label(this);
-    with (this.readmode_Label) {
-        margin = 4;
-        text = "ReadMode";
-        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+
+    this.readmode_CheckBox = new CheckBox(this);
+    with (this.readmode_CheckBox) {
+       text = "ReadMode";
+       checked = Config.AddData_ReadMode_flag;
+       toolTip =
+           "<p>Change ReadMode parameter.</p>";
+       onClick = function (checked) {
+           Config.AddData_ReadMode_flag = checked;
+       };
     }
     this.readmode_SpinBox = new SpinBox(this);
     with (this.readmode_SpinBox) {
@@ -264,11 +284,16 @@ function OverscanStatisticsDialog() {
         }
     }
 
-    this.usblimit_Label = new Label(this);
-    with (this.usblimit_Label) {
-        margin = 4;
-        text = "USB limit";
-        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+
+    this.usblimit_CheckBox = new CheckBox(this);
+    with (this.usblimit_CheckBox) {
+       text = "USB limit";
+       checked = Config.AddData_USBLimit_flag;
+       toolTip =
+           "<p>Change USB limit parameter.</p>";
+       onClick = function (checked) {
+           Config.AddData_USBLimit_flag = checked;
+       };
     }
     this.usblimit_SpinBox = new SpinBox(this);
     with (this.usblimit_SpinBox) {
@@ -283,18 +308,20 @@ function OverscanStatisticsDialog() {
         }
     }
 
+
     this.parametersAddData_Sizer = new HorizontalSizer;
     with (this.parametersAddData_Sizer) {
         margin = 6;
         spacing = 4;
         //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
-        add(this.gain_Label);
+        add(this.gain_CheckBox);
         add(this.gain_SpinBox);
-        add(this.offset_Label);
+        add(this.offset_CheckBox);
+        //add(this.offset_Label);
         add(this.offset_SpinBox);
-        add(this.readmode_Label);
+        add(this.readmode_CheckBox);
         add(this.readmode_SpinBox);
-        add(this.usblimit_Label);
+        add(this.usblimit_CheckBox);
         add(this.usblimit_SpinBox);
 
         addStretch();
@@ -302,19 +329,34 @@ function OverscanStatisticsDialog() {
 
 
     this.forceModify_CheckBox = new CheckBox(this);
-    this.forceModify_CheckBox.text = "Force add data";
-    this.forceModify_CheckBox.checked = Config.ForceHeaderModification;
-    this.forceModify_CheckBox.toolTip =
-        "<p>Force add data even if it is already in.</p>";
-    this.forceModify_CheckBox.onClick = function (checked) {
-        Config.ForceHeaderModification = checked;
-    };
+    with (this.forceModify_CheckBox) {
+       text = "Force add data";
+       checked = Config.ForceHeaderModification;
+       toolTip =
+           "<p>Force add data even if it is already in.</p>";
+       onClick = function (checked) {
+           Config.ForceHeaderModification = checked;
+       };
+    }
+    this.recalculate_CheckBox = new CheckBox(this);
+    with (this.recalculate_CheckBox) {
+       text = "Recalculate";
+       checked = Config.AddData_Recalculate_flag;
+       toolTip =
+           "<p>Recalculate Preset Index and Overscan flag keywords.</p>";
+       onClick = function (checked) {
+           Config.AddData_Recalculate_flag = checked;
+       };
+    }
+
+
     this.otherOptionsAddData_Sizer = new HorizontalSizer;
     with (this.otherOptionsAddData_Sizer) {
         margin = 6;
         spacing = 4;
         //addUnscaledSpacing(this.logicalPixelsToPhysical(4));
         add(this.forceModify_CheckBox, 80);
+        add(this.recalculate_CheckBox);
         addStretch();
     }
 
