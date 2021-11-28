@@ -677,7 +677,7 @@ function AutoCalibrateEngine() {
                 return fileName;
             }
 
-            // Check if folder for calibrated files exists
+            // Check if folder for calibrated files exists and create it
             if (!File.directoryExists(CalibratedOutputPath))
                 File.createDirectory(CalibratedOutputPath, true);
 
@@ -690,32 +690,34 @@ function AutoCalibrateEngine() {
             P.pedestal = 0;
             P.pedestalMode = ImageCalibration.prototype.Keyword;
             P.pedestalKeyword = "";
-			
-			//test for Overscan and cut it if present
-			if (this.QHYHeaders.checkQHY(fileData) && this.QHYHeaders.calcOverscanPresent(fileData.width)) {
-				P.overscanEnabled = true;
-				if (fileData.bin == 1) {
-					P.overscanImageX0 = this.QHYHeaders.MainRect_bin1.x0; //24
-					P.overscanImageY0 = this.QHYHeaders.MainRect_bin1.y0; //0
-					P.overscanImageX1 = this.QHYHeaders.MainRect_bin1.x1; //9600
-					P.overscanImageY1 = this.QHYHeaders.MainRect_bin1.y1; //6388
-				} else if (fileData.bin == 2) {
-					P.overscanImageX0 = this.QHYHeaders.MainRect_bin2.x0; //12
-					P.overscanImageY0 = this.QHYHeaders.MainRect_bin2.y0; //0
-					P.overscanImageX1 = this.QHYHeaders.MainRect_bin2.x1; //4800
-					P.overscanImageY1 = this.QHYHeaders.MainRect_bin2.y1; //3194
-				} else {
-					//no data provided for binning other than 1 and 2
-					P.overscanEnabled = false;
-				}
-			} else {
-				P.overscanEnabled = false;
-				P.overscanImageX0 = 0;
-				P.overscanImageY0 = 0;
-				P.overscanImageX1 = 0;
-				P.overscanImageY1 = 0;
-			}
-			
+
+            //test for Overscan and cut it if present
+            if (this.QHYHeaders.checkQHY(fileData) && this.QHYHeaders.calcOverscanPresent(fileData.width)) {
+               P.overscanEnabled = true;
+               if (fileData.bin == 1) {
+                  P.overscanImageX0 = this.QHYHeaders.MainRect_bin1.x0; //24
+                  P.overscanImageY0 = this.QHYHeaders.MainRect_bin1.y0; //0
+                  P.overscanImageX1 = this.QHYHeaders.MainRect_bin1.x1; //9600
+                  P.overscanImageY1 = this.QHYHeaders.MainRect_bin1.y1; //6388
+                  debug("Bin1: x0=" + this.QHYHeaders.MainRect_bin1.x0 + ", y0=" + this.QHYHeaders.MainRect_bin1.y0 + ", x1=" + this.QHYHeaders.MainRect_bin1.x1 + ", y1=" +this.QHYHeaders.MainRect_bin1.y1, dbgNotice)
+               } else if (fileData.bin == 2) {
+                  P.overscanImageX0 = this.QHYHeaders.MainRect_bin2.x0; //12
+                  P.overscanImageY0 = this.QHYHeaders.MainRect_bin2.y0; //0
+                  P.overscanImageX1 = this.QHYHeaders.MainRect_bin2.x1; //4800
+                  P.overscanImageY1 = this.QHYHeaders.MainRect_bin2.y1; //3194
+                  debug("Bin2: x0=" + this.QHYHeaders.MainRect_bin2.x0 + ", y0=" + this.QHYHeaders.MainRect_bin2.y0 + ", x1=" + this.QHYHeaders.MainRect_bin2.x1 + ", y1=" +this.QHYHeaders.MainRect_bin2.y1, dbgNotice)
+               } else {
+                  //no data provided for binning other than 1 and 2
+                  P.overscanEnabled = false;
+               }
+            } else {
+               P.overscanEnabled = false;
+               P.overscanImageX0 = 0;
+               P.overscanImageY0 = 0;
+               P.overscanImageX1 = 0;
+               P.overscanImageY1 = 0;
+            }
+
             P.overscanRegions = [// enabled, sourceX0, sourceY0, sourceX1, sourceY1, targetX0, targetY0, targetX1, targetY1
                 [false, 0, 0, 0, 0, 0, 0, 0, 0],
                 [false, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -744,9 +746,7 @@ function AutoCalibrateEngine() {
             P.darkCFADetectionMode = (fileData.cfa)
              ? ImageCalibration.prototype.ForceCFA
              : ImageCalibration.prototype.IgnoreCFA;
-
-            P.evaluateNoise = true;
-            P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+            P.enableCFA = fileData.cfa;
 
             P.outputDirectory = CalibratedOutputPath;
             P.outputExtension = ".fit";
@@ -758,6 +758,25 @@ function AutoCalibrateEngine() {
             P.overwriteExistingFiles = Config.OverwriteAllFiles;
             P.onError = ImageCalibration.prototype.Continue;
             P.noGUIMessages = true;
+            P.useFileThreads = true;
+            P.fileThreadOverload = 1.00;
+            P.maxFileReadThreads = 0;
+            P.maxFileWriteThreads = 0;
+
+            // Signal evaluation (from 1.8.8-10)
+            P.evaluateNoise = true;
+            P.noiseEvaluationAlgorithm = ImageCalibration.prototype.NoiseEvaluation_MRS;
+            P.evaluateSignal = true;
+            P.structureLayers = 5;
+            P.noiseLayers = 1;
+            P.hotPixelFilterRadius = 1;
+            P.noiseReductionFilterRadius = 0;
+            P.minStructureSize = 0;
+            P.psfType = ImageCalibration.prototype.PSFType_Moffat4;
+            P.psfRejectionLimit = 5.00;
+            P.maxStars = 2000;
+
+            //P.writeIcon ("Calibr"); //save currrent process into icon for debug
 
             var status = P.executeGlobal();
 
@@ -848,7 +867,7 @@ function AutoCalibrateEngine() {
             }
 
             // Get CosmeticCorrection Process Icon
-            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + (Config.UseBiningFolder ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
+            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + ((this.QHYHeaders.checkQHY(fileData) || Config.UseBiningFolder) ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
             debug("Using ProcessIcon name: ", ProcessIconName, dbgNormal);
 
             // Check if folder for cosmetics files exists
@@ -1511,7 +1530,7 @@ function AutoCalibrateEngine() {
                         if (matches) {
                             templib[templib.length] = matches[2];
                             templib_dirname[templib_dirname.length] = objFileFind.name;
-                            debug("Found bias/dark folder for temp " + templib[templib.length - 1] + " deg", dbgNormal);
+                            debug("Found bias/dark folder for temp " + templib[templib.length - 1] + " deg", dbgNotice);
                         }
                     }
                 }
@@ -1519,7 +1538,7 @@ function AutoCalibrateEngine() {
         }
 
         // 2. Match nearest temp to FITS CCD-TEMP
-        debug("Matching nearest temp for FITS CCD-TEMP: " + fileData.temp + " in library through " + templib.length + " values", dbgNotice);
+        debug("Matching nearest temp for FITS CCD-TEMP: " + fileData.temp + " in library through " + templib.length + " values", dbgNormal);
         var mindiff = 100000,
         nearest_temp = 100,
         templib_dirname_nearest = "";
@@ -1540,7 +1559,7 @@ function AutoCalibrateEngine() {
 
         }
 
-        // 3. Begin search for nearest exposure for the dark
+        // 3. Begin search for nearest exposure for the dark. Test for overscan presence
         debug("Scaning for available darks of different exposure length in " + pathMasterLib + "/" + templib_dirname_nearest + " ...", dbgNormal);
         var bias_file_name = "",
         dark_file_name;
@@ -1552,8 +1571,9 @@ function AutoCalibrateEngine() {
                 if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
                     debug('found file: ' + objFileFind.name, dbgNotice);
 
-                    //Test if this is bias
-                    var matches = objFileFind.name.match((this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? bias_file_pattern_wo_overscan : bias_file_pattern ));
+                    //A. Test if this is bias
+                    //var matches = objFileFind.name.match((this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? bias_file_pattern_wo_overscan : bias_file_pattern ));
+                    var matches = objFileFind.name.match(bias_file_pattern_wo_overscan); //new conception: if overscan in light is present, use bias without overscan!
                     if (matches) {
                         debug("Found bin: " + matches[bias_file_pattern_binning], dbgNotice);
                         //Use only target bin
@@ -1578,7 +1598,7 @@ function AutoCalibrateEngine() {
                         }*/
                     }
 
-                    //Test if this is dark
+                    //B. Test if this is dark
                     var matches = objFileFind.name.match((this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? darks_file_pattern_wo_overscan : darks_file_pattern));
                     if (matches) {
                         debug("Found bin: " + matches[darks_file_pattern_binning], dbgNotice);
@@ -1693,7 +1713,8 @@ function AutoCalibrateEngine() {
                     debug('found file: ' + objFileFind.name, dbgNotice);
 
                     //Test if this is flat
-                    var matches = objFileFind.name.match(this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? flats_file_pattern_wo_overscan : flats_file_pattern);
+                    //var matches = objFileFind.name.match(this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? flats_file_pattern_wo_overscan : flats_file_pattern);
+                    var matches = objFileFind.name.match( flats_file_pattern_wo_overscan ); // new conception: use overscan removed version even for light with overscan
                     if (matches) {
                         debug("Found bin: " + matches[flats_file_pattern_binning], dbgNotice);
                         //Use only target bin
@@ -2185,8 +2206,8 @@ function AutoCalibrateEngine() {
 		// Сохраним геометрию
 		var Width = image.mainView.image.width;
 		var Height = image.mainView.image.height;
-		
-		
+
+
         image.close();
 
         // @todo date midnight / midday

@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "QHY600 Utilities"
- #define VERSION "3.3"
- #define COMPILE_DATE "2021/11/18"
+ #define VERSION "3.4"
+ #define COMPILE_DATE "2021/11/26"
 
  #define INFO_STRING "A script for QHY600 overscan and other support tools"
  #define COPYRIGHT_STRING "Copyright &copy; 2021 by Boris Emchenko<br/>"
@@ -19,6 +19,9 @@ Copyright (C) 2021 by Boris Emchenko http://astromania.info
 Version History
 
 /*
+ * ver 3.4 [2021/11/26]
+ * - workaround for BLKLEVEL (equivalent of OFFSET from SharpCap)
+ *
  * ver 3.3 [2021/11/18]
  * - can select which of QHY parameters to add
  * - save settings and export/import of desktop shortcut

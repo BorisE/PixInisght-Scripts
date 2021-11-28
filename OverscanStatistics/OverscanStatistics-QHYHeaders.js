@@ -13,6 +13,7 @@ this.ProcessQHYHeaders = function () {
        'READOUTM': null,
        'GAIN': null,
        'OFFSET': null,
+	   'BLKLEVEL': null,
        'QOVERSCN': null,
        'QPRESET': null,
        'USBLIMIT': null
@@ -57,11 +58,14 @@ this.ProcessQHYHeaders = function () {
       if (newline.length > 0) keywords_for_process.push(newline);
 
 
+ 	  if (QHYHeaders.BLKLEVEL != null && QHYHeaders.OFFSET == null) {
+		QHYHeaders.OFFSET = QHYHeaders.BLKLEVEL;
+	  };
       var newline = [];
       if (Config.AddData_Offset_flag && ((QHYHeaders.OFFSET != null &&  Config.ForceHeaderModification) || QHYHeaders.OFFSET == null)) {
-         newline = ["OFFSET", this.Offset, "Offset value"];
-         debug("Added OFFSET " + this.Offset);
-         modified = true;
+		 newline = ["OFFSET", this.Offset, "Offset value"];
+		 debug("Added OFFSET " + this.Offset);
+		 modified = true;
       } else if (QHYHeaders.OFFSET != null) {
          newline = ["OFFSET", QHYHeaders.OFFSET, "Offset value"];
       }
