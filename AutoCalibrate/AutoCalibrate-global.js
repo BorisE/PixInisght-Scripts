@@ -3,7 +3,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "5.2"
+ #define VERSION "5.3"
  #define COMPILE_DATE "2021/11/27"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
@@ -22,6 +22,9 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 5.3 [2021/11/28]
+- progess calculations
 
 v 5.2 [2021/11/27]
 - Overscan cutting was reworked (actually, algorithm was totally wrong in 5.1)
@@ -403,4 +406,13 @@ function print_array(arr, level = dbgCurrent) {
             console.writeln(element);
         })
     }
+}
+
+function progressBar (current, total)
+{
+   var max = 10;
+   var done = Math.round(current/total * max);
+   console.note("[" + "X".repeat(done));
+   console.note("o".repeat( max - done ) + "]");
+   console.note(" " + parseFloat(current/total*100).toFixed(1) + "%");
 }

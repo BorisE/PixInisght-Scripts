@@ -37,6 +37,9 @@ function AutoCalibrateEngine() {
     this.DirCount = 0;
     this.FileTotalCount = 0;
 
+    this.DirsToProcessNum=0;
+    this.FilesToProcessNum=0;
+
     this.ProcessesCompleted = 0;
     this.FilesProcessed = 0;
     this.CalibratedCount = 0;
@@ -124,6 +127,11 @@ function AutoCalibrateEngine() {
         exit;
          */
 
+        this.calcWork(Config.InputPath);
+        console.noteln("Need to process:");
+        console.noteln("   directories: " + this.DirsToProcessNum);
+        console.noteln("   files: " + this.FilesToProcessNum);
+
         /* **************************************************************************************************************
          *
          *       1й проход. Сканирование директорий на предмет оригинальных FITS
@@ -176,6 +184,49 @@ function AutoCalibrateEngine() {
         //sleep(10);
     }
 
+    /* **************************************************************************************************************
+     *
+     * Подсчет количества файлов для обрабтки (не учитывает те, которые уже обработаны)
+     *
+    /* **************************************************************************************************************
+     *
+     * @param file string
+     * @return void
+     */
+    this.calcWork = function (searchPath) {
+        this.DirsToProcessNum++;
+        var objFileFind = new FileFind;
+
+        // Begin search
+        if (objFileFind.begin(searchPath + "/*")) {
+            do {
+                // if not upper dir links
+                if (objFileFind.name != "." && objFileFind.name != "..") {
+                  // if this is Directory and recursion is enabled
+                  if (objFileFind.isDirectory) {
+                     if (Config.SearchInSubDirs &&
+                              objFileFind.name.substring(0, Config.SkipDirsBeginWith.length) != Config.SkipDirsBeginWith &&
+                              Config.SkipDirs.indexOf(objFileFind.name) === -1 &&
+                              DirNameContains(objFileFind.name, Config.SkipDirsContains) !== true) {
+                                //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
+
+                          // Run recursion search
+                          this.calcWork(searchPath + '/' + objFileFind.name);
+                     }
+
+                  }
+                  // if File
+                  else {
+                     // if this is FIT
+                     if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
+                        this.FilesToProcessNum++;
+                     }
+                  }
+                }
+            } while (objFileFind.next());
+        };
+    };
+
     /**
      * Базовая функция для 1го прохода
      *
@@ -187,7 +238,7 @@ function AutoCalibrateEngine() {
         var FileCount = 0;
         console.noteln("<end><cbr><br>",
             "************************************************************");
-        Console.noteln('* ' + this.DirCount + '. Searching dir: ' + searchPath + ' for fits');
+        Console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits');
         console.noteln("************************************************************");
 
         if (!busy) {
@@ -243,8 +294,10 @@ function AutoCalibrateEngine() {
 
                                     console.noteln("<end><cbr><br>",
                                         "************************************************************");
-                                    Console.noteln('* [' + this.FileTotalCount + '] (Dir ' + this.DirCount + '|File ' + FileCount + ') Start file processings: ' + searchPath + '/' + objFileFind.name);
-                                    console.noteln("************************************************************");
+                                    Console.noteln('* [' + this.FileTotalCount + ' of ' + this.FilesToProcessNum + ' (' + parseFloat(this.FileTotalCount/this.FilesToProcessNum*100).toFixed(1) +'%)] Start file processings: ' + searchPath + '/' + objFileFind.name);
+                                    progressBar(this.FileTotalCount,this.FilesToProcessNum);
+                                    Console.noteln("  ETA: " + parseFloat(this.T.value/this.FileTotalCount*this.FilesToProcessNum/60).toFixed(1) + " min, Elapsed: " + this.T.text +" sec");
+                                    Console.noteln("************************************************************");
 
                                     this.NeedToCopyToFinalDirFlag = true;
 
@@ -271,6 +324,7 @@ function AutoCalibrateEngine() {
             busy = false;
         }
     };
+
 
     /* **************************************************************************************************************
      *
@@ -2157,7 +2211,17 @@ function AutoCalibrateEngine() {
         console.writeln("" + fileName);
         console.writeln();
 
-        var image = ImageWindow.open(fileName)[0];
+        try
+        {
+             var image = ImageWindow.open(fileName)[0];
+        }
+        catch ( error )
+        {
+          this.inputImageWindow = null;
+          console.criticalln( "WARNING: Unable to open image file: " + filePath + " (" + error.message + ")." );
+          return false;
+        }
+
         var keywords = image.keywords;
         for (var k in keywords) {
 

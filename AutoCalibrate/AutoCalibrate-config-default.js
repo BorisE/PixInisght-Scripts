@@ -227,7 +227,7 @@ var headers = {
 
 
 // Настройки для отладчика
-var cfgDebugLevel = dbgNotice; //dbgNormal, dbgNotice  dbgCurrent
+var cfgDebugLevel = dbgNormal; //dbgNormal, dbgNotice  dbgCurrent
 //////////////////////////////////////////////////////
 
 
