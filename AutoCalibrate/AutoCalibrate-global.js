@@ -410,9 +410,9 @@ function print_array(arr, level = dbgCurrent) {
 
 function progressBar (current, total)
 {
-   var max = 10;
+   var max = 20;
    var done = Math.round(current/total * max);
    console.note("[" + "X".repeat(done));
-   console.note("o".repeat( max - done ) + "]");
+   console.note(".".repeat( max - done ) + "]");
    console.note(" " + parseFloat(current/total*100).toFixed(1) + "%");
 }

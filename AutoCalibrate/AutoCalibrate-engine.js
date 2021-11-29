@@ -296,7 +296,7 @@ function AutoCalibrateEngine() {
                                         "************************************************************");
                                     Console.noteln('* [' + this.FileTotalCount + ' of ' + this.FilesToProcessNum + ' (' + parseFloat(this.FileTotalCount/this.FilesToProcessNum*100).toFixed(1) +'%)] Start file processings: ' + searchPath + '/' + objFileFind.name);
                                     progressBar(this.FileTotalCount,this.FilesToProcessNum);
-                                    Console.noteln("  ETA: " + parseFloat(this.T.value/this.FileTotalCount*this.FilesToProcessNum/60).toFixed(1) + " min, Elapsed: " + this.T.text +" sec");
+                                    Console.noteln("  ETA: " + parseFloat(this.T.value/this.FileTotalCount*(this.FilesToProcessNum - this.FileTotalCount) / 60).toFixed(1) + " min, Elapsed: " + this.T.text +" sec");
                                     Console.noteln("************************************************************");
 
                                     this.NeedToCopyToFinalDirFlag = true;
