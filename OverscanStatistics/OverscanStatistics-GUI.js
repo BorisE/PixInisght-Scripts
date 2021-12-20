@@ -18,9 +18,6 @@
  #ifndef OverscanStatistics_config_default_js
    #include "OverscanStatistics-config-default.js" // Load default config values
  #endif
-  #ifndef OverscanStatistics_Include_GUI_js
-    #include "OverscanStatistics-GUI-include.js" // GUI functions
- #endif
 
 // JS components
  #include <pjsr/StdButton.jsh>
@@ -131,19 +128,31 @@ function OverscanStatisticsDialog() {
     // 1. Calculate Statistics
     //
 
-    ttStr = "<p>Get overscan stat for files in a given path.</p>";
-    this.runDirStat_Button = new pushButton(this, "Get statistics fo files", "", ttStr);
-    this.runDirStat_Button.onClick = function () {
-        Config.WorkingMode = WORKINGMODE.processDirectoryStat;
-        this.dialog.ok();
+    this.runDirStat_Button = new PushButton(this);
+    with (this.runDirStat_Button) {
+       text = "Get statistics fo files";
+       toolTip =
+           "<p>Get overscan stat for files in a given path.</p>";
+       onClick = function () {
+         Config.WorkingMode = WORKINGMODE.processDirectoryStat;
+         this.dialog.ok();
+       }
     }
 
-    ttStr = "<p>Get overscan stat for current window.</p>";
-    this.runWindStat_Button = new pushButton(this, "Statistics for current window", "", ttStr);
-    this.runWindStat_Button.onClick = function () {
-        Config.WorkingMode = WORKINGMODE.processCurrentWindowStat;
-        this.dialog.ok();
+    
+    this.runWindStat_Button = new PushButton(this);
+    with (this.runWindStat_Button) {
+       text = "Statistics for current window";
+       toolTip =
+           "<p>Get overscan stat for current window.</p>";
+       onClick = function () {
+         Config.WorkingMode = WORKINGMODE.processCurrentWindowStat;
+         this.dialog.ok();
+       }
     }
+
+
+    
     this.RunStat_Sizer = new HorizontalSizer;
     with (this.RunStat_Sizer) {
         margin = 6;
@@ -170,19 +179,29 @@ function OverscanStatisticsDialog() {
     //
     // 2. Normalize Process
     //
-    ttStr = "<p>Normalize bias level for files in a given path.</p>";
-    this.runDirNorm_Button = new pushButton(this, "Normalize files", "", ttStr);
-    this.runDirNorm_Button.onClick = function () {
-        Config.WorkingMode = WORKINGMODE.processNormalizeDir;
-        this.dialog.ok();
+    this.runDirNorm_Button = new PushButton(this);
+    with (this.runDirNorm_Button) {
+       text = "Normalize files";
+       toolTip =
+           "<p>Normalize bias level for files in a given path.</p>";
+       onClick = function () {
+           Config.WorkingMode = WORKINGMODE.processNormalizeDir;
+           this.dialog.ok();
+       }
     }
 
-    ttStr = "<p>Normalize bias level for current window.</p>";
-    this.runWindNorm_Button = new pushButton(this, "Normalize current window", "", ttStr);
-    this.runWindNorm_Button.onClick = function () {
-        Config.WorkingMode = WORKINGMODE.processCurrentWindowNorm;
-        this.dialog.ok();
+
+    this.runWindNorm_Button = new PushButton(this);
+    with (this.runWindNorm_Button) {
+       text = "Normalize current window";
+       toolTip =
+           "<p>Normalize bias level for current window.</p>";
+       onClick = function () {
+           Config.WorkingMode = WORKINGMODE.processCurrentWindowNorm;
+           this.dialog.ok();
+       }
     }
+
 
     this.RunDirNormalize_Sizer = new HorizontalSizer;
     with (this.RunDirNormalize_Sizer) {
@@ -361,20 +380,29 @@ function OverscanStatisticsDialog() {
     }
 
 
-    ttStr = "<p>Add data for files in a given path.</p>";
-    this.runDirAddData_Button = new pushButton(this, "Add data to files", "", ttStr);
-    this.runDirAddData_Button.onClick = function () {
-        Config.WorkingMode = WORKINGMODE.processQHYDataDir;
-        //this.saveAddParameters();
-        this.dialog.ok();
+    this.runDirAddData_Button = new PushButton(this);
+    with (this.runDirAddData_Button) {
+       text = "Add data to files";
+       toolTip =
+           "<p>Add data for files in a given path.</p>";
+       onClick = function () {
+           Config.WorkingMode = WORKINGMODE.processQHYDataDir;
+           //this.saveAddParameters();
+           this.dialog.ok();
+       }
     }
 
-    ttStr = "<p>Add datat for current window.</p>";
-    this.runWindAddData_Button = new pushButton(this, "Add data to current window", "", ttStr);
-    this.runWindAddData_Button.onClick = function () {
-        Config.WorkingMode = WORKINGMODE.processQHYDataWindow;
-        //this.saveAddParameters;
-        this.dialog.ok();
+
+    this.runWindAddData_Button = new PushButton(this);
+    with (this.runWindAddData_Button) {
+       text = "Add data to current window";
+       toolTip =
+           "<p>Add datat for current window.</p>";
+       onClick = function () {
+           Config.WorkingMode = WORKINGMODE.processQHYDataWindow;
+           //this.saveAddParameters;
+           this.dialog.ok();
+       }
     }
 
     this.RunAddData_Sizer = new HorizontalSizer;
@@ -411,10 +439,14 @@ function OverscanStatisticsDialog() {
         this.dialog.newInstance();
     };
 
-    ttStr = "Close the " + TITLE + " script.";
-    this.cancel_Button = new pushButton(this, btnText[1], "", ttStr);
-    this.cancel_Button.onClick = function () {
+    this.cancel_Button = new PushButton(this);
+    with (this.cancel_Button) {
+       text = "Cancel";
+       toolTip =
+           "Close the " + TITLE + " script.";
+       onClick = function () {
         this.dialog.cancel();
+       }
     }
 
     //Dialog control buttons sizer
