@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "5.1"
- #define COMPILE_DATE "2021/11/16"
+ #define VERSION "5.3"
+ #define COMPILE_DATE "2021/11/27"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>"
@@ -22,6 +22,13 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 5.3 [2021/11/28]
+- progess calculations
+
+v 5.2 [2021/11/27]
+- Overscan cutting was reworked (actually, algorithm was totally wrong in 5.1)
+- CC different binnig bug 
 
 v 5.1 [2021/11/16]
 - Cut QHY overscan if present
@@ -399,4 +406,13 @@ function print_array(arr, level = dbgCurrent) {
             console.writeln(element);
         })
     }
+}
+
+function progressBar (current, total)
+{
+   var max = 20;
+   var done = Math.round(current/total * max);
+   console.note("[" + "X".repeat(done));
+   console.note(".".repeat( max - done ) + "]");
+   console.note(" " + parseFloat(current/total*100).toFixed(1) + "%");
 }
