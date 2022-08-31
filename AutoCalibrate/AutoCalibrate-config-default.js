@@ -73,6 +73,9 @@ Config.SkipDirs.push('asteroids', 'bad', 'Bad', 'Aligned'); //User (чувств
 // Пропустить каталоги, если имя каталога содержит одну из строк
 Config.SkipDirsContains = ['.data', '.pxiproject', '_old'];
 
+//Пропускать файлы, содержащние
+Config.SkipFilesContains = ['---', '+--'];
+
 
 //Структура:    Config.CalibratationMastersPath / [OBSERVER] / TELESCOP / [CAMERA] / [BIN] /
 //Пример: ../Boris/Newton320/QSI/BIN1/

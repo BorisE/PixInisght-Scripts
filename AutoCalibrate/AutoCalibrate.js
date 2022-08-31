@@ -41,7 +41,7 @@ var Config = new ConfigData(); // Variable for global access to script data
 // Конфигурация
 //////////////////////////////////////////
 
-//#include "AutoCalibrate-config.js"     // Конкретный config. Можно просто в тексте определить переменные
+#include "AutoCalibrate-config.js"     // Конкретный config. Можно просто в тексте определить переменные
 
 
 //Engine

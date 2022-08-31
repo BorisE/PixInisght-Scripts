@@ -74,13 +74,13 @@ function AutoCalibrateEngine() {
         //if (!cfgUseRelativeOutputPath) console.writeln('  Output path: ' + Config.OutputPath);
         console.noteln('  Calibrate Images: ' + Config.NeedCalibration);
         if (Config.NeedCalibration)
-            console.writeln('  Masters library path: ' + Config.CalibratationMastersPath);
+            console.noteln('  Masters library path: ' + Config.CalibratationMastersPath);
         console.noteln('  Register Images: ' + Config.NeedRegister);
         if (Config.NeedRegister)
-            console.writeln('  Registration Reference path: ' + Config.RegistrationReferencesPath);
+            console.noteln('  Registration Reference path: ' + Config.RegistrationReferencesPath);
         console.noteln('  Normalize Images: ' + Config.NeedNormalization);
         if (Config.NeedNormalization)
-            console.writeln('  Normalization Reference path: ' + Config.NormalizationReferencesPath);
+            console.noteln('  Normalization Reference path: ' + Config.NormalizationReferencesPath);
         console.writeln();
 
         // Starting processing
@@ -207,7 +207,7 @@ function AutoCalibrateEngine() {
                      if (Config.SearchInSubDirs &&
                               objFileFind.name.substring(0, Config.SkipDirsBeginWith.length) != Config.SkipDirsBeginWith &&
                               Config.SkipDirs.indexOf(objFileFind.name) === -1 &&
-                              DirNameContains(objFileFind.name, Config.SkipDirsContains) !== true) {
+                              FileDirNameContains(objFileFind.name, Config.SkipDirsContains) !== true) {
                                 //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
 
                           // Run recursion search
@@ -218,7 +218,7 @@ function AutoCalibrateEngine() {
                   // if File
                   else {
                      // if this is FIT
-                     if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
+                     if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
                         this.FilesToProcessNum++;
                      }
                   }
@@ -258,7 +258,7 @@ function AutoCalibrateEngine() {
                             if (Config.SearchInSubDirs &&
                                 objFileFind.name.substring(0, Config.SkipDirsBeginWith.length) != Config.SkipDirsBeginWith &&
                                 Config.SkipDirs.indexOf(objFileFind.name) === -1 &&
-                                DirNameContains(objFileFind.name, Config.SkipDirsContains) !== true) {
+                                FileDirNameContains(objFileFind.name, Config.SkipDirsContains) !== true) {
                                 //console.writeln('found dir: '+ searchPath +'/'+ objFileFind.name);
 
                                 // Run recursion search
@@ -273,7 +273,7 @@ function AutoCalibrateEngine() {
                             debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
                             debug('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
                             // if this is FIT
-                            if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits')) {
+							if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
 
                                 // Set output folders (depends on config)
                                 if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
@@ -390,7 +390,7 @@ function AutoCalibrateEngine() {
 
                         // Установим директорию для вывода недостающего файла
                         var fn = "";
-                        if ((fn = filename.match(/(.+)\/(.+)\/(.+).fit$/i)) != null) {
+                        if ((fn = filename.match(/(.+)\/(.+)\/(.+).fit(s){0,1}$/i)) != null) {
                             debug("pathtodir: " + fn[1], dbgNotice);
                             debug("filedir: " + fn[2], dbgNotice);
                             debug("file: " + fn[3], dbgNotice);
@@ -598,34 +598,34 @@ function AutoCalibrateEngine() {
             file = file[0];
         }
 
-        //fn=file.match(/(.+)\/(.+)_c_cc.fit$/);
+        //fn=file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/);
         //debug("file :" + file);
-        //debug("test: " + (file.match(/_c_cc.fit$/) != null));
+        //debug("test: " + (file.match(/_c_cc.fit(s){0,1}$/) != null));
 
         // Проверим, на входе файл на какой стадии? (оригинальный, калиброванный, косметизированный, .... )
         var fn = "";
-        if ((fn = file.match(/(.+)\/(.+)_c.fit$/i)) != null) {
+        if ((fn = file.match(/(.+)\/(.+)_c.fit(s){0,1}$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is calibrated of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.CALIBRATED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is cosmetized of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.COSMETIZED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b.fit(s){0,1}$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is abed of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.ABED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is registered of " + fn[2], dbgNotice);
@@ -633,7 +633,7 @@ function AutoCalibrateEngine() {
             AddFileToArray(FITS.REGISTERED, file, fn[2], fn[1]); //type, full name, signature, path
 
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n.fit(s){0,1}$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is normalized of " + fn[2], dbgNotice);
@@ -641,7 +641,7 @@ function AutoCalibrateEngine() {
             AddFileToArray(FITS.NORMALIZED, file, fn[2], fn[1]); //type, full name, signature, path
 
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a.fit$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_a.fit$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_a.fit(s){0,1}$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is approved of " + fn[2], dbgNotice);
@@ -650,7 +650,7 @@ function AutoCalibrateEngine() {
 
             return false;
         } else {
-            fn = file.match(/(.+)\/(.+).fit$/i);
+            fn = file.match(/(.+)\/(.+).fit(s){0,1}$/i);
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
 
@@ -706,7 +706,7 @@ function AutoCalibrateEngine() {
 
         // make new file name
         var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-        var newFileName = FileName.replace(/\.fit$/i, '_c.fit')
+        var newFileName = FileName.replace(/\.fit(s){0,1}$/i, '_c.fit')
         newFileName = CalibratedOutputPath + '/' + newFileName
 
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
@@ -857,7 +857,7 @@ function AutoCalibrateEngine() {
         if (File.exists(newFileName)) {
             // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFileName.match(/(.+)\/(.+)_c.fit$/i)) != null) {
+            if ((fn = newFileName.match(/(.+)\/(.+)_c.fit(s){0,1}$/i)) != null) {
                 debug("path: " + fn[1], dbgNotice);
                 debug("matched: " + fn[2], dbgNotice);
                 debug("file is calibrated of " + fn[2], dbgNotice);
@@ -880,7 +880,7 @@ function AutoCalibrateEngine() {
      * @return string          Полное имя файла_c_cc.fit включая путь
      */
     this.cosmeticFit = function (fileName) {
-        if (fileName == false || !fileName.match(/_c.fit$/)) {
+        if (fileName == false || !fileName.match(/_c.fit(s){0,1}$/)) {
             debug("Skipping Cosmetic Correction", dbgNormal);
             return fileName;
         }
@@ -906,7 +906,7 @@ function AutoCalibrateEngine() {
 
         // return new file name
         var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-        var newFileName = FileName.replace(/_c\.fit$/, '_c_cc.fit');
+        var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_cc.fit');
         newFileName = CosmetizedOutputPath + '/' + newFileName;
 
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
@@ -963,7 +963,7 @@ function AutoCalibrateEngine() {
         if (File.exists(newFileName)) {
             // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc.fit$/i)) != null) {
+            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i)) != null) {
                 //debug("path: " + fn[1], dbgNotice);
                 //debug("matched: " + fn[2], dbgNotice);
                 //ebug("file is cosmetized of " + fn[2], dbgNotice);
@@ -1025,9 +1025,9 @@ function AutoCalibrateEngine() {
 
             // return new file name
             var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-                var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_b.fit');
+                var newFileName = FileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_b.fit');
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c\.fit$/, '_c_b.fit'); //if СС was not run before
+                var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_b.fit'); //if СС was not run before
             newFiles[i] = ABEOutputPath + '/' + newFileName;
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1122,7 +1122,7 @@ function AutoCalibrateEngine() {
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, чтобы второй раз не делать
                 var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b.fit$/i)) != null || (fn = newFiles[i].match(/(.+)\/(.+)_c_b.fit$/i)) != null) {
+                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b.fit(s){0,1}$/i)) != null || (fn = newFiles[i].match(/(.+)\/(.+)_c_b.fit(s){0,1}$/i)) != null) {
                     debug("path: " + fn[1], dbgNotice);
                     debug("matched: " + fn[2], dbgNotice);
                     debug("file is abed of " + fn[2], dbgNotice);
@@ -1190,13 +1190,13 @@ function AutoCalibrateEngine() {
 
             // return new file name
             var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
-            var newFileName = FileName.replace(/_c_cc\.fit$/, '_c_cc_r.fit');
+            var newFileName = FileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_r.fit');
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_cc_b\.fit$/, '_c_cc_b_r.fit'); //if ABE was run before
+                var newFileName = FileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_r.fit'); //if ABE was run before
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c\.fit$/, '_c_r.fit'); //if no CC and no ABE was run before
+                var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_r.fit'); //if no CC and no ABE was run before
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_b\.fit$/, '_c_b_r.fit'); //if no CC and ABE was run before
+                var newFileName = FileName.replace(/_c_b\.fit(s){0,1}$/, '_c_b_r.fit'); //if no CC and ABE was run before
             newFiles[i] = RegisteredOutputPath + '/' + newFileName;
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1358,10 +1358,10 @@ function AutoCalibrateEngine() {
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
                 var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b_r.fit$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_r.fit$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_b_r.fit$/i)) != null
+                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_r.fit(s){0,1}$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_b_r.fit(s){0,1}$/i)) != null
                    ) {
                     debug("path: " + fn[1], dbgNotice);
                     debug("matched: " + fn[2], dbgNotice);
@@ -1429,13 +1429,13 @@ function AutoCalibrateEngine() {
 
             // return new file name
             var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-                var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_n.fit');
+                var newFileName = FileName.replace(/_c_cc_r\.fit(s){0,1}$/, '_c_cc_r_n.fit');
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_cc_b_r\.fit$/, '_c_cc_b_r_n.fit'); //if ABE was run before
+                var newFileName = FileName.replace(/_c_cc_b_r\.fit(s){0,1}$/, '_c_cc_b_r_n.fit'); //if ABE was run before
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_r\.fit$/, '_c_r_n.fit'); //if no CC no ABE was run before
+                var newFileName = FileName.replace(/_c_r\.fit(s){0,1}$/, '_c_r_n.fit'); //if no CC no ABE was run before
             if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_b_r\.fit$/, '_c_b_r_n.fit'); //if no CC  was run before
+                var newFileName = FileName.replace(/_c_b_r\.fit(s){0,1}$/, '_c_b_r_n.fit'); //if no CC  was run before
 
             newFiles[i] = NormalizedOutputPath + '/' + newFileName;
 
@@ -1470,43 +1470,71 @@ function AutoCalibrateEngine() {
                 if (files.length > 1)
                     Console.noteln("Normalization of " + files[i]);
 
-                var P = new LocalNormalization;
-                P.scale = Config.NormalizationScale;
-                P.noScale = Config.NormalizationNoScaleFlag;
-                P.rejection = true;
-                P.backgroundRejectionLimit = 0.050;
-                P.referenceRejectionThreshold = 0.500;
-                P.targetRejectionThreshold = 0.500;
-                P.hotPixelFilterRadius = 2;
-                P.noiseReductionFilterRadius = 0;
-                P.referencePathOrViewId = referenceFile;
-                P.referenceIsView = false;
-                P.targetItems = [// enabled, image
-                    [true, files[i]]
-                ];
-                P.inputHints = "";
-                P.outputHints = "";
-                P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_Always;
-                P.generateNormalizationData = false;
-                P.showBackgroundModels = false;
-                P.showRejectionMaps = false;
-                P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_Palette3D;
-                P.noGUIMessages = false;
-                P.outputDirectory = NormalizedOutputPath;
-                P.outputExtension = ".fit";
-                P.outputPrefix = "";
-                P.outputPostfix = "_n";
-                P.overwriteExistingFiles = Config.OverwriteAllFiles;
-                P.onError = LocalNormalization.prototype.OnError_Continue;
-                P.useFileThreads = true;
-                P.fileThreadOverload = 1.20;
-                P.maxFileReadThreads = 1;
-                P.maxFileWriteThreads = 1;
-                P.graphSize = 800;
-                P.graphTextSize = 12;
-                P.graphTitleSize = 18;
-                P.graphTransparent = false;
-                P.graphOutputDirectory = "";
+				var P = new LocalNormalization;
+				P.globalLocationNormalization = false;
+				P.truncate = true;
+				P.backgroundSamplingDelta = 32;
+				P.rejection = true;
+				P.referenceRejection = false;
+				P.lowClippingLevel = 0.000045;
+				P.highClippingLevel = 0.85;
+				P.referenceRejectionThreshold = 3.00;
+				P.targetRejectionThreshold = 3.20;
+				P.hotPixelFilterRadius = 2;
+				P.noiseReductionFilterRadius = 0;
+				P.modelScalingFactor = 8.00;
+				P.scaleEvaluationMethod = LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal;
+				P.localScaleCorrections = true;
+				P.psfStructureLayers = 5;
+				P.saturationThreshold = 0.75;
+				P.saturationRelative = true;
+				P.rejectionLimit = 0.30;
+				P.psfNoiseLayers = 1;
+				P.psfHotPixelFilterRadius = 1;
+				P.psfNoiseReductionFilterRadius = 0;
+				P.psfMinStructureSize = 0;
+				P.psfMinSNR = 40.00;
+				P.psfAllowClusteredSources = true;
+				P.psfType = LocalNormalization.prototype.PSFType_Auto;
+				P.psfGrowth = 1.00;
+				P.psfMaxStars = 24576;
+				P.inputHints = "";
+				P.outputHints = "";
+				P.generateNormalizationData = false;
+				P.generateInvalidData = false;
+				P.showBackgroundModels = false;
+				P.showLocalScaleModels = false;
+				P.showRejectionMaps = false;
+				P.showStructureMaps = false;
+				P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_DontPlot;
+				P.noGUIMessages = true;
+				P.autoMemoryLimit = 0.85;
+				P.overwriteExistingFiles = Config.OverwriteAllFiles;
+				P.onError = LocalNormalization.prototype.OnError_Continue;
+				P.useFileThreads = true;
+				P.fileThreadOverload = 1.20;
+				P.maxFileReadThreads = 0;
+				P.maxFileWriteThreads = 0;
+				P.graphSize = 1024;
+				P.graphTextSize = 12;
+				P.graphTitleSize = 18;
+				P.graphTransparent = false;
+				P.graphOutputDirectory = "";
+
+				//Some overrides
+				P.scale = Config.NormalizationScale;
+				P.noScale = Config.NormalizationNoScaleFlag;
+				P.referencePathOrViewId = referenceFile;
+				P.targetItems = [// enabled, image
+					[true, files[i]]
+				];
+				P.referenceIsView = false;
+				P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_GlobalExecutionOnly;
+				P.outputDirectory = NormalizedOutputPath;
+				P.outputExtension = ".fit";
+				P.outputPrefix = "";
+				P.outputPostfix = "_n";
+
 
                 var status = P.executeGlobal();
                 this.ProcessesCompleted++;
@@ -1520,7 +1548,7 @@ function AutoCalibrateEngine() {
 
             // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r_n.fit$/i)) != null) {
+            if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r_n.fit(s){0,1}$/i)) != null) {
                 debug("path: " + fn[1], dbgNotice);
                 debug("matched: " + fn[2], dbgNotice);
                 debug("file is normalized of " + fn[2], dbgNotice);
@@ -2066,10 +2094,10 @@ function AutoCalibrateEngine() {
 
             // return new file name
             var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-                var newFileName = FileName.replace(/_c_cc_b_r_n\.fit$/, '_c_cc_b_r_n_a.fit');
-            var newFileName = FileName.replace(/_c_cc_r_n\.fit$/, '_c_cc_r_n_a.fit');
-            var newFileName = FileName.replace(/_c_cc_r\.fit$/, '_c_cc_r_a.fit');
-            var newFileName = FileName.replace(/_c_cc_b\.fit$/, '_c_cc_b_a.fit');
+                var newFileName = FileName.replace(/_c_cc_b_r_n\.fit(s){0,1}$/, '_c_cc_b_r_n_a.fit');
+            var newFileName = FileName.replace(/_c_cc_r_n\.fit(s){0,1}$/, '_c_cc_r_n_a.fit');
+            var newFileName = FileName.replace(/_c_cc_r\.fit(s){0,1}$/, '_c_cc_r_a.fit');
+            var newFileName = FileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_a.fit');
             newFiles[i] = ApprovedOutputPath + '/' + newFileName;
         }
 

@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "5.3"
- #define COMPILE_DATE "2021/11/27"
+ #define VERSION "5.5"
+ #define COMPILE_DATE "2022/08/31"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>"
@@ -13,7 +13,7 @@
 
 /*
 Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-Developed 2019-2021 by Boris Emchenko http://astromania.info
+Developed 2019-2022 by Boris Emchenko http://astromania.info
  */
 
 /*
@@ -22,6 +22,13 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 5.5 [2022/05/28]
+- files can be fit or fits extension
+
+v 5.4 [2022/05/28]
+- skip files contians (--- and +--)
+- LN updated to 1.8.9-1 PI
 
 v 5.3 [2021/11/28]
 - progess calculations
@@ -387,7 +394,7 @@ function fileExtension(file) {
 /**
  * Проверка, содержит ли имя директории dirName любую из строк из массива SkipDirsContains
  */
-function DirNameContains(dirName, SkipDirsContains) {
+function FileDirNameContains(dirName, SkipDirsContains) {
     var bF = false;
     SkipDirsContains.forEach(
         function (element) {
