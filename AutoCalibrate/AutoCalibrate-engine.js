@@ -2260,8 +2260,17 @@ function AutoCalibrateEngine() {
             }
         }
 
-        if (!headers.OBSERVER || !headers.TELESCOP) {
-            console.criticalln('Can`t find Observer or Telescope');
+        if (!headers.OBSERVER) {
+            if (Config.UseObserverName) {
+				console.criticalln('Can`t find Observer');
+				return false;
+			} else {
+				console.warningln('Can`t find Observer');
+			}
+        }
+		
+        if (!headers.TELESCOP) {
+            console.criticalln('Can`t find Telescope');
             return false;
         }
 
