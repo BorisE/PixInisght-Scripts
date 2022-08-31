@@ -2304,6 +2304,12 @@ function AutoCalibrateEngine() {
             camera = CAMERA_DICTIONARY[headers.INSTRUME];
         }
 
+        // Возьмем телескоп, заменим его по справочнику
+        var camera = headers.TELESCOP;
+        if (typeof TELESCOP_DICTIONARY[headers.TELESCOP] != 'undefined') {
+            camera = TELESCOP_DICTIONARY[headers.TELESCOP];
+        }
+
 		// Сохраним геометрию
 		var Width = image.mainView.image.width;
 		var Height = image.mainView.image.height;

@@ -144,6 +144,11 @@ var CAMERA_DICTIONARY = {
 
 };
 
+var TELESCOP_DICTIONARY = {
+    'EQMOD ASCOM HEQ5/6': 'EQ8',
+
+};
+
 
 // Паттерны для поиска нужных мастер калибровочных файлов
 
