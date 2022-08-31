@@ -2305,9 +2305,9 @@ function AutoCalibrateEngine() {
         }
 
         // Возьмем телескоп, заменим его по справочнику
-        var camera = headers.TELESCOP;
+        var telescope = headers.TELESCOP;
         if (typeof TELESCOP_DICTIONARY[headers.TELESCOP] != 'undefined') {
-            camera = TELESCOP_DICTIONARY[headers.TELESCOP];
+            telescope = TELESCOP_DICTIONARY[headers.TELESCOP];
         }
 
 		// Сохраним геометрию
@@ -2320,7 +2320,7 @@ function AutoCalibrateEngine() {
         // @todo date midnight / midday
         // @todo utc
         return {
-            instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + headers.TELESCOP, // was Vitar/MakF10 or (for me) just SW250
+            instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + telescope, // was Vitar/MakF10 or (for me) just SW250
             camera: camera , // ArtemisHSC
             date: headers['DATE-OBS'].substr(0, "2017-01-01".length), // 2016-10-13
             time: headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
