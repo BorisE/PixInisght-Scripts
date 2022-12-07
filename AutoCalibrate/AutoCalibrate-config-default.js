@@ -152,16 +152,20 @@ var TELESCOP_DICTIONARY = {
 
 // Паттерны для поиска нужных мастер калибровочных файлов
 
-// Папка с дарками/биасами
-var darks_dir_pattern = new RegExp('darks(\\s|_)*(-\\d+).*', 'i'); // [...darks..-20...] - слово darks в любом регистре и далее через пробел/_/без пробела температура обязательно со знаком минус
-// Примеры: Darks -20 | darks-20 | masterDarks_-20lib from 2018 12 01
+//V6
+var BIAS_DIR_NAME = "bias";
+var DARKS_DIR_NAME = "darks";
+var FLATS_DIR_NAME = "flats";
+var DIR_TEMPERATURE_PATTERN = new RegExp('-(\\d)+', 'gmi');
+var DIR_DATE_PATTERN = new RegExp('((\\d+)+)', 'gmi');
+
 
 // Имя BIAS файла
  // [...bias...bin  #..] - слово bias в любом регистре + bin или binning и цифра через пробел
 // Примеры: bias-bin2_TEMP_25deg_n117, BIASBINNING_2, bias-20bin1_n118_from20180910,
-var bias_file_pattern = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');                 //not containing "_c" - reserved for version wo overscan; or just for usual (not QHY) bias
-var bias_file_pattern_wo_overscan = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');         //bias.*((bin|binning)(\s|_)*(\d)).*_c.*$ - overscan version, valid for QHY only
-var bias_file_pattern_binning = 4;
+var BIAS_FILE_PATTERN = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');                 	//not containing "_c" - reserved for version wo overscan; or just for usual (not QHY) bias
+var BIAS_FILE_PATTERN_WO_OVERSCAN = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');         	//bias.*((bin|binning)(\s|_)*(\d)).*_c.*$ - overscan version, valid for QHY only
+var BIAS_FILE_PATTERN_BINNING = 4;																			//pattern id (regexp match) for bin part in BIAS_FILE_PATTERN_WO_OVERSCAN
 
 
 // BIAS для QHY600 с именем пресета
@@ -173,10 +177,11 @@ var bias_file_pattern_binning = 4;
 // Имя DARK файла
 // [...dark...EXPTIME_1200...BIN] - слово DARK, EXPTIME|EXP_число и BIN_число должны быть обязательно. Число через пробел, _, без пробела
 // Примеры: dark-TEMP_30deg-EXPTIME_1200-BINNING_2 | masterdark_from20181218 exp120sec bin 2
-var darks_file_pattern = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+)(?!.*_c).*$', 'i');
-var darks_file_pattern_wo_overscan = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*_c.*$', 'i');  //dark.*((bin|binning)(\s|_)*(\d)){1}.*(EXPTIME|EXP)(\s|_)*(\d+)(?!.*_c).*$
-var darks_file_pattern_binning  = 4;
-var darks_file_pattern_exposure = 7;
+var DARKS_FILE_PATTERN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+)(?!.*_c).*$', 'i');
+var DARKS_FILE_PATTERN_WO_OVERSCAN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*_c.*$', 'i');  //dark.*((bin|binning)(\s|_)*(\d)){1}.*(EXPTIME|EXP)(\s|_)*(\d+)(?!.*_c).*$
+var DARKS_FILE_PATTERN_BINNING  = 4;																								//pattern id (regexp match) for bin part in DARKS_FILE_PATTERN
+var DARKS_FILE_PATTERN_EXPOSURE = 7;																								//pattern id (regexp match) for exposure part in DARKS_FILE_PATTERN
+
 
 // [...dark...EXPTIME_1200...] - слово DARK, EXPTIME|EXP_число ,bin не обязателен
 //var darks_wobin_file_pattern = new RegExp('dark.*(EXPTIME|EXP)(\\s|_)*(\\d+).*', 'i');
@@ -198,9 +203,10 @@ var flats_dir_pattern = new RegExp('masterflats[_ -]*(\\d+)', 'i'); // [...maste
 // Примеры: flat-FILTER_B-BINNING_1.xisf, flat-FILTER_B-BIN1_20190201, masterflatimakesomedayFILETER_R-___bin_2
 
 var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');           // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*$
-var flats_file_pattern_wo_overscan = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');   // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*_c.*$
-var flats_file_pattern_filter   = 1;
-var flats_file_pattern_binning  = 5;
+var FLATS_FILE_PATTERN_WO_OVERSCAN = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');   // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*_c.*$
+var FLATS_FILE_PATTERN_FILTER   = 1;																				// pattern id (regexp match) for filter name part in FLATS_FILE_PATTERN_WO_OVERSCAN
+var FLATS_FILE_PATTERN_BINNING  = 5;																				// pattern id (regexp match) for bin part in FLATS_FILE_PATTERN_WO_OVERSCAN
+
 
 
 //var flats_qhy600_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*(P(\\d+)).*((bin|binning)(\\s|_)*(\\d)){1}.*', 'i'); // +? non-greedy modifier;
@@ -235,7 +241,7 @@ var headers = {
 
 
 // Настройки для отладчика
-var cfgDebugLevel = dbgNormal; //dbgNormal, dbgNotice  dbgCurrent
+var cfgDebugLevel = dbgNotice; //dbgNormal, dbgNotice  dbgCurrent
 //////////////////////////////////////////////////////
 
 

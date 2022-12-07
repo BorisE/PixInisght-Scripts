@@ -3,8 +3,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "5.5"
- #define COMPILE_DATE "2022/08/31"
+ #define VERSION "6.0"
+ #define COMPILE_DATE "2022/12/07"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>"
@@ -22,6 +22,11 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.0 [2022/12/07]
+- new calibration masters folder structure
+- structurized code for masters searching 
+- camera custom parameters preset module addded (to test)
 
 v 5.5 [2022/08/31]
 - files can be fit or fits extension

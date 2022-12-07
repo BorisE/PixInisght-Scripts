@@ -1,5 +1,12 @@
-this.ProcessQHYHeaders = function () {
+ #ifndef AutoCalibrate_camera_headers_js
+	#define AutoCalibrate_camera_headers_js
+ #endif
 
+
+// ======== # processing camera specific data ===============================================
+/// @class ProcessCameraHeaders perform AutoCalibration processing
+///
+function ProcessCameraHeaders() {
    this.Gain = "0";
    this.Offset = "10";
    this.ReadOutMode = "1";
@@ -21,26 +28,40 @@ this.ProcessQHYHeaders = function () {
    this.OverscanRect_bin2 =   new Rect (   0, 3195, 4800, 3211);
    this.MainRect_bin2 =       new Rect ( 12,     0, 4800, 3194);
 
-   // Полезные FITS поля
-   var QHYHeaders = {
-       'READOUTM': null,
-       'GAIN': null,
-       'OFFSET': null,
-       'QOVERSCN': null,
-       'QPRESET': null,
-       'USBLIMIT': null
-   };
+	// Полезные FITS поля
+	var QHYHeaders = {
+		'READOUTM': null,
+		'GAIN': null,
+		'OFFSET': null,
+		'QOVERSCN': null,
+		'QPRESET': null,
+		'USBLIMIT': null
+	};
 
 
     this.checkQHY = function (fileData)  {
-
         var ret = false;
         if (fileData.camera == "QHY600") ret = true;
-
         return ret;
     };
 
-    this.getPresetName = function (fileData)  {
+    this.checkQSI = function (fileData)  {
+        var ret = false;
+        if (fileData.camera == "QSI683ws") ret = true;
+        return ret;
+    };
+
+    this.cameraHasPresetMode = function (fileData)  {
+        var ret = false;
+        if (this.checkQHY || this.checkQSI) ret = true;
+        return ret;
+    };
+	
+
+
+
+    // Custom QHY600 parameters
+	this.getPresetName = function (fileData)  {
 
         var QPreset="undefined";
 

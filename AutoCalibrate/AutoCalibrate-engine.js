@@ -6,6 +6,7 @@ Developed 2019 by Boris Emchenko
     #define AutoCalibate_Engine_js
  #endif
 
+
 // Includes.
  #ifndef AutoCalibrate_Global_js
     #include "AutoCalibrate-global.js" // Ver, Title and other info
@@ -22,7 +23,15 @@ Developed 2019 by Boris Emchenko
     #include "AutoCalibrate-config-default.js" // Config part.
  #endif
 
- #include "AutoCalibrate-QHYHeaders.js"
+ #ifndef AutoCalibrate_camera_headers_js
+	#include "AutoCalibrate-CameraHeaders.js"
+ #endif
+
+ #ifndef AutoCalibrate_camera_headers_js
+	#include "AutoCalibrate-CameraHeaders.js"
+ #endif
+
+#include "AutoCalibrate-MastersSearch.js"
 
  #include <pjsr/DataType.jsh>
  #include <pjsr/UndoFlag.jsh>
@@ -52,7 +61,7 @@ function AutoCalibrateEngine() {
     this.BaseCalibratedOutputPath = ""; //base path
     this.NeedToCopyToFinalDirFlag = false;
 
-    this.QHYHeaders = new ProcessQHYHeaders();
+    this.CameraHeaders = new ProcessCameraHeaders();
 
     // =========================================================
     // 	Начало исполнения
@@ -722,8 +731,7 @@ function AutoCalibrateEngine() {
             }
 
             // Get Masters files names
-            var mastersFiles = this.matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "")
-                    + (this.QHYHeaders.checkQHY(fileData) ? "/bin" + fileData.bin + " " + this.QHYHeaders.getPresetName( fileData ) : (Config.UseBiningFolder ? "/bin" + fileData.bin : "") )
+            var mastersFiles = matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "")
                         , fileData);
 
             if (!mastersFiles) {
@@ -746,20 +754,20 @@ function AutoCalibrateEngine() {
             P.pedestalKeyword = "";
 
             //test for Overscan and cut it if present
-            if (this.QHYHeaders.checkQHY(fileData) && this.QHYHeaders.calcOverscanPresent(fileData.width)) {
+            if (this.CameraHeaders.checkQHY(fileData) && this.CameraHeaders.calcOverscanPresent(fileData.width)) {
                P.overscanEnabled = true;
                if (fileData.bin == 1) {
-                  P.overscanImageX0 = this.QHYHeaders.MainRect_bin1.x0; //24
-                  P.overscanImageY0 = this.QHYHeaders.MainRect_bin1.y0; //0
-                  P.overscanImageX1 = this.QHYHeaders.MainRect_bin1.x1; //9600
-                  P.overscanImageY1 = this.QHYHeaders.MainRect_bin1.y1; //6388
-                  debug("Bin1: x0=" + this.QHYHeaders.MainRect_bin1.x0 + ", y0=" + this.QHYHeaders.MainRect_bin1.y0 + ", x1=" + this.QHYHeaders.MainRect_bin1.x1 + ", y1=" +this.QHYHeaders.MainRect_bin1.y1, dbgNotice)
+                  P.overscanImageX0 = this.CameraHeaders.MainRect_bin1.x0; //24
+                  P.overscanImageY0 = this.CameraHeaders.MainRect_bin1.y0; //0
+                  P.overscanImageX1 = this.CameraHeaders.MainRect_bin1.x1; //9600
+                  P.overscanImageY1 = this.CameraHeaders.MainRect_bin1.y1; //6388
+                  debug("Bin1: x0=" + this.CameraHeaders.MainRect_bin1.x0 + ", y0=" + this.CameraHeaders.MainRect_bin1.y0 + ", x1=" + this.CameraHeaders.MainRect_bin1.x1 + ", y1=" +this.CameraHeaders.MainRect_bin1.y1, dbgNotice)
                } else if (fileData.bin == 2) {
-                  P.overscanImageX0 = this.QHYHeaders.MainRect_bin2.x0; //12
-                  P.overscanImageY0 = this.QHYHeaders.MainRect_bin2.y0; //0
-                  P.overscanImageX1 = this.QHYHeaders.MainRect_bin2.x1; //4800
-                  P.overscanImageY1 = this.QHYHeaders.MainRect_bin2.y1; //3194
-                  debug("Bin2: x0=" + this.QHYHeaders.MainRect_bin2.x0 + ", y0=" + this.QHYHeaders.MainRect_bin2.y0 + ", x1=" + this.QHYHeaders.MainRect_bin2.x1 + ", y1=" +this.QHYHeaders.MainRect_bin2.y1, dbgNotice)
+                  P.overscanImageX0 = this.CameraHeaders.MainRect_bin2.x0; //12
+                  P.overscanImageY0 = this.CameraHeaders.MainRect_bin2.y0; //0
+                  P.overscanImageX1 = this.CameraHeaders.MainRect_bin2.x1; //4800
+                  P.overscanImageY1 = this.CameraHeaders.MainRect_bin2.y1; //3194
+                  debug("Bin2: x0=" + this.CameraHeaders.MainRect_bin2.x0 + ", y0=" + this.CameraHeaders.MainRect_bin2.y0 + ", x1=" + this.CameraHeaders.MainRect_bin2.x1 + ", y1=" +this.CameraHeaders.MainRect_bin2.y1, dbgNotice)
                } else {
                   //no data provided for binning other than 1 and 2
                   P.overscanEnabled = false;
@@ -921,7 +929,7 @@ function AutoCalibrateEngine() {
             }
 
             // Get CosmeticCorrection Process Icon
-            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + ((this.QHYHeaders.checkQHY(fileData) || Config.UseBiningFolder) ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
+            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + ((this.CameraHeaders.checkQHY(fileData) || Config.UseBiningFolder) ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
             debug("Using ProcessIcon name: ", ProcessIconName, dbgNormal);
 
             // Check if folder for cosmetics files exists
@@ -1568,388 +1576,6 @@ function AutoCalibrateEngine() {
     }
 
 
-    /*********************************************************
-     * Найти подходящие мастера для текущего кадра
-     *
-     * I. Поиск дарков/биасов
-     * 1. Сканирует все папки удовлетворяющие [darks_dir_pattern]
-     * 2. Среди них выбирает папку с ближайшей температурой калибровочных
-     * 3. Сканирует все файлы внутри папки на предмет поиска биасов [bias_file_pattern или bias_wobin_file_pattern] и дарков [darks_file_pattern или darks_wobin_file_pattern]
-     * 4. Среди них выбирает папку с ближайшей экспозицией дарка
-     *
-     * II. Поиск флетов
-     * 1. Сканирует все папки удовлетворяющие [flats_dir_pattern]
-     * 2. Среди них выбирает папку с ближайшей датой перед съемкой лайта
-     * 3. Сканирует все флеты внутри папки на предмет какие фильтры внутри есть
-     * 4. Среди них выбирает флет с нужным фильтром
-     *
-     * @param pathMasterLib string  путь к библиотеке мастеров
-     * @param fileData object  данные по текущему файлу, полученные из его заголовка в функции getFileHeaderData
-     * @return object имена калибровачных мастер файлов для текущего файла
-     */
-    this.matchMasterCalibrationFiles = function (pathMasterLib, fileData) {
-        console.writeln();
-        console.noteln("Searching for matching Master Calibration Files");
-        console.writeln("Path: " + pathMasterLib);
-        console.writeln();
-
-        var objFileFind = new FileFind;
-
-        // 1. Begin search for temp libraries
-        var templib = [],
-        templib_dirname = []; //empty array
-        debug("Scaning library for available temperature packs in " + pathMasterLib + " ...", dbgNormal);
-        if (objFileFind.begin(pathMasterLib + "/*")) {
-            do {
-                // if not upper dir links
-                if (objFileFind.name != "." && objFileFind.name != "..") {
-                    // if this is Directory
-                    if (objFileFind.isDirectory) {
-                        debug('found folder: ' + objFileFind.name + "", dbgNotice);
-
-                        //Test if this is folder with darks
-                        var matches = objFileFind.name.match(darks_dir_pattern);
-                        if (matches) {
-                            templib[templib.length] = matches[2];
-                            templib_dirname[templib_dirname.length] = objFileFind.name;
-                            debug("Found bias/dark folder for temp " + templib[templib.length - 1] + " deg", dbgNotice);
-                        }
-                    }
-                }
-            } while (objFileFind.next());
-        }
-
-        // 2. Match nearest temp to FITS CCD-TEMP
-        debug("Matching nearest temp for FITS CCD-TEMP: " + fileData.temp + " in library through " + templib.length + " values", dbgNormal);
-        var mindiff = 100000,
-        nearest_temp = 100,
-        templib_dirname_nearest = "";
-        for (var i = 0; i < templib.length; i++) {
-            debug(templib[i], dbgNotice);
-            if ((mindiff > Math.abs(templib[i] - fileData.temp))) {
-                nearest_temp = templib[i];
-                templib_dirname_nearest = templib_dirname[i];
-                mindiff = Math.abs(templib[i] - fileData.temp);
-
-            }
-        }
-        Console.writeln("Nearest temp for FITS temp " + fileData.temp + " is " + nearest_temp + " (difference = " + mindiff + ", matching folder = " + templib_dirname_nearest + ")");
-        CosmeticsIconTemperature = nearest_temp;
-        if (nearest_temp == 100) {
-            Console.criticalln("Matching temperature wasn't found! Check dark library folder names and availability for given CCD-TEMP: " + fileData.temp + "deg");
-            return false;
-
-        }
-
-        // 3. Begin search for nearest exposure for the dark. Test for overscan presence
-        debug("Scaning for available darks of different exposure length in " + pathMasterLib + "/" + templib_dirname_nearest + " ...", dbgNormal);
-        var bias_file_name = "",
-        dark_file_name;
-        var darkexplib = [],
-        darkexplib_filename = []; //empty array
-        if (objFileFind.begin(pathMasterLib + "/" + templib_dirname_nearest + "/*")) {
-            do {
-                // if not directory and not upper dir links (ambigious?)
-                if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
-                    debug('found file: ' + objFileFind.name, dbgNotice);
-
-                    //A. Test if this is bias
-                    //var matches = objFileFind.name.match((this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? bias_file_pattern_wo_overscan : bias_file_pattern ));
-                    var matches = objFileFind.name.match(bias_file_pattern_wo_overscan); //new conception: if overscan in light is present, use bias without overscan!
-                    if (matches) {
-                        debug("Found bin: " + matches[bias_file_pattern_binning], dbgNotice);
-                        //Use only target bin
-                        if (matches[bias_file_pattern_binning] == fileData.bin) {
-                            bias_file_name = objFileFind.name;
-                            debug("Bias file for targeted bin (" + matches[bias_file_pattern_binning] + ") and overscan (" + fileData.Overscan + ") found: " + bias_file_name, dbgNormal);
-                        } else {
-                            debug("Skipping bias file because of bin" + matches[bias_file_pattern_binning] + " instead of targeted bin" + fileData.bin, dbgNotice);
-                        }
-                    } else {
-                        debug("Bias search was unsuccesfull (QHY:" + this.QHYHeaders.checkQHY(fileData) + ", Overscan:" + fileData.Overscan + "). Try without bin - depreciated and blocked", dbgNotice);
-                        /*var matches = objFileFind.name.match(bias_wobin_file_pattern);
-                        if (matches) {
-                            debug("Found bias wo bin, considering bin = 1", dbgNotice);
-                            //Use only target bin
-                            if (1 == fileData.bin) {
-                                bias_file_name = objFileFind.name;
-                                debug("Bias file for targeted bin found: " + bias_file_name, dbgNormal);
-                            } else {
-                                debug("Skipping bias file because of assumed by default bin 1 doesn't equal to targeted bin" + fileData.bin, dbgNotice);
-                            }
-                        }*/
-                    }
-
-                    //B. Test if this is dark
-                    var matches = objFileFind.name.match((this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? darks_file_pattern_wo_overscan : darks_file_pattern));
-                    if (matches) {
-                        debug("Found bin: " + matches[darks_file_pattern_binning], dbgNotice);
-                        //Use only target bin
-                        if (matches[darks_file_pattern_binning] == fileData.bin) {
-                            darkexplib[darkexplib.length] = matches[darks_file_pattern_exposure];
-                            darkexplib_filename[darkexplib_filename.length] = objFileFind.name;
-                            debug("Dark file for targeted bin (" + matches[darks_file_pattern_binning] + "), overscan (" + fileData.Overscan + ") and exposure (" + darkexplib[darkexplib.length - 1] + "s) found: " + objFileFind.name, dbgNormal);
-                        } else {
-                            debug("Skipping dark file because of bin" + matches[darks_file_pattern_binning] + " or overscan (" + fileData.Overscan + ") instead of targeted bin" + fileData.bin, dbgNotice);
-                        }
-                    } else {
-                        debug("Dark search was unsuccesfull (QHY:" + this.QHYHeaders.checkQHY(fileData) + ", Overscan:" + fileData.Overscan + ").  Try without bin - depreciated and blocked", dbgNotice);
-                        /*var matches = objFileFind.name.match(darks_wobin_file_pattern);
-                        if (matches) {
-                            debug("Found dark wo bin, considering bin = 1", dbgNotice);
-                            //Use only target bin
-                            if (1 == fileData.bin) {
-                                darkexplib[darkexplib.length] = matches[darks_wobin_file_pattern_exposure];
-                                darkexplib_filename[darkexplib_filename.length] = objFileFind.name;
-                                debug("Dark file found for exposure " + darkexplib[darkexplib.length - 1] + "s", dbgNormal);
-                            } else {
-                                debug("Skipping dark file because of assumed by default bin 1 doesn't equal to targeted bin" + fileData.bin, dbgNotice);
-                            }
-                        }*/
-                    }
-                }
-            } while (objFileFind.next());
-        }
-        debug("Found " + (bias_file_name.length > 0 ? 1 : 0) + " bias file and " + darkexplib.length + " dark file", dbgNormal);
-
-        // 4. Match nearest exposure to FITS
-        debug("Matching nearest exposure for FITS " + fileData.duration + "sec in library through " + darkexplib.length + " values", dbgNotice);
-        var mindiff = 100000,
-        nearest_exposure = 0,
-        darkexplib_filename_nearest = "";
-        for (i = 0; i < darkexplib.length; i++) {
-            debug(darkexplib[i], dbgNotice);
-            if (((darkexplib[i] + Config.DarkExposureLenghtTolerance) >= fileData.duration) && (mindiff > Math.abs(darkexplib[i] - fileData.duration))) {
-                nearest_exposure = darkexplib[i];
-                darkexplib_filename_nearest = darkexplib_filename[i];
-                mindiff = Math.abs(darkexplib[i] - fileData.duration);
-
-            }
-        }
-        Console.noteln("Nearest dark exposure for FITS's eposure " + fileData.duration + "s is " + nearest_exposure + "s (difference = " + mindiff + ", file = " + darkexplib_filename_nearest + ")");
-        dark_file_name = darkexplib_filename_nearest;
-        CosmeticsIconExposure = nearest_exposure;
-        if (nearest_exposure == 0) {
-            Console.criticalln("Matching dark frame exposure wasn't found! Check folder with temperature for masterdark availability for exposure: " + fileData.duration + "s");
-            return false;
-
-        }
-
-        // II. Search for flats
-        // 1. Begin search for flats based on folder date
-        debug("Scaning for available flats packs in " + pathMasterLib + " ...", dbgNormal);
-        var flatslib_date = [],
-        flatslib_date_dirname = []; //empty array
-        if (objFileFind.begin(pathMasterLib + "/*")) {
-            do {
-                // if not upper dir links
-                if (objFileFind.name != "." && objFileFind.name != "..") {
-                    // if this is Directory
-                    if (objFileFind.isDirectory) {
-                        debug('found folder: ' + objFileFind.name, dbgNotice);
-
-                        //Test if this is folder with flats
-                        var matches = objFileFind.name.match(flats_dir_pattern);
-                        if (matches) {
-                            //flatslib_date[flatslib_date.length]=matches[1]+"-"+matches[2]+ "-" + matches[3];
-                            flatslib_date[flatslib_date.length] = matches[1];
-                            flatslib_date_dirname[flatslib_date_dirname.length] = objFileFind.name;
-                            debug("Found flats pack for date " + flatslib_date[flatslib_date.length - 1], dbgNormal);
-                        }
-                    }
-                }
-            } while (objFileFind.next());
-        }
-
-        // 2. Match folder that is earlier than FITS
-        var filedateint = parseInt(fileData.date.substr(0, 4) + fileData.date.substr(5, 2) + fileData.date.substr(8, 2));
-        debug("[" + filedateint +"]");
-        debug("Matching flat pack date for for FITS's date " + fileData.date + " in library through " + flatslib_date.length + " values", dbgNormal);
-        var mindiff = 30000000,
-        flatsdate_nearest = 0,
-        flatsdate_dirname_nearest = "";
-        for (i = 0; i < flatslib_date.length; i++) {
-            debug(flatslib_date[i], dbgNotice);
-            if ((flatslib_date[i] <= filedateint) && (mindiff > Math.abs(flatslib_date[i] - filedateint))) {
-                flatsdate_nearest = flatslib_date[i];
-                flatsdate_dirname_nearest = flatslib_date_dirname[i];
-                mindiff = Math.abs(flatslib_date[i] - filedateint);
-
-            }
-        }
-        Console.writeln("Suitable flat pack date is " + flatsdate_nearest + " (differenceInt = " + mindiff + ", folder = " + flatsdate_dirname_nearest + ")");
-        if (flatsdate_nearest == 0) {
-            Console.criticalln("Matching flats frames date wasn't found! Check flats library folder names and availability for given date: " + fileData.date + "");
-            return false;
-        }
-
-        // 3. Begin search for matching filter
-        debug("Scaning for avaliable filters in flats pack " + pathMasterLib + "/" + flatsdate_dirname_nearest + " ...", dbgNormal);
-        var flat_file_name = "";
-        var flatsfileslib = [],
-        flatsfileslib_filename = []; //empty array
-        if (objFileFind.begin(pathMasterLib + "/" + flatsdate_dirname_nearest + "/*")) {
-            do {
-                // if this is not Directory and if not upper dir links
-                if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
-                    debug('found file: ' + objFileFind.name, dbgNotice);
-
-                    //Test if this is flat
-                    //var matches = objFileFind.name.match(this.QHYHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? flats_file_pattern_wo_overscan : flats_file_pattern);
-                    var matches = objFileFind.name.match( flats_file_pattern_wo_overscan ); // new conception: use overscan removed version even for light with overscan
-                    if (matches) {
-                        debug("Found bin: " + matches[flats_file_pattern_binning], dbgNotice);
-                        //Use only target bin
-                        if (matches[flats_file_pattern_binning] == fileData.bin) {
-                            flatsfileslib[flatsfileslib.length] = String.toUpperCase(matches[flats_file_pattern_filter]); //upcase filter name
-                            flatsfileslib_filename[flatsfileslib_filename.length] = objFileFind.name;
-                            debug("Added filter: " + flatsfileslib[flatsfileslib.length - 1], dbgNotice);
-                        } else {
-                            debug("Skipping flat file because of bin" + matches[flats_file_pattern_binning] + " instead of targeted bin" + fileData.bin, dbgNotice);
-                        }
-                    }
-                }
-            } while (objFileFind.next());
-        }
-
-        // 4. Match filter to FITS
-        debug("Matching filter for FITS's filter " + fileData.filter + " in library through " + flatsfileslib.length + " values", dbgNormal);
-        var filtername = "",
-        filterfilename = "";
-        for (i = 0; i < flatsfileslib.length; i++) {
-            debug("Test filter from lib:" + flatsfileslib[i] + "->" + FILTERS_DICTIONARY[flatsfileslib[i]], dbgNotice);
-            if (fileData.filter == FILTERS_DICTIONARY[flatsfileslib[i]]) {
-                filtername = FILTERS_DICTIONARY[flatsfileslib[i]];
-                filterfilename = flatsfileslib_filename[i];
-            }
-        }
-        Console.writeln("Matching filter is " + filtername + " (file = " + filterfilename + ")");
-        flat_file_name = filterfilename;
-        if (flatsdate_nearest == 0) {
-            Console.criticalln("Matching flat frames for FITS filter wasn't found! Check masterflats availability for given filter: " + fileData.filter + "");
-            return false;
-        }
-
-        // Check if all needed masters found
-        if (bias_file_name == "") {
-            Console.criticalln("Matching bias wasn't found! Check dark library for availability for FITS CCD-TEMP values");
-            return false;
-        }
-
-        if (dark_file_name == "") {
-            Console.criticalln("Matching dark wasn't found! Check dark library for availability for FITS CCD-TEMP and exposure values");
-            return false;
-        }
-
-        if (flat_file_name == "") {
-            Console.criticalln("Matching flat wasn't found! Check flat packs availability for FITS date and filter values");
-            return false;
-        }
-
-        var full_bias_file_name = pathMasterLib + "/" + templib_dirname_nearest + "/" + bias_file_name;
-        var full_dark_file_name = pathMasterLib + "/" + templib_dirname_nearest + "/" + dark_file_name;
-        var full_flat_file_name = pathMasterLib + "/" + flatsdate_dirname_nearest + "/" + flat_file_name;
-
-        Console.noteln("Materbias filename: <b>" + full_bias_file_name + "</b>");
-        Console.noteln("Masterdark filename: <b>" + full_dark_file_name + "</b>");
-        Console.noteln("Masterflat filename: <b>" + full_flat_file_name + "</b>");
-
-        return {
-            masterbias: full_bias_file_name,
-            masterdark: full_dark_file_name,
-            masterflat: full_flat_file_name,
-        };
-    }
-
-    /*********************************************************
-     * Поиск соответствующего рефенса для выравнивания
-     *
-     * @param fileName string Имя файла.fit
-     **********************************************************
-     */
-    function getRegistrationReferenceFile(objectname) {
-
-        console.writeln();
-        console.noteln("Searching for matching Registration Reference file for object <b>", objectname, "</b>");
-        console.writeln();
-
-        //1. Search lib dir for folders
-        var objFileFind = new FileFind;
-        var templib = [],
-        templib_dirname = []; //empty array
-
-        // Begin search for temp libraries
-        debug("Scaning refernce library for available references in " + Config.RegistrationReferencesPath + " ...", dbgNormal);
-        var referenceFile = "";
-        if (objFileFind.begin(Config.RegistrationReferencesPath + "/*")) {
-            do {
-                // if not upper dir links
-                if (objFileFind.name != "." && objFileFind.name != "..") {
-                    // if this is Directory
-                    if (!objFileFind.isDirectory) {
-                        debug('found file: ' + objFileFind.name, dbgNotice);
-
-                        //Test if this is reference file
-                        var registerreference_file_pattern = new RegExp('^' + objectname + '_.*', 'i'); // +? non-greedy modifier;
-                        var matches = objFileFind.name.match(registerreference_file_pattern);
-                        if (matches) {
-                            referenceFile = objFileFind.name;
-                            console.note("Reference file for <b>" + objectname + "</b> found: ");
-                            console.writeln(referenceFile);
-                        }
-                    }
-                }
-            } while (objFileFind.next());
-        }
-
-        return (referenceFile == "" ? false : Config.RegistrationReferencesPath + "/" + referenceFile);
-    }
-
-    /*********************************************************
-     * Поиск соответствующего рефенса для выравнивания
-     *
-     * @param fileName string Имя файла.fit
-     **********************************************************
-     */
-
-    function getNormalizationReferenceFile(objectname, filtername, exposure) {
-
-        console.writeln();
-        console.noteln("Searching for matching Normalization Reference file for object <b>", objectname, "</b>, filter <b>" + filtername + "</b> and exposure <b>" + exposure + "s</b>");
-        //console.writeln();
-
-        //1. Search lib dir for folders
-        var objFileFind = new FileFind;
-        var templib = [],
-        templib_dirname = []; //empty array
-
-        // Begin search for temp libraries
-        debug("Scaning refernce library for available references in " + Config.NormalizationReferencesPath + " ...", dbgNormal);
-        var referenceFile = "";
-        if (objFileFind.begin(Config.NormalizationReferencesPath + "/*")) {
-            do {
-                // if not upper dir links
-                if (objFileFind.name != "." && objFileFind.name != "..") {
-                    // if this is Directory
-                    if (!objFileFind.isDirectory) {
-                        debug('found file: ' + objFileFind.name, dbgNotice);
-
-                        //Test if this is bias
-                        //Console.writeln(normalizationreference_file_pattern);
-                        var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '_' + exposure + 's.*', 'i'); // +? non-greedy modifier;
-                        var matches = objFileFind.name.match(normalizationreference_file_pattern);
-                        if (matches) {
-                            referenceFile = objFileFind.name;
-                            console.note("Reference file is: ");
-                            console.writeln(referenceFile);
-                        }
-                    }
-                }
-            } while (objFileFind.next());
-        }
-
-        return (referenceFile == "" ? false : Config.NormalizationReferencesPath + "/" + referenceFile);
-    }
 
     /**
      * Выбор лучших фитов и их копирование в отдельную папку (1-3 в зависимости от был ли чб или цвет)
@@ -2268,7 +1894,7 @@ function AutoCalibrateEngine() {
 				console.warningln('Can`t find Observer');
 			}
         }
-		
+
         if (!headers.TELESCOP) {
             console.criticalln('Can`t find Telescope');
             return false;
@@ -2320,7 +1946,8 @@ function AutoCalibrateEngine() {
         // @todo date midnight / midday
         // @todo utc
         return {
-            instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + telescope, // was Vitar/MakF10 or (for me) just SW250
+            filename: fileName, // original file name
+			instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + telescope, // was Vitar/MakF10 or (for me) just SW250
             camera: camera , // ArtemisHSC
             date: headers['DATE-OBS'].substr(0, "2017-01-01".length), // 2016-10-13
             time: headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
