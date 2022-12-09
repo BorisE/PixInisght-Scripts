@@ -3,11 +3,11 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.0"
+ #define VERSION "6.0 beta1"
  #define COMPILE_DATE "2022/12/07"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
- #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019-2021 Boris Emchenko<br/>"
+ #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2022 Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "AutoCalibrate/"
 
@@ -23,7 +23,7 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
-v 6.0 [2022/12/07]
+v 6.0  beta1 [2022/12/07]
 - new calibration masters folder structure
 - structurized code for masters searching 
 - camera custom parameters preset module addded (to test)
