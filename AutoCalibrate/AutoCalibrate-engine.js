@@ -889,7 +889,7 @@ function AutoCalibrateEngine() {
         var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_cc.fit');
         newFileName = CosmetizedOutputPath + '/' + newFileName;
 
-        //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
+        //Проверить - существует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && File.exists(newFileName)) {
             Console.warningln('File ' + newFileName + ' already exists, skipping cosmetic correction');
         } else {

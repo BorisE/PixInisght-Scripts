@@ -97,7 +97,7 @@ function ProcessCameraHeaders() {
 	
 	this.checkCameraUsingBIN = function (fileData) {
 		var retVal = false;
-		if (Config.I_USE_BINNING_FORTHIS_CAMERA[fileData.camera])
+		if (Config.I_USE_BINNING_FOR_THESE_CAMERAS[fileData.camera])
 			retVal = true;
 		return retVal;
 	}
