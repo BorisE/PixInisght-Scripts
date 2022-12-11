@@ -367,7 +367,7 @@ function SearchForDARK (pathMasterLib, fileData) {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
 				//B. Test if this is darkCameraHeaders
-				var matches = objFileFind.name.match((this.CameraHeaders.checkCameraUsingBIN(fileData) &&  fileData.Overscan == "false" ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN));
+				var matches = objFileFind.name.match((this.CameraHeaders.checkCameraUsingBIN(fileData) &&  fileData.Overscan == "false" ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN_ANY));
 				if (matches) {
 					debug("Found bin: " + matches[DARKS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin

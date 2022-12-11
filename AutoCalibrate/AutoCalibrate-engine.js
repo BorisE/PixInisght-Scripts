@@ -927,11 +927,17 @@ function AutoCalibrateEngine() {
 
             var CC = ProcessInstance.fromIcon(ProcessIconName);
             if (CC == null) {
-                console.criticalln("No such process icon: " + ProcessIconName);
+                console.criticalln();
+                console.criticalln("Cosmetic correction process icon: <b>" + ProcessIconName + "</b> not found");
+                console.criticalln("Skipping cosmetic correction");
+                console.criticalln();
                 return fileName;
             }
             if (!(CC instanceof CosmeticCorrection)) {
-                console.criticalln("The specified icon does not an instance of CosmeticCorrection: " + ProcessIconName);
+                console.criticalln();
+                console.criticalln("The specified icon does not an instance of CosmeticCorrection: <b>" + ProcessIconName + "</b>");
+                console.criticalln("Skipping cosmetic correction");
+                console.criticalln();
                 return fileName;
             }
 
