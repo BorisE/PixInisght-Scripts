@@ -47,7 +47,10 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 			
 
 	//0. Check for bin-mode
-	var calibrationSearchBasePath = pathMasterLib + "/bin" + fileData.bin + (this.CameraHeaders.cameraHasPresetMode(fileData) ? " " +  this.CameraHeaders.getPresetName(fileData): "");
+	var binmodest = ((this.CameraHeaders.checkCameraUsingBIN(fileData) || Config.UseBiningFolder) ? "bin" + fileData.bin : "" );
+	binmodest += (binmodest ? " " : "") + (this.CameraHeaders.cameraHasPresetMode(fileData) ? this.CameraHeaders.getPresetName(fileData): "")
+	debug("BIN_MODE_DIR: " + binmodest, dbgNotice);
+	var calibrationSearchBasePath = pathMasterLib + (binmodest == "" ? "" : "/") + binmodest;
 	if (!File.directoryExists( calibrationSearchBasePath)) {
 		console.criticalln("Master calibration bin/mode specific path [" + calibrationSearchBasePath + "] couldn't be found");
 		return false;
@@ -65,14 +68,14 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	}
 	pathMasterLib = biasCalibrationSearchBasePath;
 	// bias - temp search
-	templib_dirname_nearest = SearchSuitabeFileByTemperature (pathMasterLib, fileData.temp)
+	var templib_dirname_nearest = SearchSuitabeFileByTemperature (pathMasterLib, fileData.temp)
 	if (!templib_dirname_nearest) {
 		console.criticalln("Master calibration suitable temperature dir for BIAS couldn't be found");
 		return false;
 	}
 	pathMasterLib = pathMasterLib + "/" + templib_dirname_nearest
 	// bias - date search
-	datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
+	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
 	if (!datelib_dirname_nearest) {
 		console.criticalln("Master calibration suitable datepack dir for BIAS couldn't be found");
 		return false;
@@ -93,14 +96,14 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	}
 	pathMasterLib = darksCalibrationSearchBasePath;
 	// darks - temp search
-	templib_dirname_nearest = SearchSuitabeFileByTemperature (pathMasterLib, fileData.temp)
+	var templib_dirname_nearest = SearchSuitabeFileByTemperature (pathMasterLib, fileData.temp)
 	if (!templib_dirname_nearest) {
 		console.criticalln("Master calibration suitable temperature dir for DARKS couldn't be found");
 		return false;
 	}
 	pathMasterLib = pathMasterLib + "/" + templib_dirname_nearest
 	// darks - date search
-	datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
+	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
 	if (!datelib_dirname_nearest) {
 		console.criticalln("Master calibration suitable datepack dir for DARKS couldn't be found");
 		return false;
@@ -241,6 +244,7 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate) {
 	debug("Scaning for available date packs in " + pathMasterLib + " ...", dbgNotice);
 	var datepacklist_date = [],			// available dates
 	datepacklist_dirname = []; 	// available dates corresponding folders
+	var dirCount = 0;
 	if (objFileFind.begin(pathMasterLib + "/*")) {
 		do {
 			// if not upper dir links
@@ -248,12 +252,13 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate) {
 				// if this is Directory
 				if (objFileFind.isDirectory) {
 					debug('found folder: ' + objFileFind.name, dbgNotice);
+					dirCount++;
 
 					//Test if this is folder with flats
 					var matches = objFileFind.name.match(DIR_DATE_PATTERN);
 					if (matches) {
 						var datest=""; // need to concatanate if dir in form of 2022-10-09
-						for (i = 0; i < matches.length; i++) {
+						for (var i = 0; i < matches.length; i++) {
 							datest=datest + matches[i];
 						}
 						datepacklist_date[datepacklist_date.length] = datest;
@@ -264,8 +269,12 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate) {
 			}
 		} while (objFileFind.next());
 	}
+	
+	// 2.1. if there are no folders, asume - there is no needed to have it 
+	if (dirCount==0) 
+		return "/";
 
-	// 2. Match folder that is earlier than FITS
+	// 2.2. Match folder that is earlier than FITS
 	var filedateint = parseInt(targetDate.substr(0, 4) + targetDate.substr(5, 2) + targetDate.substr(8, 2));
 	debug("Matching date for for FITS's date (<b>" + targetDate + "</b>) in library through " + datepacklist_date.length + " values", dbgNotice);
 	var mindiff = 30000000;
@@ -307,18 +316,18 @@ function SearchForBIAS (pathMasterLib, fileData) {
 			if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
-				var matches = objFileFind.name.match(BIAS_FILE_PATTERN_WO_OVERSCAN); //new conception: if overscan in light is present, use bias without overscan!
+				var matches = objFileFind.name.match( this.CameraHeaders.checkCameraUsingBIN(fileData) ? BIAS_FILE_PATTERN_WO_OVERSCAN : BIAS_FILE_PATTERN_ANY ); //new conception: if overscan in light is present, use bias without overscan!
 				if (matches) {
-					debug("Found bin: " + matches[BIAS_FILE_PATTERN_BINNING], dbgNotice);
+					debug("Found bin: " + matches[BIAS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin
-					if (matches[BIAS_FILE_PATTERN_BINNING] == fileData.bin) {
+					if (matches[BIAS_FILE_PATTERN_BINNING_POS] == fileData.bin) {
 						bias_file_name = objFileFind.name;
-						debug("Bias file for targeted bin (" + matches[BIAS_FILE_PATTERN_BINNING] + ") and overscan (" + fileData.Overscan + ") found: " + bias_file_name, dbgNotice);
+						debug("Bias file for targeted bin (" + matches[BIAS_FILE_PATTERN_BINNING_POS] + ") and overscan (" + fileData.Overscan + ") found: " + bias_file_name, dbgNotice);
 					} else {
-						debug("Skipping bias file because of bin" + matches[BIAS_FILE_PATTERN_BINNING] + " instead of targeted bin" + fileData.bin, dbgNotice);
+						debug("Skipping bias file because of bin" + matches[BIAS_FILE_PATTERN_BINNING_POS] + " instead of targeted bin" + fileData.bin, dbgNotice);
 					}
 				} else {
-					debug("Bias search was unsuccesfull (QHY:" + this.CameraHeaders.checkQHY(fileData) + ", Overscan:" + fileData.Overscan + "). Try without bin - depreciated and blocked", dbgNotice);
+					debug("Bias search was unsuccesfull", dbgNotice);
 				}
 			}
 		} while (objFileFind.next());
@@ -357,20 +366,20 @@ function SearchForDARK (pathMasterLib, fileData) {
 			if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
-				//B. Test if this is dark
-				var matches = objFileFind.name.match((this.CameraHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN));
+				//B. Test if this is darkCameraHeaders
+				var matches = objFileFind.name.match((this.CameraHeaders.checkCameraUsingBIN(fileData) &&  fileData.Overscan == "false" ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN));
 				if (matches) {
-					debug("Found bin: " + matches[DARKS_FILE_PATTERN_BINNING], dbgNotice);
+					debug("Found bin: " + matches[DARKS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin
-					if (matches[DARKS_FILE_PATTERN_BINNING] == fileData.bin) {
-						darkexplib[darkexplib.length] = matches[DARKS_FILE_PATTERN_EXPOSURE];
+					if (matches[DARKS_FILE_PATTERN_BINNING_POS] == fileData.bin) {
+						darkexplib[darkexplib.length] = matches[DARKS_FILE_PATTERN_EXPOSURE_POS];
 						darkexplib_filename[darkexplib_filename.length] = objFileFind.name;
-						debug("Dark file for targeted bin (" + matches[DARKS_FILE_PATTERN_BINNING] + "), overscan (" + fileData.Overscan + ") and exposure (" + darkexplib[darkexplib.length - 1] + "s) found: " + objFileFind.name, dbgNotice);
+						debug("Dark file for targeted bin (" + matches[DARKS_FILE_PATTERN_BINNING_POS] + "), overscan (" + fileData.Overscan + ") and exposure (" + darkexplib[darkexplib.length - 1] + "s) found: " + objFileFind.name, dbgNotice);
 					} else {
-						debug("Skipping dark file because of bin" + matches[DARKS_FILE_PATTERN_BINNING] + " or overscan (" + fileData.Overscan + ") instead of targeted bin" + fileData.bin, dbgNotice);
+						debug("Skipping dark file because of bin" + matches[DARKS_FILE_PATTERN_BINNING_POS] + " or overscan (" + fileData.Overscan + ") instead of targeted bin" + fileData.bin, dbgNotice);
 					}
 				} else {
-					debug("Dark search was unsuccesfull (QHY:" + this.CameraHeaders.checkQHY(fileData) + ", Overscan:" + fileData.Overscan + ").  Try without bin - depreciated and blocked", dbgNotice);
+					debug("Dark search was unsuccesfull", dbgNotice);
 					/*var matches = objFileFind.name.match(darks_wobin_file_pattern);
 					if (matches) {
 						debug("Found dark wo bin, considering bin = 1", dbgNotice);
@@ -441,16 +450,16 @@ function SearchForFLAT (pathMasterLib, fileData) {
 
 				//Test if this is flat
 				//var matches = objFileFind.name.match(this.CameraHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? flats_file_pattern_wo_overscan : flats_file_pattern);
-				var matches = objFileFind.name.match( FLATS_FILE_PATTERN_WO_OVERSCAN ); // new conception: use overscan removed version even for light with overscan
+				var matches = objFileFind.name.match( this.CameraHeaders.checkCameraUsingBIN(fileData) ? FLATS_FILE_PATTERN_WO_OVERSCAN : FLATS_FILE_PATTERN_ANY ); // new conception: use overscan removed version even for light with overscan
 				if (matches) {
-					debug("Found bin: " + matches[FLATS_FILE_PATTERN_BINNING], dbgNotice);
+					debug("Found bin: " + matches[FLATS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin
-					if (matches[FLATS_FILE_PATTERN_BINNING] == fileData.bin) {
-						flatsfileslib[flatsfileslib.length] = String.toUpperCase(matches[FLATS_FILE_PATTERN_FILTER]); //upcase filter name
+					if (matches[FLATS_FILE_PATTERN_BINNING_POS] == fileData.bin) {
+						flatsfileslib[flatsfileslib.length] = String.toUpperCase(matches[FLATS_FILE_PATTERN_FILTER_POS]); //upcase filter name
 						flatsfileslib_filename[flatsfileslib_filename.length] = objFileFind.name;
 						debug("Added filter: " + flatsfileslib[flatsfileslib.length - 1], dbgNotice);
 					} else {
-						debug("Skipping flat file because of bin" + matches[FLATS_FILE_PATTERN_BINNING] + " instead of targeted bin" + fileData.bin, dbgNotice);
+						debug("Skipping flat file because of bin" + matches[FLATS_FILE_PATTERN_BINNING_POS] + " instead of targeted bin" + fileData.bin, dbgNotice);
 					}
 				}
 			}

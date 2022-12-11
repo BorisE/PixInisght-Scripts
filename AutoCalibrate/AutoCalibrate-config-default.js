@@ -83,7 +83,11 @@ Config.UseObserverName  = false;    // Использовать имя набл�
 Config.UseCameraName    = true;    // Использовать название камеры в иерархии папок?
 
 Config.UseBiningFolder  = false;    // Использовать бининг в иерархии папок?
-                                    // ВАЖНО!!! Для QHY600 будет использоваться вне зависимости от значения данного параметра
+Config.I_USE_BINNING_FORTHIS_CAMERA = 		// Для этих камер нужно всегда учитывать, что может быть бининг
+{
+	QHY600: true 
+}
+
 
 // Использовать разные косметики для разной длительности?
 Config.UseExposureInCosmeticsIcons = false; // Для меня не нужно, может Олегу и перфекционистам пригодится
@@ -163,9 +167,10 @@ var DIR_DATE_PATTERN = new RegExp('((\\d+)+)', 'gmi');
 // Имя BIAS файла
  // [...bias...bin  #..] - слово bias в любом регистре + bin или binning и цифра через пробел
 // Примеры: bias-bin2_TEMP_25deg_n117, BIASBINNING_2, bias-20bin1_n118_from20180910,
-var BIAS_FILE_PATTERN = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');                 	//not containing "_c" - reserved for version wo overscan; or just for usual (not QHY) bias
+//var BIAS_FILE_PATTERN = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');                 	//not containing "_c" - reserved for version wo overscan; or just for usual (not QHY) bias
 var BIAS_FILE_PATTERN_WO_OVERSCAN = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');         	//bias.*((bin|binning)(\s|_)*(\d)).*_c.*$ - overscan version, valid for QHY only
-var BIAS_FILE_PATTERN_BINNING = 4;																			//pattern id (regexp match) for bin part in BIAS_FILE_PATTERN_WO_OVERSCAN
+var BIAS_FILE_PATTERN_ANY = new RegExp('bias.*((bin|binning)(\\s|_)*(\\d)).*$', 'i');         	//bias.*((bin|binning)(\s|_)*(\d)).*_c.*$ - overscan version, valid for QHY only
+var BIAS_FILE_PATTERN_BINNING_POS = 4;																			//pattern id (regexp match) for bin part in BIAS_FILE_PATTERN_WO_OVERSCAN
 
 
 // BIAS для QHY600 с именем пресета
@@ -177,10 +182,11 @@ var BIAS_FILE_PATTERN_BINNING = 4;																			//pattern id (regexp match)
 // Имя DARK файла
 // [...dark...EXPTIME_1200...BIN] - слово DARK, EXPTIME|EXP_число и BIN_число должны быть обязательно. Число через пробел, _, без пробела
 // Примеры: dark-TEMP_30deg-EXPTIME_1200-BINNING_2 | masterdark_from20181218 exp120sec bin 2
-var DARKS_FILE_PATTERN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+)(?!.*_c).*$', 'i');
+var DARKS_FILE_PATTERN_W_OVERSCAN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+)(?!.*_c).*$', 'i');
 var DARKS_FILE_PATTERN_WO_OVERSCAN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*_c.*$', 'i');  //dark.*((bin|binning)(\s|_)*(\d)){1}.*(EXPTIME|EXP)(\s|_)*(\d+)(?!.*_c).*$
-var DARKS_FILE_PATTERN_BINNING  = 4;																								//pattern id (regexp match) for bin part in DARKS_FILE_PATTERN
-var DARKS_FILE_PATTERN_EXPOSURE = 7;																								//pattern id (regexp match) for exposure part in DARKS_FILE_PATTERN
+var DARKS_FILE_PATTERN_ANY = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*$', 'i');
+var DARKS_FILE_PATTERN_BINNING_POS  = 4;																								//pattern id (regexp match) for bin part in DARKS_FILE_PATTERN
+var DARKS_FILE_PATTERN_EXPOSURE_POS = 7;																								//pattern id (regexp match) for exposure part in DARKS_FILE_PATTERN
 
 
 // [...dark...EXPTIME_1200...] - слово DARK, EXPTIME|EXP_число ,bin не обязателен
@@ -191,10 +197,6 @@ var DARKS_FILE_PATTERN_EXPOSURE = 7;																								//pattern id (regexp
 // пример: dark-TEMP_20deg-P4-BINNING_2-EXPTIME_300-n54.fit
 //var darks_qhy600_file_pattern = new RegExp('dark.*(P(\\d+)).*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*', 'i');
 
-// Папка с FLATами
-//var flats_dir_pattern = new RegExp('^masterflats.*_(\\d\\d\\d\\d)(\\d\\d)(\\d\\d)','i'); // masterflats300_20180901
-var flats_dir_pattern = new RegExp('masterflats[_ -]*(\\d+)', 'i'); // [...masterflats..20180901...] - слово masterflats далее пробел/нижнее подчеркивание тире в любом колчиестве, далее дата числами в формате YYYYMMDD
-// Примеры: masterflats_20180901 | masterflats 20190102 from 2019 | lib_masterflats_20180901_from20180905-20181010
 
 // Имя флет файла
 // [flat...filter_Sii-...] - начинается со слова flat и дальше должно быть FILTER_названи ефильтра-
@@ -202,10 +204,11 @@ var flats_dir_pattern = new RegExp('masterflats[_ -]*(\\d+)', 'i'); // [...maste
 // ВАЖНО!!! не дожно ничего начинаться на _c
 // Примеры: flat-FILTER_B-BINNING_1.xisf, flat-FILTER_B-BIN1_20190201, masterflatimakesomedayFILETER_R-___bin_2
 
-var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');           // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*$
+//var flats_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d))(?!.*_c).*$', 'i');           // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*$
 var FLATS_FILE_PATTERN_WO_OVERSCAN = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d)).*_c.*$', 'i');   // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*_c.*$
-var FLATS_FILE_PATTERN_FILTER   = 1;																				// pattern id (regexp match) for filter name part in FLATS_FILE_PATTERN_WO_OVERSCAN
-var FLATS_FILE_PATTERN_BINNING  = 5;																				// pattern id (regexp match) for bin part in FLATS_FILE_PATTERN_WO_OVERSCAN
+var FLATS_FILE_PATTERN_ANY = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d)).*$', 'i');   // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*_c.*$
+var FLATS_FILE_PATTERN_FILTER_POS   = 1;																				// pattern id (regexp match) for filter name part in FLATS_FILE_PATTERN_WO_OVERSCAN
+var FLATS_FILE_PATTERN_BINNING_POS  = 5;																				// pattern id (regexp match) for bin part in FLATS_FILE_PATTERN_WO_OVERSCAN
 
 
 
@@ -232,6 +235,7 @@ var headers = {
     'OBJCTDEC': null,
     'READOUTM': null,
     'GAIN': null,
+	'EGAIN': null,
     'OFFSET': null,
     'QOVERSCN': null,
     'USBLIMIT': null,

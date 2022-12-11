@@ -754,24 +754,13 @@ function AutoCalibrateEngine() {
             P.pedestalKeyword = "";
 
             //test for Overscan and cut it if present
-            if (this.CameraHeaders.checkQHY(fileData) && this.CameraHeaders.calcOverscanPresent(fileData.width)) {
-               P.overscanEnabled = true;
-               if (fileData.bin == 1) {
-                  P.overscanImageX0 = this.CameraHeaders.MainRect_bin1.x0; //24
-                  P.overscanImageY0 = this.CameraHeaders.MainRect_bin1.y0; //0
-                  P.overscanImageX1 = this.CameraHeaders.MainRect_bin1.x1; //9600
-                  P.overscanImageY1 = this.CameraHeaders.MainRect_bin1.y1; //6388
-                  debug("Bin1: x0=" + this.CameraHeaders.MainRect_bin1.x0 + ", y0=" + this.CameraHeaders.MainRect_bin1.y0 + ", x1=" + this.CameraHeaders.MainRect_bin1.x1 + ", y1=" +this.CameraHeaders.MainRect_bin1.y1, dbgNotice)
-               } else if (fileData.bin == 2) {
-                  P.overscanImageX0 = this.CameraHeaders.MainRect_bin2.x0; //12
-                  P.overscanImageY0 = this.CameraHeaders.MainRect_bin2.y0; //0
-                  P.overscanImageX1 = this.CameraHeaders.MainRect_bin2.x1; //4800
-                  P.overscanImageY1 = this.CameraHeaders.MainRect_bin2.y1; //3194
-                  debug("Bin2: x0=" + this.CameraHeaders.MainRect_bin2.x0 + ", y0=" + this.CameraHeaders.MainRect_bin2.y0 + ", x1=" + this.CameraHeaders.MainRect_bin2.x1 + ", y1=" +this.CameraHeaders.MainRect_bin2.y1, dbgNotice)
-               } else {
-                  //no data provided for binning other than 1 and 2
-                  P.overscanEnabled = false;
-               }
+            if (this.CameraHeaders.calcOverscanPresent(fileData)) {
+				P.overscanEnabled = true;
+				P.overscanImageX0 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x0; //24
+				P.overscanImageY0 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y0; //0
+				P.overscanImageX1 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x1; //9600
+				P.overscanImageY1 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y1; //6388
+				debug("Bin1: x0=" + this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x0 + ", y0=" + this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y0 + ", x1=" + this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x1 + ", y1=" +this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y1, dbgNotice)
             } else {
                P.overscanEnabled = false;
                P.overscanImageX0 = 0;
@@ -929,7 +918,7 @@ function AutoCalibrateEngine() {
             }
 
             // Get CosmeticCorrection Process Icon
-            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + ((this.CameraHeaders.checkQHY(fileData) || Config.UseBiningFolder) ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
+            var ProcessIconName = Config.CosmetizedProcessName + '_' + fileData.instrument.replace('/', '_') + (Config.UseCameraInCosmeticsIcons ? '_' + fileData.camera : '') + ((this.CameraHeaders.checkCameraUsingBIN(fileData) || Config.UseBiningFolder) ? '_bin' + fileData.bin : '') + (Config.UseExposureInCosmeticsIcons ? '_' + fileData.duration : '');
             debug("Using ProcessIcon name: ", ProcessIconName, dbgNormal);
 
             // Check if folder for cosmetics files exists
@@ -1961,12 +1950,13 @@ function AutoCalibrateEngine() {
                 (filter == 'GRBG')),
             temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
             bin:            parseInt(headers.XBINNING), // 1
-            scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.0, //
+            scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.265, //
 			width :			Width,
 			height:			Height,
             qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
             ReadOutMode:    headers.READOUTM,
             Gain:           headers.GAIN,
+            EGain:          parseFloat(headers.EGAIN).toFixed(3),
             Offset:         headers.OFFSET,
             Overscan:       headers.QOVERSCN,
             Preset:         headers.QPRESET,
