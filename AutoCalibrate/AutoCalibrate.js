@@ -13,39 +13,39 @@
 
 // Global switches
  #ifndef DEBUG
- #define DEBUG true
+	#define DEBUG true
  #endif
 
 // Includes
  #ifndef AutoCalibrate_Global_js
- #include "AutoCalibrate-global.js" // Ver, Title and other info
+	#include "AutoCalibrate-global.js" // Ver, Title and other info
  #endif
+
+// Need to be in front of other declarations
  #ifndef AutoCalibrate_settings_js
- #include "AutoCalibrate-settings.js" // Settings object
+	#include "AutoCalibrate-settings.js" // Settings object
  #endif
 var Config = new ConfigData(); // Variable for global access to script data
-// Need to be in front of other declarations
-
  #ifndef AutoCalibrate_config_default_js
- #include "AutoCalibrate-config-default.js" // Load default config values
+	#include "AutoCalibrate-config-default.js" // Load default config values
  #endif
 
  #ifndef AutoCalibrate_GUI_js
- #include "AutoCalibrate-GUI.js" // GUI
+	#include "AutoCalibrate-GUI.js" // GUI
  #endif
  #ifndef AutoCalibate_Engine_js
- #include "AutoCalibrate-engine.js" // Engine
+	#include "AutoCalibrate-engine.js" // Engine
  #endif
 
 //////////////////////////////////////////
 // Конфигурация
 //////////////////////////////////////////
-
 #include "AutoCalibrate-config.js"     // Конкретный config. Можно просто в тексте определить переменные
 
 
 //Engine
 var Engine = new AutoCalibrateEngine();
+var ProcessBar = null;
 
 //main
 function main() {
@@ -103,7 +103,11 @@ function main() {
 
                 Console.writeln('InputPath: ' + Config.InputPath);
 
-                Engine.Process();
+				AutocalibrationProgressDialog.prototype = new Dialog;
+				ProcessBar = new AutocalibrationProgressDialog();
+				ProcessBar.show();
+
+                Engine.Process(ProcessBar);
                 break;
             }
         } else {
@@ -126,7 +130,8 @@ function main() {
         break;
 
     }
-    if (DEBUG)
+    if (ProcessBar) ProcessBar.hide();
+	if (DEBUG)
         console.writeln("Script finished");
 
 }

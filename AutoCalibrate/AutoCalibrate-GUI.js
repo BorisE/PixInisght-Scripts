@@ -1,5 +1,6 @@
  #ifndef AutoCalibrate_GUI_js
     #define AutoCalibrate_GUI_js
+	console.writeln("AutoCalibrate_GUI_js");
  #endif
 
 // Includes
@@ -11,6 +12,9 @@
  #endif
  #ifndef AutoCalibrate_Include_GUI_js
     #include "AutoCalibrate-GUI-include.js" // GUI functions
+ #endif
+ #ifndef AutoCalibrate_GUI_ProgressDialog_js
+    #include "AutoCalibrate-GUI-ProgressDialog.js" // GUI functions
  #endif
  #ifndef AutoCalibate_Engine_js
     #include "AutoCalibrate-engine.js" // Engine

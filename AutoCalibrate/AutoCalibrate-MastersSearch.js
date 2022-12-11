@@ -1,7 +1,7 @@
-
  #ifndef AutoCalibrate_camera_headers_js
-	#include "AutoCalibrate-CameraHeaders.js.js"
+	#include "AutoCalibrate-CameraHeaders.js"
  #endif
+
  CameraHeaders = new ProcessCameraHeaders();
 
 /*********************************************************

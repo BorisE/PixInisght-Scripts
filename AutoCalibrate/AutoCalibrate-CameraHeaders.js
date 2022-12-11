@@ -1,5 +1,6 @@
  #ifndef AutoCalibrate_camera_headers_js
 	#define AutoCalibrate_camera_headers_js
+	console.writeln("AutoCalibrate_camera_headers_js");
  #endif
 
 /*

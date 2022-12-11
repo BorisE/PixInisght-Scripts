@@ -1,5 +1,5 @@
- #ifndef AutoCalibrate_GUI_include_js
-    #define AutoCalibrate_GUI_include_js
+ #ifndef AutoCalibrate_Include_GUI_js
+    #define AutoCalibrate_Include_GUI_js
  #endif
 // Подумать, этот файл вообще нужен, так как используется только для кнопок
 

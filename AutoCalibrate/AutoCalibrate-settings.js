@@ -1,5 +1,6 @@
  #ifndef AutoCalibrate_settings_js
     #define AutoCalibrate_settings_js
+	console.writeln("AutoCalibrate_settings_js");
     #include <pjsr/DataType.jsh>
  #endif
 

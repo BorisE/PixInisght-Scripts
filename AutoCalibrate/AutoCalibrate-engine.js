@@ -4,10 +4,11 @@ Developed 2019 by Boris Emchenko
  */
  #ifndef AutoCalibate_Engine_js
     #define AutoCalibate_Engine_js
+	console.writeln("AutoCalibate_Engine_js");
  #endif
 
 
-// Includes.
+// Includes
  #ifndef AutoCalibrate_Global_js
     #include "AutoCalibrate-global.js" // Ver, Title and other info
  #endif
@@ -17,20 +18,14 @@ Developed 2019 by Boris Emchenko
     var Config = new ConfigData(); //variable for global access to script data
     //Need to be in front of other declarations
     console.noteln('Creating again Config');
- #endif
-
- #ifndef AutoCalibrate_config_default_js
     #include "AutoCalibrate-config-default.js" // Config part.
  #endif
 
- #ifndef AutoCalibrate_camera_headers_js
-	#include "AutoCalibrate-CameraHeaders.js"
- #endif
 
  #ifndef AutoCalibrate_camera_headers_js
 	#include "AutoCalibrate-CameraHeaders.js"
  #endif
-
+ 
 #include "AutoCalibrate-MastersSearch.js"
 
  #include <pjsr/DataType.jsh>
@@ -62,12 +57,17 @@ function AutoCalibrateEngine() {
     this.NeedToCopyToFinalDirFlag = false;
 
     this.CameraHeaders = new ProcessCameraHeaders();
-
-    // =========================================================
+	
+	this.progressDialog = null;
+	this.abortRequested = false;
+    
+	// =========================================================
     // 	Начало исполнения
     // =========================================================
-    this.Process = function () {
+    this.Process = function (progressDialog) {
         //var T = new ElapsedTime;
+		
+		this.progressDialog = progressDialog;
 
         console.abortEnabled = true; // allow stop
         console.show();
@@ -96,60 +96,29 @@ function AutoCalibrateEngine() {
         console.noteln('Starting script...');
         console.noteln();
 
-        /*
-        //for debug
-        var fileName = 'd:/Test this/2019-09-03/190903-II-3_20190903_Lum_350s_2x2_-25degC_0.0degN_000000319.FIT';
-        var fileData= getFileHeaderData(fileName) ;
-
-        var this.BaseCalibratedOutputPath = 'd:/Test this/2019-09-03';
-
-        ABEprocess (
-        debayerSplitFit(
-        this.cosmeticFit(
-        this.calibrateFITSFile( fileName )
-        )
-        )
-        );
-
-        exit;
-
-        mastersFiles = matchMasterCalibrationFiles (Config.CalibratationMastersPath + (Config.UseBiningFolder? "/bin" + fileData.bin : "")  + "/" + fileData.instrument, fileData);
-        exit;
-
-        registerFits(['c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M63_20190407_B_600s_1x1_-30degC_0.0degN_000011919.FIT']);
-
-        //var fileData = getFileHeaderData(filenametest);
-        //var normref = getNormalizationReferenceFile(fileData.object, fileData.filter));
-        console.noteln( localNormalization([filenametest]) );
-
-        var filenametest='e:/DSlrRemote/M109/calibrated/registered/M109_20180424_Ha_600s_1x1_-25degC_0.0degN_000007687_c_cc_r.fit';
-        FilterOutFITS(filenametest);
-        var filenametest='e:/DSlrRemote/-LeoTrio1/calibrated/cosmetized/LeoTrio1_20190118_L_600s_1x1_-30degC_0.0degN_000011908_c_cc.fit';
-        FilterOutFITS(filenametest);
-
-        debug(checkFileNeedCalibratation_and_PopulateArray("e:/DSlrRemote/-LeoTrio1/calibrated/cosmetized/LeoTrio1_20190118_L_600s_1x1_-30degC_0.0degN_000011908_c_cc.fit"));
-
-        // Debug
-        this.BaseCalibratedOutputPath = 'c:/Users/bemchenko/Documents/DSlrRemote/test calibration';
-        approvingFiles (['c:/Users/bemchenko/Documents/DSlrRemote/test calibration/M63_20190407_B_600s_1x1_-30degC_0.0degN_000011919.FIT']);
-
-        exit;
-         */
-
-        this.calcWork(Config.InputPath);
+        // Calc work
+		this.calcWork(Config.InputPath);
         console.noteln("Need to process:");
         console.noteln("   directories: " + this.DirsToProcessNum);
         console.noteln("   files: " + this.FilesToProcessNum);
 
+		//Show progress bar
+		if (this.progressDialog) {
+			this.progressDialog.initBar(Config.InputPath,this.FilesToProcessNum);
+			this.progressDialog.show();
+		}
+
         /* **************************************************************************************************************
-         *
-         *       1й проход. Сканирование директорий на предмет оригинальных FITS
-         *
-         * **************************************************************************************************************
-         * Производит поиск исходных (необработанных) FITS файлов и их обработка по цепочке калибровки.
-         * Также является 1ым проходом перед поиском недостающих файлов в цепочке калибровки (если включено)
-         * **************************************************************************************************************/
+        *
+        *       1й проход. Сканирование директорий на предмет оригинальных FITS
+        *
+        * **************************************************************************************************************
+        * Производит поиск исходных (необработанных) FITS файлов и их обработка по цепочке калибровки.
+        * Также является 1ым проходом перед поиском недостающих файлов в цепочке калибровки (если включено)
+        * **************************************************************************************************************/
         this.searchDirectory(Config.InputPath);
+		
+		if (this.abortRequested) return false;
 
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
             this.MoveMostAdvanced();
@@ -259,7 +228,7 @@ function AutoCalibrateEngine() {
             // Begin search
             if (objFileFind.begin(searchPath + "/*")) {
                 do {
-                    // if not upper dir links
+					// if not upper dir links
                     if (objFileFind.name != "." && objFileFind.name != "..") {
 
                         // if this is Directory and recursion is enabled
@@ -279,7 +248,7 @@ function AutoCalibrateEngine() {
                         }
                         // if File
                         else {
-                            debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
+							debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
                             debug('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
                             // if this is FIT
 							if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
@@ -300,6 +269,7 @@ function AutoCalibrateEngine() {
                                 if (checkFileNeedCalibratation_and_PopulateArray(searchPath + '/' + objFileFind.name)) {
                                     FileCount++;
                                     this.FileTotalCount++;
+									if (this.progressDialog) { this.progressDialog.updateBar_NewFile(this.FileTotalCount, objFileFind.name); }
 
                                     console.noteln("<end><cbr><br>",
                                         "************************************************************");
@@ -310,6 +280,16 @@ function AutoCalibrateEngine() {
 
                                     this.NeedToCopyToFinalDirFlag = true;
 
+									if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+										console.criticalln("Abort requsted, breaking ...");
+										this.abortRequested = true;
+										return false;
+									}
+									else 
+									{
+										console.warningln("this.progressDialog.abortRequested: " + this.progressDialog.abortRequested + ", this.abortRequested: "+this.abortRequested);
+									}
+
                                     //Process by full pipeline
                                     approvingFiles(
                                         this.localNormalization(
@@ -318,7 +298,7 @@ function AutoCalibrateEngine() {
                                                     debayerSplitFit(
                                                         this.cosmeticFit(
                                                             this.calibrateFITSFile(searchPath + '/' + objFileFind.name)))))));
-
+															
                                 }
                                 else
                                 {
@@ -702,6 +682,8 @@ function AutoCalibrateEngine() {
             "-------------------------------------------------------------");
         console.noteln("| [" + this.FileTotalCount + "] Begin calibration of ", fileName);
         console.noteln("-------------------------------------------------------------");
+		
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("calibrateFITSFile"); }
 
         //Set calibrated output path
         CalibratedOutputPath = this.BaseCalibratedOutputPath;
@@ -891,6 +873,7 @@ function AutoCalibrateEngine() {
             "-------------------------------------------------------------");
         console.noteln("| [" + this.FileTotalCount + "] Begin cosmetic correction of ", fileName);
         console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("cosmeticFit"); }
 
         //Set cosmetized output path
         CosmetizedOutputPath = this.BaseCalibratedOutputPath;
@@ -1009,6 +992,7 @@ function AutoCalibrateEngine() {
             "-------------------------------------------------------------");
         console.noteln("| [" + this.FileTotalCount + "] Begin processing ABE of ", (files.length != 1 ? files.length + " files" : file));
         console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("ABEprocess"); }
 
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to ABE " + files.length + " file(s)", dbgNotice);
@@ -1174,6 +1158,7 @@ function AutoCalibrateEngine() {
             "-------------------------------------------------------------");
         console.noteln("| [" + this.FileTotalCount + "] Begin registration of ", (files.length != 1 ? files.length + " files" : file));
         console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("registerFits"); }
 
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to register " + files.length + " file(s)", dbgNotice);
@@ -1413,6 +1398,7 @@ function AutoCalibrateEngine() {
             "-------------------------------------------------------------");
         console.noteln("| [" + this.FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file));
         console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("localNormalization"); }
 
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to normilize " + files.length + " file(s)", dbgNotice);
@@ -1606,6 +1592,7 @@ function AutoCalibrateEngine() {
             "-------------------------------------------------------------");
         console.noteln("| Begin approving of ", (files.length != 1 ? files.length + " files" : file));
         console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("approvingFiles"); }
 
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to measure " + files.length + " file(s)", dbgNotice);

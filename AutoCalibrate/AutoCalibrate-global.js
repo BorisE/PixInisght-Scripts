@@ -1,9 +1,10 @@
  #ifndef AutoCalibrate_Global_js
     #define AutoCalibrate_Global_js
+	console.writeln("AutoCalibrate_Global_js");
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.0 beta2"
+ #define VERSION "6.0 beta3"
  #define COMPILE_DATE "2022/12/11"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
@@ -22,6 +23,10 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.0  beta3 [2022/12/11]
+- progress dialog
+- some optimization
 
 v 6.0  beta2 [2022/12/11]
 - camera custom parameters preset module again rewritten
