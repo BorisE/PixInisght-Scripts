@@ -53,6 +53,8 @@ function AutoCalibrateEngine() {
     this.ApprovedCount = 0;
     this.ABECount = 0;
 
+	this.approveFileList = [];
+
     this.BaseCalibratedOutputPath = ""; //base path
     this.NeedToCopyToFinalDirFlag = false;
 
@@ -160,6 +162,7 @@ function AutoCalibrateEngine() {
 
         }
         //sleep(10);
+		return true;
     }
 
     /* **************************************************************************************************************
@@ -205,7 +208,7 @@ function AutoCalibrateEngine() {
         };
     };
 
-    /**
+    /* **************************************************************************************************************
      * Базовая функция для 1го прохода
      *
      * @param file string
@@ -291,7 +294,7 @@ function AutoCalibrateEngine() {
 									}
 
                                     //Process by full pipeline
-                                    approvingFiles(
+                                    this.addFileForApproving(
                                         this.localNormalization(
                                             this.registerFits(
                                                 this.ABEprocess(
@@ -311,7 +314,10 @@ function AutoCalibrateEngine() {
             }
 
             busy = false;
+			this.runSubframeSelector();
+			
         }
+		return true;
     };
 
 
@@ -828,6 +834,7 @@ function AutoCalibrateEngine() {
             {
                 console.criticalln(" [" + this.FileTotalCount + "] End of calibration with error");
                 console.noteln("-------------------------------------------------------------");
+				//if (this.progressDialog) { this.progressDialog.updateBar_NewError(fileName, "ImageCalibration.executeGlobal()", "Status error"); }
                 return false;
             }
 
@@ -973,7 +980,6 @@ function AutoCalibrateEngine() {
      *
      */
     this.ABEprocess = function (files) {
-        debug("ABE processing", dbgNotice);
         if (files == false) {
             debug("Skipping ABE processing", dbgNormal);
             return false;
@@ -1387,7 +1393,7 @@ function AutoCalibrateEngine() {
                 requestToCopy.push(files);
                 this.NeedToCopyToFinalDirFlag = false;
             }
-            return true;
+            return files;
         }
 
         // Прервый всегда будет "файлом", даже если их много
@@ -1556,21 +1562,17 @@ function AutoCalibrateEngine() {
         return false;
     }
 
-
-
-    /**
-     * Выбор лучших фитов и их копирование в отдельную папку (1-3 в зависимости от был ли чб или цвет)
+    /************************************************************************************************************
+     * Сохранить файл в список для последующей обработки SubframeSelector
      *
      * @param
      * @return
      */
-    function approvingFiles(files) {
 
-        if (files == false) {
+	this.addFileForApproving = function (files)
+	{
+		if (files == false) {
             debug("Skipping approving", dbgNormal);
-            return false;
-        } else {
-            debug("Aprroving isn't working. Skipping approving", dbgNormal);
             return false;
         }
 
@@ -1579,23 +1581,47 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-        // Прервый всегда будет "файлом", даже если их много
+        // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+        debug("Need to approve " + files.length + " file(s)", dbgNotice);
+
         var file = files[0];
 
-        // Get some header data
-        var fileData = getFileHeaderData(file);
-        if (!fileData)
-            return false;
+
+        // Start registration for all files
+        for (var i = 0; i < files.length; i++) {
+			this.approveFileList.push(files[i]);
+			debug("Added to approve list <b>" + files[i] + "</b>", dbgNormal);
+		}
+		return true;
+	}
+
+
+    /************************************************************************************************************
+     * Запуск SubframeSelector с сохранением результатов в processIcon
+     *
+     * @param
+     * @return
+     */
+    this.runSubframeSelector = function () 
+	{
+
+        if (!Config.NeedApproving) {
+            debug("Approving is off", dbgNormal);
+            return true;
+        }
 
         // Start approving
         console.noteln("<end><cbr><br>",
             "-------------------------------------------------------------");
-        console.noteln("| Begin approving of ", (files.length != 1 ? files.length + " files" : file));
+        console.noteln("| Begin approving of all files (total " + this.approveFileList.length + ")");
         console.noteln("-------------------------------------------------------------");
 		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("approvingFiles"); }
 
-        // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
-        debug("Need to measure " + files.length + " file(s)", dbgNotice);
+		// Assuming that all files are homogeous (i.e. have the same characteristics - same Object, same Scale, etc)
+		// So we will calculate all data based on first in the list file header
+		// @todo check that assumption is right
+		file = this.approveFileList[1];
+		var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
 
         // Create normalization folder
         ApprovedOutputPath = this.BaseCalibratedOutputPath;
@@ -1606,114 +1632,103 @@ function AutoCalibrateEngine() {
         }
         ApprovedOutputPath = ApprovedOutputPath + "/" + Config.ApprovedFolderName;
 
-        // Check if folder exists
-        if (!File.directoryExists(ApprovedOutputPath))
-            File.createDirectory(ApprovedOutputPath, true);
+		// Check if folder exists
+		if (!File.directoryExists(ApprovedOutputPath))
+			File.createDirectory(ApprovedOutputPath, true);
 
-        // Start approving for all files
-        var newFiles = []; //empty array
-        for (var i = 0; i < files.length; i++) {
 
-            if (files.length > 1)
-                Console.noteln("Measuring of " + files[i]);
+		// Create filelist
+		let filelist = [];
+        for (var i = 0; i < this.approveFileList.length; i++) {
+			/* P.subframes = [ // subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath
+				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""],
+				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""]
+			] */
+			let fileArr = [true, this.approveFileList[i], "", ""];
+			debug(fileArr, dbgNotice);
 
-            debug("Image scale: " + fileData.scale, dbgNotice);
+            filelist.push(fileArr);
+		}
 
-            var P = new SubframeSelector;
+		// Create Process for measuring
+        var P = new SubframeSelector;
 
-            P.routine = SubframeSelector.prototype.MeasureSubframes;
-            P.subframes = [// subframeEnabled, subframePath
-                [true, files[i]]
-            ];
+        P.routine = SubframeSelector.prototype.MeasureSubframes;
+		P.subframes = filelist;
+		P.outputDirectory = ApprovedOutputPath;
+		P.subframeScale = fileData.scale;
+		P.cameraGain = fileData.EGain;
+		P.fileCache = true;
+		P.nonInteractive = true;
+		P.weightingExpression = Config.SF_WeightingExpression;
+		P.approvalExpression = Config.SF_ApprovedExpression; 
+		P.cameraResolution = SubframeSelector.prototype.Bits16;
+		P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
+		P.dataUnit = SubframeSelector.prototype.Electron;
+		P.siteLocalMidnight = 24;
+		P.structureLayers = 5;
+		P.noiseLayers = 0;
+		P.hotPixelFilterRadius = 1;
+		P.applyHotPixelFilter = false;
+		P.noiseReductionFilterRadius = 0;
+		P.trimmingFactor = 0.10;
+		P.minStructureSize = 0;
+		P.sensitivity = 0.50; //new value?
+		P.peakResponse = 0.50; //new value?
+		P.brightThreshold = 3.00;
+		P.maxDistortion = 0.60; //new value?
+		P.allowClusteredSources = false;
+		P.maxPSFFits = 8000;
+		P.upperLimit = 1.0000;
+		P.backgroundExpansion = 3;
+		P.xyStretch = 1.5000;
+		P.psfFit = SubframeSelector.prototype.Gaussian;
+		P.psfFitCircular = false;
+		P.pedestal = 0;
+		P.roiX0 = 0;
+		P.roiY0 = 0;
+		P.roiX1 = 0;
+		P.roiY1 = 0;
+		P.inputHints = "";
+		P.outputHints = "";
+		P.outputExtension = ".fit";
+		P.outputPrefix = "";
+		P.outputPostfix = "_a";
+		P.outputKeyword = "SSWEIGHT";
+		P.pedestalMode = SubframeSelector.prototype.Pedestal_Keyword;
+		P.pedestalKeyword = "";
+		P.overwriteExistingFiles = true;
+		P.onError = SubframeSelector.prototype.Continue;
+		P.sortProperty = SubframeSelector.prototype.FWHM;
+		P.graphProperty = SubframeSelector.prototype.FWHM
+		P.auxGraphProperty = SubframeSelector.prototype.Eccentricity;;
+		P.useFileThreads = true;
+		P.fileThreadOverload = 1.00;
+		P.maxFileReadThreads = 0;
+		P.maxFileWriteThreads = 0;
 
-            P.weightingExpression = "";
-            P.fileCache = false;
-            P.subframeScale = fileData.scale;
-            P.cameraGain = 1.0000;
-            P.cameraResolution = SubframeSelector.prototype.Bits16;
-            P.siteLocalMidnight = 24;
-            P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
-            P.dataUnit = SubframeSelector.prototype.Electron;
-            P.structureLayers = 5;
-            P.noiseLayers = 0;
-            P.hotPixelFilterRadius = 1;
-            P.applyHotPixelFilter = false;
-            P.noiseReductionFilterRadius = 0;
-            P.sensitivity = 0.1000;
-            P.peakResponse = 0.8000;
-            P.maxDistortion = 0.5000;
-            P.upperLimit = 1.0000;
-            P.backgroundExpansion = 3;
-            P.xyStretch = 1.5000;
-            P.psfFit = SubframeSelector.prototype.Gaussian;
-            P.psfFitCircular = false;
-            P.pedestal = 0;
-            P.roiX0 = 0;
-            P.roiY0 = 0;
-            P.roiX1 = 0;
-            P.roiY1 = 0;
-            P.inputHints = "";
-            P.outputHints = "";
-            P.outputExtension = ".fit";
-            P.outputPrefix = "";
-            P.outputPostfix = "_a";
-            P.outputKeyword = "SSWEIGHT";
-            P.overwriteExistingFiles = true;
-            P.onError = SubframeSelector.prototype.Continue;
-            P.sortProperty = SubframeSelector.prototype.FWHM;
-            P.graphProperty = SubframeSelector.prototype.FWHM;
+		//debug(P.toSource(), dbgNotice);
+		var status = P.executeGlobal();
+		debug("SF execute status: " + status, dbgNotice);
 
-            var status = P.executeGlobal();
-            debug("Status: " + status, dbgNotice);
-
-            // Output filtered files
-            var P2 = new SubframeSelector;
-
-            debug("Need to approve " + files.length + " file(s)", dbgNotice);
-            debug("Approved expression: " + Config.ApprovedExpression, dbgNotice);
-            P2.approvalExpression = Config.ApprovedExpression; // change this
-
-            P2.routine = SubframeSelector.prototype.OutputSubframes;
-            P2.subframes = [// subframeEnabled, subframePath
-                [true, files[i]]
-            ];
-            P2.measurements = P.measurements;
-            P2.onError = SubframeSelector.prototype.Continue;
-
-            P2.outputExtension = ".fit";
-            P2.outputPrefix = "";
-            P2.outputPostfix = "_a";
-            P2.outputKeyword = "SSWEIGHT";
-            P2.outputDirectory = ApprovedOutputPath;
-            P.weightingExpression = "";
-
-            P2.fileCache = false;
-            P2.subframeScale = fileData.scale;
-            P2.cameraGain = 1.0000;
-            P2.cameraResolution = SubframeSelector.prototype.Bits16;
-            P2.siteLocalMidnight = 24;
-            P2.scaleUnit = SubframeSelector.prototype.ArcSeconds;
-            P2.dataUnit = SubframeSelector.prototype.Electron;
-
-            var status2 = P2.executeGlobal();
-            debug("Status: ", status2, dbgNotice);
-
-            P2.writeIcon("test");
-
-            // return new file name
-            var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-                var newFileName = FileName.replace(/_c_cc_b_r_n\.fit(s){0,1}$/, '_c_cc_b_r_n_a.fit');
-            var newFileName = FileName.replace(/_c_cc_r_n\.fit(s){0,1}$/, '_c_cc_r_n_a.fit');
-            var newFileName = FileName.replace(/_c_cc_r\.fit(s){0,1}$/, '_c_cc_r_a.fit');
-            var newFileName = FileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_a.fit');
-            newFiles[i] = ApprovedOutputPath + '/' + newFileName;
+		// Get Icon Name based on received file
+		let iconName = "";
+        if (file.match(/(.+)\/(.+)_c.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i) != null) {
+			iconName = Config.SF_IconName_beforeRegistration;
+		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i) != null) {
+			iconName = Config.SF_IconName_afterRegistration;
         }
 
-        return newFiles;
+		// Save result in text file (just in case not to loose measurement results)
+		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement.src", P.toSource());
+		
+		// Save result in icon 
+		P.writeIcon(iconName);
 
+		return status;
     }
 
-    /*
+    /************************************************************************************************************
      * Debayer files
      *
      * WARNING Не тестировал работоспособность; не менял под конфигуратор, процедура осталась в оригинале
@@ -1833,7 +1848,7 @@ function AutoCalibrateEngine() {
         ];
     }
 
-    /**
+    /************************************************************************************************************
      * Получение данных из заголовка фита
      *
      * @param file string
@@ -1949,7 +1964,7 @@ function AutoCalibrateEngine() {
             qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
             ReadOutMode:    headers.READOUTM,
             Gain:           headers.GAIN,
-            EGain:          parseFloat(headers.EGAIN).toFixed(3),
+            EGain:          ( headers.EGAIN ? parseFloat(headers.EGAIN).toFixed(3) : 1.000 ),
             Offset:         headers.OFFSET,
             Overscan:       headers.QOVERSCN,
             Preset:         headers.QPRESET,

@@ -482,7 +482,33 @@ function AutocalibrationDialog() {
         addStretch();
     }
 
-    //
+
+    // 4.5. Subframe selector
+
+    this.ProcessSF_CheckBox = new CheckBox(this);
+    with (this.ProcessSF_CheckBox) {
+        text = "Run SubframeSelector";
+        checked = Config.NeedApproving;
+        minWidth = labelWidth1;
+        minHeight = this.mastersDir_Edit.height;
+        toolTip =
+            "<p>Run Subframe Selector in the end and save result in ProcessIcon for further frames selecting.</p>" +
+            "<p>The ProcessIcon it saved to depends on selected processing, i.e. 'SF_IconName_beforeRegistration', 'SF_IconName_afterRegistration'</p>";
+        onClick = function (checked) {
+            Config.NeedApproving = checked;
+        };
+    }
+
+    this.ProcessSF_Sizer = new HorizontalSizer;
+    with (this.ProcessSF_Sizer) {
+        spacing = 4;
+        addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+        add(this.ProcessSF_CheckBox);
+        addStretch();
+    }
+
+
+    // == ProcessGroupBox total build ==
 
     this.ProcessGroupBox = new GroupBox(this);
     with (this.ProcessGroupBox) {
@@ -497,6 +523,7 @@ function AutocalibrationDialog() {
         sizer.add(this.ProcessNormalization_Sizer);
         sizer.add(this.normScale_Sizer);
         sizer.add(this.normNoScaleFlag_Sizer);
+        sizer.add(this.ProcessSF_Sizer);
 
     }
 
@@ -504,7 +531,7 @@ function AutocalibrationDialog() {
     this.ProcessSection.setTitle("Processing");
     this.ProcessSection.setSection(this.ProcessGroupBox);
 
-    //
+    // == DIALOG total build ==
 
     //Instance button
     this.newInstance_Button = new ToolButton(this);

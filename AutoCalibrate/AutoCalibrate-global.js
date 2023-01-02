@@ -4,10 +4,10 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.0 beta3"
- #define COMPILE_DATE "2022/12/11"
+ #define VERSION "6.1"
+ #define COMPILE_DATE "2023/01/02"
 
- #define INFO_STRING "A script to perform all calibration routines in fully automatic manner."
+ #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2022 Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "AutoCalibrate/"
@@ -21,8 +21,13 @@ Developed 2019-2022 by Boris Emchenko http://astromania.info
 Version History
 
 TODO:
+- SubframeSelector (measure + create proc icon)
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.1 [2023/01/02]
+- Subframe selector auto measurement saving result into icon/text file
+- some optimization
 
 v 6.0  beta3 [2022/12/11]
 - progress dialog
@@ -428,6 +433,45 @@ function print_array(arr, level = dbgCurrent) {
         })
     }
 }
+
+
+function writeTextFile(FullFileName, txtContent)
+{
+	let sFileName  = FullFileName;
+	
+	try {
+		sFileName = makeFilenameUnique(sFileName, false);
+		let txtFile = new File();
+		txtFile.createForWriting( sFileName );
+		txtFile.outTextLn(txtContent);
+		txtFile.close();
+
+	} catch (fileExeption){
+		console.criticalln("** ERROR writing file file " + sFileName);
+		console.criticalln(fileExeption);
+	}
+
+}
+
+/**
+ * If the file already exists, and overwrite is false, Appends '_N'
+ * Otherwise, it returns the original filename
+ * @param {String} filename
+ * @param {Boolean} overwrite
+ * @returns {String}
+ */
+function makeFilenameUnique(filename, overwrite){
+    if (File.exists(filename) && !overwrite){
+        for ( let u = 1; ; ++u ){
+            let tryFilePath = File.appendToName(filename, '_' + u.toString());
+            if (!File.exists(tryFilePath)){
+                return tryFilePath;
+            }
+        }
+    }
+    return filename;
+}
+
 
 function progressBar (current, total)
 {

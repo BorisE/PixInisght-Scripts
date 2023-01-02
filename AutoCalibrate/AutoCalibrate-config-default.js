@@ -107,8 +107,15 @@ Config.OutputFormatIC = ImageCalibration.prototype.f32; //default
 Config.NormalizationScale = 256;
 Config.NormalizationNoScaleFlag = true;
 
-// Выражение для фильтрации кадров
-Config.ApprovedExpression = 'FWHM > 4.5';
+// Парамеры для SubframeSelector
+Config.SF_ApprovedExpression = "FWHM < 3 && Eccentricity < 0.665";;
+Config.SF_WeightingExpression = "27*(1-(FWHM - FWHMMin)/(FWHMMax- FWHMMin))\n" +
+"+20*(SNRWeight - SNRWeightMin)/(SNRWeightMax - SNRWeightMin)\n" +
+"+3*(1- (Eccentricity - EccentricityMin) / (EccentricityMax-EccentricityMin))\n" +
+"+50";
+Config.SF_IconName_beforeRegistration = "SubframeS_ForReg";
+Config.SF_IconName_afterRegistration = "SubframeS_AfterReg";
+
 
 // Название процесса ABE
 Config.ABEProcessName = "ABE_autocalibration";      

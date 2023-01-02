@@ -12,7 +12,7 @@ Config.NeedCosmeticCorrection = true;                   	// КОСМЕТИКА?
 Config.NeedABE = false;                                  	// РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = true;                             	// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
 Config.NeedNormalization = true;                        	// НОРМАЛИЗОВАТЬ ФОН?
-Config.NeedApproving = false;                            	// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ? Пока не работает (глюк PI?)
+Config.NeedApproving = true;                            	// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ? Пока не работает (глюк PI?)
 
 // Библиотеки калибровки/референосов
 Config.CalibratationMastersPath 	= 'd:/DSlrRemote/_MasterCalibration/Vedrus'; 		// без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
