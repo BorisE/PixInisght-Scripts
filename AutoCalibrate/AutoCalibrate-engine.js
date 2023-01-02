@@ -122,6 +122,12 @@ function AutoCalibrateEngine() {
 		
 		if (this.abortRequested) return false;
 
+        /* **************************************************************************************************************
+        * Run SubframeSelector measurements (if needed)
+        **************************************************************************************************************/
+		this.runSubframeSelector();
+
+
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
             this.MoveMostAdvanced();
 
@@ -314,8 +320,6 @@ function AutoCalibrateEngine() {
             }
 
             busy = false;
-			this.runSubframeSelector();
-			
         }
 		return true;
     };
