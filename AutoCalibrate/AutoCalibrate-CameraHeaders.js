@@ -46,52 +46,6 @@ function ProcessCameraHeaders() {
 
 	*/
 
-	this.CAMERA_PRESETS = {
-		QHY600: {
-			P1: {
-				ReadOutMode: 0, Gain: 0, Offset: 10, USBLimit: 50
-			},
-			P2: {
-				ReadOutMode: 0, Gain: 27, Offset: 10, USBLimit: 50
-			},
-			P3: {
-				ReadOutMode: 1, Gain: 0, Offset: 10, USBLimit: 50
-			},
-			P4: {
-				ReadOutMode: 1, Gain: 56, Offset: 10, USBLimit: 50
-			},
-		},
-		QSI683ws: {
-			IQAG: {
-				ReadOutMode: "Image Quality", EGain: 0.486
-			},
-			IQLG: {
-				ReadOutMode: "Image Quality", EGain: 1.076
-			},
-			FRAG: {
-				ReadOutMode: "Fast Readout", EGain: 0.477
-			}
-		},
-	};
-
-	this.CAMERA_IMAGEWIDTH_OVERSCAN = {
-		QHY600: {
-			bin1 : 9600,
-			bin2 : 4800
-		}
-	}
-	this.CAMERA_IMAGEWIDTH_NOOVERSCAN = {
-		QHY600: {
-			bin1 : 9576,
-			bin2 : 4788
-		}
-	}
-	this.CAMERA_OVERSCAN_MAIN_RECTANGLE = {
-		QHY600: {
-			bin1 : new Rect (  24,    0, 9600, 6388),
-			bin2 : new Rect ( 12,     0, 4800, 3194)
-		}
-	}
 
 
 	
@@ -113,10 +67,10 @@ function ProcessCameraHeaders() {
       
 		var curWidth = fileData.width;
 		var retVal = 0;
-		if (this.CAMERA_IMAGEWIDTH_OVERSCAN[fileData.camera]) {
-			if ( curWidth == this.CAMERA_IMAGEWIDTH_OVERSCAN[fileData.camera].bin1 || curWidth == this.CAMERA_IMAGEWIDTH_OVERSCAN[fileData.camera].bin2 )
+		if (CAMERA_IMAGEWIDTH_OVERSCAN[fileData.camera]) {
+			if ( curWidth == CAMERA_IMAGEWIDTH_OVERSCAN[fileData.camera].bin1 || curWidth == CAMERA_IMAGEWIDTH_OVERSCAN[fileData.camera].bin2 )
 				retVal = 1;
-			else if ( curWidth == this.CAMERA_IMAGEWIDTH_NOOVERSCAN[fileData.camera].bin1 || curWidth ==  this.CAMERA_IMAGEWIDTH_NOOVERSCAN[fileData.camera].bin2 )
+			else if ( curWidth == CAMERA_IMAGEWIDTH_NOOVERSCAN[fileData.camera].bin1 || curWidth ==  CAMERA_IMAGEWIDTH_NOOVERSCAN[fileData.camera].bin2 )
 				retVal = 0;
 		}
 		return retVal;
@@ -130,7 +84,7 @@ function ProcessCameraHeaders() {
 	this.cameraHasPresetMode = function (fileData)  {
         var ret = false;
 		debug("cameraHasPresetMode_Camera: " + fileData.camera, dbgNotice);
-		if (this.CAMERA_PRESETS[fileData.camera]) {
+		if (CAMERA_PRESETS[fileData.camera]) {
 			ret = true;
 		}
         return ret;
@@ -145,23 +99,23 @@ function ProcessCameraHeaders() {
 
 		var PresetFound = "";
 
-		if (this.CAMERA_PRESETS[fileData.camera]) {
+		if (CAMERA_PRESETS[fileData.camera]) {
 			debug( "Camera preset found [" + fileData.camera + "]", dbgNotice);
 			
 			// cycle all presets for this camera
-			for( var PresetName in this.CAMERA_PRESETS[fileData.camera] ) {
-				debug( "	[" + PresetName + ']: ' + this.CAMERA_PRESETS[fileData.camera][PresetName], dbgNotice);
-				if (typeof this.CAMERA_PRESETS[fileData.camera][PresetName] === 'object')
+			for( var PresetName in CAMERA_PRESETS[fileData.camera] ) {
+				debug( "	[" + PresetName + ']: ' + CAMERA_PRESETS[fileData.camera][PresetName], dbgNotice);
+				if (typeof CAMERA_PRESETS[fileData.camera][PresetName] === 'object')
 				{
 					
 					// cycle all preset conditions to test
 					var OurPreset = true;
-					for( var PresetCondition in this.CAMERA_PRESETS[fileData.camera][PresetName] ) {
-						debug( "		test condition " + PresetCondition + ': ' + this.CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] , dbgNotice);
+					for( var PresetCondition in CAMERA_PRESETS[fileData.camera][PresetName] ) {
+						debug( "		test condition " + PresetCondition + ': ' + CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] , dbgNotice);
 						
-						if (this.CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] != fileData[PresetCondition]) 
+						if (CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] != fileData[PresetCondition]) 
 						{
-							debug( "		" + this.CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] + '!=' + fileData[PresetCondition], dbgNotice);
+							debug( "		" + CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] + '!=' + fileData[PresetCondition], dbgNotice);
 							OurPreset = false;
 							break; // preset conditions loop
 						}

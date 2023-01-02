@@ -4,11 +4,11 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.1"
+ #define VERSION "6.1b"
  #define COMPILE_DATE "2023/01/02"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
- #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2022 Boris Emchenko<br/>"
+ #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2023 Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "AutoCalibrate/"
 
@@ -21,9 +21,13 @@ Developed 2019-2022 by Boris Emchenko http://astromania.info
 Version History
 
 TODO:
-- SubframeSelector (measure + create proc icon)
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+
+v 6.1b [2023/01/02]
+- Camera presets configuration was moved from CameraHeaders.js to Config
+- bug fixing
 
 v 6.1 [2023/01/02]
 - Subframe selector auto measurement saving result into icon/text file

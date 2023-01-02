@@ -1661,6 +1661,7 @@ function AutoCalibrateEngine() {
 		P.subframes = filelist;
 		P.outputDirectory = ApprovedOutputPath;
 		P.subframeScale = fileData.scale;
+		debug("fileData.EGain: " + fileData.EGain, dbgNotice);
 		P.cameraGain = fileData.EGain;
 		P.fileCache = true;
 		P.nonInteractive = true;
@@ -1968,7 +1969,7 @@ function AutoCalibrateEngine() {
             qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
             ReadOutMode:    headers.READOUTM,
             Gain:           headers.GAIN,
-            EGain:          ( headers.EGAIN ? parseFloat(headers.EGAIN).toFixed(3) : 1.000 ),
+            EGain:          ( headers.EGAIN ? parseFloat(headers.EGAIN) : 1.000 ),
             Offset:         headers.OFFSET,
             Overscan:       headers.QOVERSCN,
             Preset:         headers.QPRESET,

@@ -108,7 +108,7 @@ Config.NormalizationScale = 256;
 Config.NormalizationNoScaleFlag = true;
 
 // Парамеры для SubframeSelector
-Config.SF_ApprovedExpression = "FWHM < 3 && Eccentricity < 0.665";;
+Config.SF_ApprovedExpression = "FWHM < 3.5 && Eccentricity < 0.665";;
 Config.SF_WeightingExpression = "27*(1-(FWHM - FWHMMin)/(FWHMMax- FWHMMin))\n" +
 "+20*(SNRWeight - SNRWeightMin)/(SNRWeightMax - SNRWeightMin)\n" +
 "+3*(1- (Eccentricity - EccentricityMin) / (EccentricityMax-EccentricityMin))\n" +
@@ -161,6 +161,54 @@ var TELESCOP_DICTIONARY = {
     'EQMOD ASCOM HEQ5/6': 'EQ8',
 
 };
+
+
+var CAMERA_PRESETS = {
+		QHY600: {
+			P1: {
+				ReadOutMode: 0, Gain: 0, Offset: 10, USBLimit: 50
+			},
+			P2: {
+				ReadOutMode: 0, Gain: 27, Offset: 10, USBLimit: 50
+			},
+			P3: {
+				ReadOutMode: 1, Gain: 0, Offset: 10, USBLimit: 50
+			},
+			P4: {
+				ReadOutMode: 1, Gain: 56, Offset: 10, USBLimit: 50
+			},
+		},
+		QSI683ws: {
+			IQAG: {
+				ReadOutMode: "Image Quality", EGain: 0.486
+			},
+			IQLG: {
+				ReadOutMode: "Image Quality", EGain: 1.076
+			},
+			FRAG: {
+				ReadOutMode: "Fast Readout", EGain: 0.477
+			}
+		},
+	};
+
+var CAMERA_IMAGEWIDTH_OVERSCAN = {
+		QHY600: {
+			bin1 : 9600,
+			bin2 : 4800
+		}
+	}
+var CAMERA_IMAGEWIDTH_NOOVERSCAN = {
+		QHY600: {
+			bin1 : 9576,
+			bin2 : 4788
+		}
+	}
+var CAMERA_OVERSCAN_MAIN_RECTANGLE = {
+		QHY600: {
+			bin1 : new Rect (  24,    0, 9600, 6388),
+			bin2 : new Rect ( 12,     0, 4800, 3194)
+		}
+	}
 
 
 // Паттерны для поиска нужных мастер калибровочных файлов
