@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.1c"
- #define COMPILE_DATE "2023/01/02"
+ #define VERSION "6.2"
+ #define COMPILE_DATE "2023/01/24"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2023 Boris Emchenko<br/>"
@@ -24,6 +24,9 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+
+v 6.2 [2023/01/24]
+- progressBar error displaying
 
 v 6.1c [2023/01/21]
 - overscan handling fixed

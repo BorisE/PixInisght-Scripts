@@ -698,6 +698,7 @@ function AutoCalibrateEngine() {
                 fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
             if (!fileData) {
                 console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
+				if (this.progressDialog) { this.progressDialog.updateBar_Error("Can't get File Header", fileName); }
                 return false;
             }
 
@@ -707,6 +708,7 @@ function AutoCalibrateEngine() {
 
             if (!mastersFiles) {
                 Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
+				if (this.progressDialog) { this.progressDialog.updateBar_Error("master calibration file(s) was not found", fileName); }
                 return fileName;
             }
 
@@ -817,7 +819,8 @@ function AutoCalibrateEngine() {
             {
                 console.criticalln(" [" + this.FileTotalCount + "] End of calibration with error");
                 console.noteln("-------------------------------------------------------------");
-				//if (this.progressDialog) { this.progressDialog.updateBar_NewError(fileName, "ImageCalibration.executeGlobal()", "Status error"); }
+				if (this.progressDialog) { this.progressDialog.updateBar_Error("ImageCalibration.executeGlobal() failed", fileName); }
+				
                 return false;
             }
 
@@ -887,6 +890,8 @@ function AutoCalibrateEngine() {
                 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
             if (!fileData) {
                 console.criticalln("Can't get File Header for Cosmetic Correction for " + fileName + "!");
+				if (this.progressDialog) { this.progressDialog.updateBar_Error("Can't get File Header for Cosmetic Correction", fileName); }
+				
                 return false;
             }
 
@@ -904,6 +909,8 @@ function AutoCalibrateEngine() {
                 console.criticalln("Cosmetic correction process icon: <b>" + ProcessIconName + "</b> not found");
                 console.criticalln("Skipping cosmetic correction");
                 console.criticalln();
+				if (this.progressDialog) { this.progressDialog.updateBar_Error("Cosmetic correction process icon: <b>" + ProcessIconName + "</b> not found", fileName); }
+				
                 return fileName;
             }
             if (!(CC instanceof CosmeticCorrection)) {
@@ -911,6 +918,7 @@ function AutoCalibrateEngine() {
                 console.criticalln("The specified icon does not an instance of CosmeticCorrection: <b>" + ProcessIconName + "</b>");
                 console.criticalln("Skipping cosmetic correction");
                 console.criticalln();
+				if (this.progressDialog) { this.progressDialog.updateBar_Error("The specified icon does not an instance of CosmeticCorrection: <b>" + ProcessIconName + "</b>", fileName); }
                 return fileName;
             }
 
@@ -1166,14 +1174,14 @@ function AutoCalibrateEngine() {
         for (var i = 0; i < files.length; i++) {
 
             // return new file name
-            var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
-            var newFileName = FileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_r.fit');
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_r.fit'); //if ABE was run before
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_r.fit'); //if no CC and no ABE was run before
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_b\.fit(s){0,1}$/, '_c_b_r.fit'); //if no CC and ABE was run before
+            var fileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
+            var newFileName = fileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_r.fit');
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_r.fit'); //if ABE was run before
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c\.fit(s){0,1}$/, '_c_r.fit'); //if no CC and no ABE was run before
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c_b\.fit(s){0,1}$/, '_c_b_r.fit'); //if no CC and ABE was run before
             newFiles[i] = RegisteredOutputPath + '/' + newFileName;
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1329,6 +1337,12 @@ function AutoCalibrateEngine() {
                     "-------------------------------------------------------------");
                 console.noteln(" [" + this.FileTotalCount + "] End of registration ");
                 console.noteln("-------------------------------------------------------------");
+
+
+				if (!status)
+				{
+					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", fileName); }
+				}
 
             }
 
@@ -1702,9 +1716,12 @@ function AutoCalibrateEngine() {
 
 		// Save result in text file (just in case not to loose measurement results)
 		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement.src", P.toSource());
+		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement.src</b> file");
+		
 		
 		// Save result in icon 
 		P.writeIcon(iconName);
+		console.noteln("Subframes statistics saved into <b>" + iconName+ "</b> icon");
 
 		return status;
     }

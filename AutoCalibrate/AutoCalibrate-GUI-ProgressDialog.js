@@ -93,13 +93,13 @@ function AutocalibrationProgressDialog() {
            "<p>Current processing stage.</p>" +
            "</p>";
        }
-       this.inputDir_GroupBoxSelect_Button = new GroupBox(this);
-       this.inputDir_GroupBoxSelect_Button.title = "Current file processing";
-       this.inputDir_GroupBoxSelect_Button.sizer = new HorizontalSizer;
-       this.inputDir_GroupBoxSelect_Button.sizer.margin = 6;
-       this.inputDir_GroupBoxSelect_Button.sizer.spacing = 4;
-       this.inputDir_GroupBoxSelect_Button.sizer.add(this.CurrentFileName_Edit, 100);
-       this.inputDir_GroupBoxSelect_Button.sizer.add(this.CurrentFileStage_Edit);
+       this.currentStatus_GroupBox = new GroupBox(this);
+       this.currentStatus_GroupBox.title = "Current file processing";
+       this.currentStatus_GroupBox.sizer = new HorizontalSizer;
+       this.currentStatus_GroupBox.sizer.margin = 6;
+       this.currentStatus_GroupBox.sizer.spacing = 4;
+       this.currentStatus_GroupBox.sizer.add(this.CurrentFileName_Edit, 100);
+       this.currentStatus_GroupBox.sizer.add(this.CurrentFileStage_Edit);
 
 
        //
@@ -135,15 +135,30 @@ function AutocalibrationProgressDialog() {
          addStretch();
        }
 
+       this.ErrorMessage_Edit = new Edit(this);
+		with (this.ErrorMessage_Edit) {
+			readOnly = true;
+			toolTip =
+			"<p>Error messages.</p>" +
+			"</p>";
+		}
+	   
+	   this.ErrorMessage_Sizer = new HorizontalSizer;
+       with (this.ErrorMessage_Sizer) {
+			spacing = 4;
+			add(this.ErrorMessage_Edit,100);
+			//addStretch();
+       }
 
        // Processing group box
-       this.ProcessGroupBox = new GroupBox(this);
-       with (this.ProcessGroupBox) {
+       this.Progress_GroupBox = new GroupBox(this);
+       with (this.Progress_GroupBox) {
            title = "Total progress";
            sizer = new VerticalSizer;
            sizer.margin = 6;
            sizer.spacing = 4;
            sizer.add(this.Progress_Sizer);
+		   sizer.add(this.ErrorMessage_Sizer);
        }
 
 
@@ -176,8 +191,8 @@ function AutocalibrationProgressDialog() {
            spacing = 6;
            add(this.helpLabel);
            addSpacing(4);
-           add(this.inputDir_GroupBoxSelect_Button);
-           add(this.ProcessGroupBox);
+           add(this.currentStatus_GroupBox);
+           add(this.Progress_GroupBox);
            addSpacing(10);
            add(this.buttons_Sizer);
        }
@@ -196,6 +211,11 @@ function AutocalibrationProgressDialog() {
    this.updateBar_NewProcess = function (processStage)
    {
       this.CurrentFileStage_Edit.text = processStage;
+   }
+
+   this.updateBar_Error = function (errorMessage, curFile)
+   {
+      this.ErrorMessage_Edit.text = curFile + ": " + errorMessage;
    }
 
 
