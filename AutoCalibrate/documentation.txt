@@ -138,7 +138,7 @@ CХЕМА ХРАНЕНИЯ:
  *		|- CAMERA 
  *			|- BIN-MODE (2)
  *				|- TYPE (dakrs/flats) (3)
- *					|- TEMP (not for flats) 
+ *					|- TEMP (no for flats) 
  *						|- DATE (4)
  *							|- files
  

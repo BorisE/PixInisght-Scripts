@@ -106,6 +106,8 @@ Config.OutputFormatIC = ImageCalibration.prototype.f32; //default
 // Параметры для Local Normalization
 Config.NormalizationScale = 256;
 Config.NormalizationNoScaleFlag = true;
+Config.StrictNormalization = false; // Reference frame must have the same exposure as a normalized image
+
 
 // Парамеры для SubframeSelector
 Config.SF_ApprovedExpression = "FWHM < 3.5 && Eccentricity < 0.665";;
@@ -266,13 +268,11 @@ var FLATS_FILE_PATTERN_WO_OVERSCAN = new RegExp('flat.*FILTER_(.+?)-.*((bin|binn
 var FLATS_FILE_PATTERN_ANY = new RegExp('flat.*FILTER_(.+?)-.*((bin|binning)(\\s|_)*(\\d)).*$', 'i');   // flat.*FILTER_(.+?)-.*((bin|binning)(\s|_)*(\d)).*_c.*$
 var FLATS_FILE_PATTERN_FILTER_POS   = 1;																				// pattern id (regexp match) for filter name part in FLATS_FILE_PATTERN_WO_OVERSCAN
 var FLATS_FILE_PATTERN_BINNING_POS  = 5;																				// pattern id (regexp match) for bin part in FLATS_FILE_PATTERN_WO_OVERSCAN
-
-
-
 //var flats_qhy600_file_pattern = new RegExp('flat.*FILTER_(.+?)-.*(P(\\d+)).*((bin|binning)(\\s|_)*(\\d)){1}.*', 'i'); // +? non-greedy modifier;
 // [flat...filter_Sii-...] - начинается со слова flat и дальше должно быть FILTER_названиефильтра-
 // а потом еще должно встретиться BIN|BINNING число (можно без пробела или через _
 // Примеры: flat-FILTER_L-P3-BINNING_1_n11.fit
+
 
 
 // for FITS HEADER parsing

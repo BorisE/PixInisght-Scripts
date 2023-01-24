@@ -4,7 +4,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.1b"
+ #define VERSION "6.1c"
  #define COMPILE_DATE "2023/01/02"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
@@ -24,6 +24,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+
+v 6.1c [2023/01/21]
+- overscan handling fixed
+- bug fixes
 
 v 6.1b [2023/01/02]
 - Camera presets configuration was moved from CameraHeaders.js to Config

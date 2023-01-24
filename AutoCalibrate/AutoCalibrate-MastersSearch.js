@@ -316,7 +316,12 @@ function SearchForBIAS (pathMasterLib, fileData) {
 			if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
-				var matches = objFileFind.name.match( this.CameraHeaders.checkCameraUsingBIN(fileData) ? BIAS_FILE_PATTERN_WO_OVERSCAN : BIAS_FILE_PATTERN_ANY ); //new conception: if overscan in light is present, use bias without overscan!
+				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? BIAS_FILE_PATTERN_WO_OVERSCAN : BIAS_FILE_PATTERN_ANY; 
+							//new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
+							//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
+							//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+							
+				var matches = objFileFind.name.match( regExp ); 
 				if (matches) {
 					debug("Found bin: " + matches[BIAS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin
@@ -327,7 +332,7 @@ function SearchForBIAS (pathMasterLib, fileData) {
 						debug("Skipping bias file because of bin" + matches[BIAS_FILE_PATTERN_BINNING_POS] + " instead of targeted bin" + fileData.bin, dbgNotice);
 					}
 				} else {
-					debug("Bias search was unsuccesfull", dbgNotice);
+					debug("Bias search ["+regExp+"] was unsuccesfull", dbgNotice);
 				}
 			}
 		} while (objFileFind.next());
@@ -366,8 +371,12 @@ function SearchForDARK (pathMasterLib, fileData) {
 			if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
-				//B. Test if this is darkCameraHeaders
-				var matches = objFileFind.name.match((this.CameraHeaders.checkCameraUsingBIN(fileData) &&  fileData.Overscan == "false" ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN_ANY));
+				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN_ANY; 
+							//new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
+							//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
+							//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+
+				var matches = objFileFind.name.match(regExp);
 				if (matches) {
 					debug("Found bin: " + matches[DARKS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin
@@ -379,7 +388,7 @@ function SearchForDARK (pathMasterLib, fileData) {
 						debug("Skipping dark file because of bin" + matches[DARKS_FILE_PATTERN_BINNING_POS] + " or overscan (" + fileData.Overscan + ") instead of targeted bin" + fileData.bin, dbgNotice);
 					}
 				} else {
-					debug("Dark search was unsuccesfull", dbgNotice);
+					debug("Dark search [" + regExp + "] was unsuccesfull", dbgNotice);
 					/*var matches = objFileFind.name.match(darks_wobin_file_pattern);
 					if (matches) {
 						debug("Found dark wo bin, considering bin = 1", dbgNotice);
@@ -449,8 +458,12 @@ function SearchForFLAT (pathMasterLib, fileData) {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
 				//Test if this is flat
-				//var matches = objFileFind.name.match(this.CameraHeaders.checkQHY(fileData) &&  fileData.Overscan == "false" ? flats_file_pattern_wo_overscan : flats_file_pattern);
-				var matches = objFileFind.name.match( this.CameraHeaders.checkCameraUsingBIN(fileData) ? FLATS_FILE_PATTERN_WO_OVERSCAN : FLATS_FILE_PATTERN_ANY ); // new conception: use overscan removed version even for light with overscan
+				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? FLATS_FILE_PATTERN_WO_OVERSCAN : FLATS_FILE_PATTERN_ANY; 
+							//new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
+							//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
+							//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+				
+				var matches = objFileFind.name.match( regExp ); // new conception: use overscan removed version even for light with overscan
 				if (matches) {
 					debug("Found bin: " + matches[FLATS_FILE_PATTERN_BINNING_POS], dbgNotice);
 					//Use only target bin
@@ -461,6 +474,8 @@ function SearchForFLAT (pathMasterLib, fileData) {
 					} else {
 						debug("Skipping flat file because of bin" + matches[FLATS_FILE_PATTERN_BINNING_POS] + " instead of targeted bin" + fileData.bin, dbgNotice);
 					}
+				} else {
+					debug("Flat search [" + regExp + "] was unsuccesfull", dbgNotice);
 				}
 			}
 		} while (objFileFind.next());
@@ -543,7 +558,7 @@ function getRegistrationReferenceFile(objectname) {
 function getNormalizationReferenceFile(objectname, filtername, exposure) {
 
 	console.writeln();
-	console.noteln("Searching for matching Normalization Reference file for object <b>", objectname, "</b>, filter <b>" + filtername + "</b> and exposure <b>" + exposure + "s</b>");
+	console.noteln("Searching for matching Normalization Reference file for object <b>", objectname, "</b>, filter <b>" + filtername + "</b>" + (Config.StrictNormalization? " and exposure <b>" + exposure + "s</b>" : ""));
 	//console.writeln();
 
 	//1. Search lib dir for folders
@@ -552,7 +567,7 @@ function getNormalizationReferenceFile(objectname, filtername, exposure) {
 	templib_dirname = []; //empty array
 
 	// Begin search for temp libraries
-	debug("Scaning refernce library for available references in " + Config.NormalizationReferencesPath + " ...", dbgNormal);
+	debug("Scaning refernce library for available references in " + Config.NormalizationReferencesPath + " ...", dbgNotice);
 	var referenceFile = "";
 	if (objFileFind.begin(Config.NormalizationReferencesPath + "/*")) {
 		do {
@@ -562,14 +577,18 @@ function getNormalizationReferenceFile(objectname, filtername, exposure) {
 				if (!objFileFind.isDirectory) {
 					debug('found file: ' + objFileFind.name, dbgNotice);
 
-					//Test if this is bias
+					// Normalization Reference
+					if (Config.StrictNormalization)  {
+						var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '_' + exposure + 's.*', 'i'); // +? non-greedy modifier;
+					} else {
+						var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '.*', 'i'); // +? non-greedy modifier;
+					}
 					//Console.writeln(normalizationreference_file_pattern);
-					var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '_' + exposure + 's.*', 'i'); // +? non-greedy modifier;
 					var matches = objFileFind.name.match(normalizationreference_file_pattern);
 					if (matches) {
 						referenceFile = objFileFind.name;
-						console.note("Reference file is: ");
-						console.writeln(referenceFile);
+						console.write("Reference file is: ");
+						console.writeln("<b>" + referenceFile + "</b>");
 					}
 				}
 			}

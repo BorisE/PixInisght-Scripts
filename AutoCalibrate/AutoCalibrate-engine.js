@@ -449,26 +449,6 @@ function AutoCalibrateEngine() {
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
 
                         }
-                        // if missing APPROVED
-                        // ... and there is NormalizedFile
-                        if (property == getFILEARRPropertyName(FITS.APPROVED) && FILEARRAY[i][getFILEARRPropertyName(FITS.NORMALIZED)] != null) {
-                            this.FileTotalCount++;
-                            // Process
-                            var res = approvingFiles([FILEARRAY[i][getFILEARRPropertyName(FITS.NORMALIZED)]]);
-                            // Check and modify array
-                            if (checkFileNeedCalibratation_and_PopulateArray(res))
-                                debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
-                        }
-                        // ... and there is no NormalizedFile, using Registered
-                        else if (property == getFILEARRPropertyName(FITS.APPROVED) && FILEARRAY[i][getFILEARRPropertyName(FITS.REGISTERED)] != null) {
-                            this.FileTotalCount++;
-                            // Process
-                            var res = approvingFiles([FILEARRAY[i][getFILEARRPropertyName(FITS.REGISTERED)]]);
-                            // Check and modify array
-                            if (checkFileNeedCalibratation_and_PopulateArray(res))
-                                debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
-
-                        }
                     }
 
                 }
@@ -571,7 +551,6 @@ function AutoCalibrateEngine() {
                 abed:           (type == FITS.ABED ? fullname : null),
                 registered:     (type == FITS.REGISTERED ? fullname : null),
                 normalized:     (type == FITS.NORMALIZED ? fullname : null),
-                approved:       (type == FITS.APPROVED ? fullname : null),
             });
         }
     }
@@ -593,7 +572,7 @@ function AutoCalibrateEngine() {
         }
         //Если на входе массив, то берем первый файл
         else if (typeof(file) == "object" && file.length > 0) {
-            debug("array of files, using first", dbgNormal);
+            debug("array of files, using first", dbgNotice);
             file = file[0];
         }
 
@@ -1453,7 +1432,7 @@ function AutoCalibrateEngine() {
                 // Get reference for Normalization
                 var referenceFile = getNormalizationReferenceFile(fileData.object, fileData.filter, fileData.exposure);
                 if (!referenceFile) {
-                    Console.warningln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + fileData.filter + "</b> and exposure <b>" + fileData.exposure + "s</b>. Skipping LocalNormalization");
+                    Console.errorln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + fileData.filter + "</b>" + (Config.StrictNormalization ? " and exposure <b>" + fileData.exposure + "s</b>" : "") + ". Skipping LocalNormalization");
                     if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
                         requestToCopy.push(files);
                         this.NeedToCopyToFinalDirFlag = false; //this is final
@@ -1469,8 +1448,9 @@ function AutoCalibrateEngine() {
                 if (files.length > 1)
                     Console.noteln("Normalization of " + files[i]);
 
-				var P = new LocalNormalization;
+				var P = new LocalNormalization; // parameters last review on 2023-01-02
 				P.globalLocationNormalization = false;
+				P.localScaleCorrections = false;
 				P.truncate = true;
 				P.backgroundSamplingDelta = 32;
 				P.rejection = true;
@@ -1483,7 +1463,6 @@ function AutoCalibrateEngine() {
 				P.noiseReductionFilterRadius = 0;
 				P.modelScalingFactor = 8.00;
 				P.scaleEvaluationMethod = LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal;
-				P.localScaleCorrections = true;
 				P.psfStructureLayers = 5;
 				P.saturationThreshold = 0.75;
 				P.saturationRelative = true;
@@ -1512,9 +1491,9 @@ function AutoCalibrateEngine() {
 				P.onError = LocalNormalization.prototype.OnError_Continue;
 				P.useFileThreads = true;
 				P.fileThreadOverload = 1.20;
-				P.maxFileReadThreads = 0;
-				P.maxFileWriteThreads = 0;
-				P.graphSize = 1024;
+				P.maxFileReadThreads = 1;
+				P.maxFileWriteThreads = 1;
+				P.graphSize = 800;
 				P.graphTextSize = 12;
 				P.graphTitleSize = 18;
 				P.graphTransparent = false;
@@ -1533,7 +1512,6 @@ function AutoCalibrateEngine() {
 				P.outputExtension = ".fit";
 				P.outputPrefix = "";
 				P.outputPostfix = "_n";
-
 
                 var status = P.executeGlobal();
                 this.ProcessesCompleted++;
@@ -1650,7 +1628,6 @@ function AutoCalibrateEngine() {
 			] */
 			let fileArr = [true, this.approveFileList[i], "", ""];
 			debug(fileArr, dbgNotice);
-
             filelist.push(fileArr);
 		}
 
@@ -1661,7 +1638,6 @@ function AutoCalibrateEngine() {
 		P.subframes = filelist;
 		P.outputDirectory = ApprovedOutputPath;
 		P.subframeScale = fileData.scale;
-		debug("fileData.EGain: " + fileData.EGain, dbgNotice);
 		P.cameraGain = fileData.EGain;
 		P.fileCache = true;
 		P.nonInteractive = true;
@@ -1874,7 +1850,7 @@ function AutoCalibrateEngine() {
         catch ( error )
         {
           this.inputImageWindow = null;
-          console.criticalln( "WARNING: Unable to open image file: " + filePath + " (" + error.message + ")." );
+          console.criticalln( "WARNING: Unable to open image file: " + fileName + " (" + error.message + ")." );
           return false;
         }
 
