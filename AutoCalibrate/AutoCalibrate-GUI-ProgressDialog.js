@@ -135,8 +135,8 @@ function AutocalibrationProgressDialog() {
          addStretch();
        }
 
-       this.ErrorMessage_Edit = new Edit(this);
-		with (this.ErrorMessage_Edit) {
+       this.ErrorMessage_Text = new TextBox(this);
+		with (this.ErrorMessage_Text) {
 			readOnly = true;
 			toolTip =
 			"<p>Error messages.</p>" +
@@ -146,7 +146,7 @@ function AutocalibrationProgressDialog() {
 	   this.ErrorMessage_Sizer = new HorizontalSizer;
        with (this.ErrorMessage_Sizer) {
 			spacing = 4;
-			add(this.ErrorMessage_Edit,100);
+			add(this.ErrorMessage_Text,100);
 			//addStretch();
        }
 
