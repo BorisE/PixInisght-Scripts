@@ -1331,18 +1331,18 @@ function AutoCalibrateEngine() {
                 var status = P.executeGlobal();
 
                 this.ProcessesCompleted++;
-                this.RegisteredCount++;
 
+				if (status) {
+					this.RegisteredCount++;
+					
+				} else {
+					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", fileName); }
+				}
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
                 console.noteln(" [" + this.FileTotalCount + "] End of registration ");
                 console.noteln("-------------------------------------------------------------");
 
-
-				if (!status)
-				{
-					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", fileName); }
-				}
 
             }
 

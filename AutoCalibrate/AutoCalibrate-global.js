@@ -4,7 +4,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.2"
+ #define VERSION "6.2a"
  #define COMPILE_DATE "2023/01/24"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
