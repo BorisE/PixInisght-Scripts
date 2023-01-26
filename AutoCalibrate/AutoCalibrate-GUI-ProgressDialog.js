@@ -215,7 +215,7 @@ function AutocalibrationProgressDialog() {
 
    this.updateBar_Error = function (errorMessage, curFile)
    {
-      this.ErrorMessage_Edit.text = curFile + ": " + errorMessage;
+      this.ErrorMessage_Text.text = curFile + ": " + errorMessage;
    }
 
 
