@@ -47,12 +47,16 @@
 // ----------------------------------------------------------------------------
 
 /*
- * ColorMask v1.2
+ * ColorMask v1.3
  *
  * Build a mask to select a color range in an image.
  *
  * Copyright (C) 2015-2017 Rick Stevenson (rsj.stevenson@gmail.com). All rights reserved.
  *
+ * 1.3 [2023/02/10] hue changed to hue from HSV color space
+					hue interval changed to 60 deg (instead of 120)
+					buttons rearranged
+					minor design changes
  * 1.2 [2020/06/14] luminance & chrominance filter
  * 1.1 [2020/06/12] saving settings
  */
@@ -71,30 +75,30 @@
 #include <pjsr/DataType.jsh>
 #include <pjsr/Color.jsh>
 
-#define VERSION   "1.2"
+#define VERSION   "1.3"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
 #define SETTINGS_KEY_BASE "ColorMask/"
 
 // Predefined hue ranges.
-#define MIN_RED         300
-#define MAX_RED         60
+#define MIN_RED         330
+#define MAX_RED         30
 
-#define MIN_YELLOW      0
-#define MAX_YELLOW      120
+#define MIN_YELLOW      30
+#define MAX_YELLOW      90
 
-#define MIN_GREEN       60
-#define MAX_GREEN       180
+#define MIN_GREEN       90
+#define MAX_GREEN       150
 
-#define MIN_CYAN        120
-#define MAX_CYAN        240
+#define MIN_CYAN        150
+#define MAX_CYAN        210
 
-#define MIN_BLUE        180
-#define MAX_BLUE        300
+#define MIN_BLUE        210
+#define MAX_BLUE        270
 
-#define MIN_MAGENTA     240
-#define MAX_MAGENTA     0
+#define MIN_MAGENTA     270
+#define MAX_MAGENTA     330
 
 #define DEFAULT_STRENGTH   1.0
 
@@ -179,9 +183,9 @@ function ColorMask(image, name) {
       mid = (min + max)/2;
       ldist = mid-min;
       rdist = max-mid;
-      PM.expression = "iif(CIEh($T)<"  + min + ",0," +
-                      "iif(CIEh($T)<=" + mid + ",~mtf((CIEh($T)-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
-                      "iif(CIEh($T)<=" + max + ",~mtf((" + max + "-CIEh($T))/" + rdist + "," + mtfBal + ")" + maskMod + ",0)))";
+      PM.expression = "iif(H($T)<"  + min + ",0," +
+                      "iif(H($T)<=" + mid + ",~mtf((H($T)-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
+                      "iif(H($T)<=" + max + ",~mtf((" + max + "-H($T))/" + rdist + "," + mtfBal + ")" + maskMod + ",0)))";
    } else {
          mid = (min + max+1)/2;
          if (mid < 1) {
@@ -190,10 +194,10 @@ function ColorMask(image, name) {
 				console.writeln("Range: 0..max..min..mid..1");
             ldist = mid - min;
             rdist = max + 1 - mid;
-            PM.expression = "iif(CIEh($T)<=" + max + ",~mtf((" + max + "-CIEh($T))/" + rdist + "," + mtfBal + ")" + maskMod + "," +
-                            "iif(CIEh($T)<"  + min + ",0," +
-                            "iif(CIEh($T)<=" + mid + ",~mtf((CIEh($T)-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
-                                "~mtf((1+" + max + "-CIEh($T))/" + rdist + "," + mtfBal + ")" + maskMod + ")))";
+            PM.expression = "iif(H($T)<=" + max + ",~mtf((" + max + "-H($T))/" + rdist + "," + mtfBal + ")" + maskMod + "," +
+                            "iif(H($T)<"  + min + ",0," +
+                            "iif(H($T)<=" + mid + ",~mtf((H($T)-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
+                                "~mtf((1+" + max + "-H($T))/" + rdist + "," + mtfBal + ")" + maskMod + ")))";
          } else {
             mid = mid - 1;
             // Range: 0..mid..max..min..1
@@ -201,9 +205,9 @@ function ColorMask(image, name) {
                console.writeln("Range: 0..mid..max..min..1");
             ldist = mid + 1 - min;
             rdist = max - mid;
-            PM.expression = "iif(CIEh($T)<=" + mid + ",~mtf((CIEh($T)+1-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
-                            "iif(CIEh($T)<=" + max + ",~mtf((" + max + "-CIEh($T))/" + rdist + "," + mtfBal + ")" + maskMod + "," +
-                            "iif(CIEh($T)<"  + min + ",0,~mtf((" + "CIEh($T)-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + ")))";
+            PM.expression = "iif(H($T)<=" + mid + ",~mtf((H($T)+1-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
+                            "iif(H($T)<=" + max + ",~mtf((" + max + "-H($T))/" + rdist + "," + mtfBal + ")" + maskMod + "," +
+                            "iif(H($T)<"  + min + ",0,~mtf((" + "H($T)-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + ")))";
          }
    }
 
@@ -214,7 +218,7 @@ function ColorMask(image, name) {
    PM.expression2 = "";
    PM.expression3 = "";
    PM.useSingleExpression = true;
-   PM.symbols = "";
+   PM.symbols = "StartHue=" + data.minHue + ", EndHue=" + data.maxHue;
    PM.generateOutput = true;
    PM.singleThreaded = false;
    PM.use64BitWorkingImage = false;
@@ -467,36 +471,30 @@ function ColorMaskDialog() {
    this.helpLabel.useRichText = true;
    this.helpLabel.text = "<b>" + TITLE + " v" + VERSION + "</b> &mdash; This script builds a mask " +
                          "selecting a range of colors from a target image.</p>" +
-                         "<p>The range of colors is described by selecting a start and end hue " +
-                         "(each expressed as a hue angle between 0 and 360°) or by clicking on one of the " +
-                         "predefined color range buttons.</p>" +
-                         "<p>The mask type can be Chrominance (more saturated colors are selected more strongly), " +
-                         "Lightness (brighter areas are selected more strongly) or Linear " +
+                         "<p>The mask type can be <b>Chrominance</b> (more saturated colors are selected more strongly), " +
+                         "<b>Lightness</b> (brighter areas are selected more strongly) or <b>Linear</b> " +
                          "(selection is only based on distance from the center of the color range.)" +
-                         "<p>The Strength slider controls how strongly hues away from the midpoint of the " +
+                         "<p>The <b>Strength</b> slider controls how strongly hues away from the midpoint of the " +
                          "selected range are included in the mask." +
                          "<p>Mask Blur provides the option to blur the mask by removing the specified " +
                          "number of small scale wavelet layers with MultiscaleLinearTransform." +
-                         "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved." +
-                         "Some enhancement made by Boris Emchenko 2020.</p>" +
-                         "<font color=#FF0000>0&nbsp;&nbsp;&nbsp; RED</font><br>" +
-                         "<font color=#FF8000>30&nbsp;&nbsp; orange</font><br>" +
-                         "<font color=#FFFF00>60&nbsp;&nbsp; yellow</font><br>" +
-                         "<font color=#80FF00>90&nbsp;&nbsp; light green</font><br>" +
-                         "<font color=#00FF00>120&nbsp; GREEN</font><br>" +
-                         "<font color=#00FF80>150&nbsp; green blue?</font><br>" +
-                         "<font color=#00FFFF>180&nbsp; cyan</font><br>" +
-                         "<font color=#007FFF>210&nbsp; light blue</font><br>" +
-                         "<font color=#0000FF>240&nbsp; BLUE</font><br>" +
-                         "<font color=#7F00FF>270&nbsp; dark magenta</font><br>" +
-                         "<font color=#FF00FF>300&nbsp; magenta</font><br>" +
-                         "<font color=#FF0080>330&nbsp; red magenta</font><br>" +
-                         "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved.";
+                         "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved.<br>" +
+                         "Some enhancement made by Boris Emchenko 2020-2023.</p>" +
+						 "<p><br><a href=https://bootcamp.uxdesign.cc/hsb-hsv-color-system-d14697d7c485>Color wheel</a><br><br>" +
+                         "<font color=#FF0000>RED&nbsp;[0] - </font>" +
+                         "<font color=#FF8000>orange&nbsp;[30] - </font>" +
+                         "<font color=#FFFF00>yellow&nbsp;6[0] - </font>" +
+                         "<font color=#80FF00>light&nbsp;green&nbsp;[90] - </font>" +
+                         "<font color=#00FF00>GREEN&nbsp;[120] - </font>" +
+                         "<font color=#00FF80>green&nbsp;blue&nbsp;[150] - </font>" +
+                         "<font color=#00FFFF>cyan&nbsp;[180] - </font>" +
+                         "<font color=#007FFF>light&nbsp;blue&nbsp;[210] - </font>" +
+                         "<font color=#0000FF>BLUE&nbsp;[240] - </font>" +
+                         "<font color=#7F00FF>dark&nbsp;magenta&nbsp;[270] - </font>" +
+                         "<font color=#FF00FF>magenta[&nbsp;300] - </font>" +
+                         "<font color=#FF0080>red&nbsp;magenta&nbsp;[330] - </font>" +
+                         "<font color=#FF0000>RED&nbsp;[360]</font></p>";
 
-   this.colorRedLabel = new Label(this);
-   this.colorRedLabel.frameStyle = FrameStyle_Box;
-   this.colorRedLabel.margin = 4;
-   this.colorRedLabel.text = "0 Red";
 						 
    this.targetImage_Sizer = new HorizontalSizer;
    this.targetImage_Sizer.spacing = 4;
@@ -555,10 +553,8 @@ function ColorMaskDialog() {
 
    this.hueParams_Sizer.add(this.maxHue);
 
-   this.RGB_ButtonPane = new HorizontalSizer;
-   this.RGB_ButtonPane.spacing = 6;
-
    this.red_Button = new PushButton(this);
+   this.red_Button.buttonColor = 0xFF0000;
    this.red_Button.text = "Red";
    this.red_Button.onClick = function() {
       SetCannedRange(MIN_RED, MAX_RED, "R");
@@ -581,14 +577,6 @@ function ColorMaskDialog() {
    };
    this.blue_Button.toolTip =
       "<p>Set parameters to select blue hues.</p>";
-
-   this.RGB_ButtonPane.add(this.red_Button);
-   this.RGB_ButtonPane.add(this.green_Button);
-   this.RGB_ButtonPane.add(this.blue_Button);
-   this.hueParams_Sizer.add(this.RGB_ButtonPane);
-
-   this.CMY_ButtonPane = new HorizontalSizer;
-   this.CMY_ButtonPane.spacing = 6;
 
    this.cyan_Button = new PushButton(this);
    this.cyan_Button.text = "Cyan";
@@ -614,9 +602,18 @@ function ColorMaskDialog() {
    this.yellow_Button.toolTip =
       "<p>Set parameters to select yellow hues.</p>";
 
+   this.RGB_ButtonPane = new HorizontalSizer;
+   this.RGB_ButtonPane.spacing = 6;
+   this.RGB_ButtonPane.add(this.red_Button);
+   this.RGB_ButtonPane.add(this.yellow_Button);
+   this.RGB_ButtonPane.add(this.green_Button);
+   this.hueParams_Sizer.add(this.RGB_ButtonPane);
+
+   this.CMY_ButtonPane = new HorizontalSizer;
+   this.CMY_ButtonPane.spacing = 6;
    this.CMY_ButtonPane.add(this.cyan_Button);
+   this.CMY_ButtonPane.add(this.blue_Button);
    this.CMY_ButtonPane.add(this.magenta_Button);
-   this.CMY_ButtonPane.add(this.yellow_Button);
    this.hueParams_Sizer.add(this.CMY_ButtonPane);
 
 
