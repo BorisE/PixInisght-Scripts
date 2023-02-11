@@ -47,12 +47,14 @@
 // ----------------------------------------------------------------------------
 
 /*
- * ColorMask v1.3
+ * ColorMask v1.4
  *
  * Build a mask to select a color range in an image.
  *
  * Copyright (C) 2015-2017 Rick Stevenson (rsj.stevenson@gmail.com). All rights reserved.
  *
+ * 1.4 [2023/02/11] new setting: hue range step (can select 30-60-90-120)
+					color buttons
  * 1.3 [2023/02/10] hue changed to hue from HSV color space
 					hue interval changed to 60 deg (instead of 120)
 					buttons rearranged
@@ -75,7 +77,7 @@
 #include <pjsr/DataType.jsh>
 #include <pjsr/Color.jsh>
 
-#define VERSION   "1.3"
+#define VERSION   "1.4"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
@@ -99,6 +101,14 @@
 
 #define MIN_MAGENTA     270
 #define MAX_MAGENTA     330
+
+// Default step 60 deg (i.e. red is in 330..30 range)
+// But for wide step it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
+// But for low step it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
+#define HUE_STEP_WIDE_ADJ 	15
+#define HUE_STEP_LOW_ADJ 	-15
+#define HUE_STEP_ULTRAWIDE_ADJ 	30
+
 
 #define DEFAULT_STRENGTH   1.0
 
@@ -126,6 +136,8 @@ function ColorMask(image, name) {
       console.writeln("Mask type: ", format("%d", data.maskType));
       console.writeln("Mask strength: ", format("%4.3f", data.maskStrength));
       console.writeln("Mask suffix: ", data.maskSuff);
+      console.writeln("Default Hue Range: ", data.defaultHueRange);
+	  
    }
 
    // Pick an unused name for the mask
@@ -327,6 +339,7 @@ function ColorMaskData() {
    this.maskStrength_control = null;
    this.blurLayers = 0;
    this.maskSuff = "";
+   this.defaultHueRange = 1;
 }
 
 // Global parameters.
@@ -345,6 +358,7 @@ function exportParameters() {
    Parameters.set("maskType", data.maskType);
    Parameters.set("maskStrength", data.maskStrength);
    Parameters.set("blurLayers", data.blurLayers);
+   Parameters.set("blurLayers", data.defaultHueRange);
 }
 
 /*
@@ -369,6 +383,8 @@ function importParameters() {
       data.maskStrength = Parameters.getReal("maskStrength");
    if(Parameters.has("blurLayers"))
       data.blurLayers = Parameters.getInteger("blurLayers");
+   if(Parameters.has("defaultHueRange"))
+      data.defaultHueRange = Parameters.getInteger("defaultHueRange");
 }
 
 
@@ -409,6 +425,8 @@ function loadSettings () {
 		data.maskStrength = o;
 	if ((o = load("blurLayers", DataType_Int16)) != null)
 		data.blurLayers = o;
+	if ((o = load("defaultHueRange", DataType_Int16)) != null)
+		data.defaultHueRange = o;
 
 }
 
@@ -422,6 +440,7 @@ function saveSettings () {
 	save("maskType", DataType_Int16, data.maskType);
 	save("maskStrength", DataType_Float, data.maskStrength);
 	save("blurLayers", DataType_Int16, data.blurLayers);
+	save("defaultHueRange", DataType_Int16, data.defaultHueRange);
 
 	if (DEBUG) {
 		console.writeln("\n<b>Settings saved:</b>");
@@ -440,15 +459,17 @@ function printParameters () {
 	console.writeln("maskType:		" + data.maskType);
 	console.writeln("maskStrength:	" + data.maskStrength);
 	console.writeln("blurLayers:	" + data.blurLayers);
+	console.writeln("defaultHueRange:" + data.defaultHueRange);
+	
 }
 
 /*
  * Set up a canned color range.
  */
-function SetCannedRange(min, max, suff) {
-   data.minHue = min;
+function SetCannedRange(min, max, suff, hueStep) {
+   data.minHue = min - (hueStep == 0 ? HUE_STEP_ULTRAWIDE_ADJ: (hueStep == 1 ? HUE_STEP_WIDE_ADJ : (hueStep == 3 ?  HUE_STEP_LOW_ADJ : 0 ) ) );
    data.minHue_control.setValue(data.minHue);
-   data.maxHue = max;
+   data.maxHue = max + (hueStep == 0 ? HUE_STEP_ULTRAWIDE_ADJ: (hueStep == 1 ? HUE_STEP_WIDE_ADJ : (hueStep == 3 ?  HUE_STEP_LOW_ADJ : 0 ) ) );
    data.maxHue_control.setValue(data.maxHue);
    data.maskSuff = suff;
 }
@@ -473,27 +494,15 @@ function ColorMaskDialog() {
                          "selecting a range of colors from a target image.</p>" +
                          "<p>The mask type can be <b>Chrominance</b> (more saturated colors are selected more strongly), " +
                          "<b>Lightness</b> (brighter areas are selected more strongly) or <b>Linear</b> " +
-                         "(selection is only based on distance from the center of the color range.)" +
-                         "<p>The <b>Strength</b> slider controls how strongly hues away from the midpoint of the " +
+                         "(selection is only based on distance from the center of the color range)." +
+                         "<p>The <b>Mask Strength</b> slider controls how strongly hues away from the midpoint of the " +
                          "selected range are included in the mask." +
-                         "<p>Mask Blur provides the option to blur the mask by removing the specified " +
+                         "<p><b>Mask Blur</b> provides the option to blur the mask by removing the specified " +
                          "number of small scale wavelet layers with MultiscaleLinearTransform." +
                          "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved.<br>" +
                          "Some enhancement made by Boris Emchenko 2020-2023.</p>" +
-						 "<p><br><a href=https://bootcamp.uxdesign.cc/hsb-hsv-color-system-d14697d7c485>Color wheel</a><br><br>" +
-                         "<font color=#FF0000>RED&nbsp;[0] - </font>" +
-                         "<font color=#FF8000>orange&nbsp;[30] - </font>" +
-                         "<font color=#FFFF00>yellow&nbsp;6[0] - </font>" +
-                         "<font color=#80FF00>light&nbsp;green&nbsp;[90] - </font>" +
-                         "<font color=#00FF00>GREEN&nbsp;[120] - </font>" +
-                         "<font color=#00FF80>green&nbsp;blue&nbsp;[150] - </font>" +
-                         "<font color=#00FFFF>cyan&nbsp;[180] - </font>" +
-                         "<font color=#007FFF>light&nbsp;blue&nbsp;[210] - </font>" +
-                         "<font color=#0000FF>BLUE&nbsp;[240] - </font>" +
-                         "<font color=#7F00FF>dark&nbsp;magenta&nbsp;[270] - </font>" +
-                         "<font color=#FF00FF>magenta[&nbsp;300] - </font>" +
-                         "<font color=#FF0080>red&nbsp;magenta&nbsp;[330] - </font>" +
-                         "<font color=#FF0000>RED&nbsp;[360]</font></p>";
+						 "<p><br><a href=https://miro.medium.com/v2/resize:fit:4800/format:webp/1*rHwnCLd1NhMeBEDY-93gAA.png>Color wheel link (right-click and copy to browser)</a>" +
+						 "</p>";
 
 						 
    this.targetImage_Sizer = new HorizontalSizer;
@@ -554,53 +563,64 @@ function ColorMaskDialog() {
    this.hueParams_Sizer.add(this.maxHue);
 
    this.red_Button = new PushButton(this);
-   this.red_Button.buttonColor = 0xFF0000;
-   this.red_Button.text = "Red";
+   //this.red_Button.buttonColor = 0xFFFF0000;
+   //this.red_Button.buttonTextColor = 0xFFFFA500;
+   //this.red_Button.canvasColor = 0xFFFFB6C1;
+   this.red_Button.backgroundColor = 0xFFFF0000; 	// bg color
+   //this.red_Button.textColor = 0xFFFFFF00; 			//text color
+   this.red_Button.text = "Red [0]";
    this.red_Button.onClick = function() {
-      SetCannedRange(MIN_RED, MAX_RED, "R");
+      SetCannedRange(MIN_RED, MAX_RED, "R", data.defaultHueRange);
    };
    this.red_Button.toolTip =
       "<p>Set parameters to select red hues.</p>";
 
    this.green_Button = new PushButton(this);
-   this.green_Button.text = "Green";
+   this.green_Button.text = "Green [120]";
+   this.green_Button.backgroundColor = 0xFF00FF00; 	// bg color
    this.green_Button.onClick = function() {
-      SetCannedRange(MIN_GREEN, MAX_GREEN, "G");
+      SetCannedRange(MIN_GREEN, MAX_GREEN, "G", data.defaultHueRange);
    };
    this.green_Button.toolTip =
       "<p>Set parameters to select green hues.</p>";
 
    this.blue_Button = new PushButton(this);
-   this.blue_Button.text = "Blue";
+   this.blue_Button.text = "Blue [240]";
+   this.blue_Button.backgroundColor = 0xFF0000FF; 	// bg color
    this.blue_Button.onClick = function() {
-      SetCannedRange(MIN_BLUE, MAX_BLUE, "B");
+      SetCannedRange(MIN_BLUE, MAX_BLUE, "B", data.defaultHueRange);
    };
    this.blue_Button.toolTip =
       "<p>Set parameters to select blue hues.</p>";
 
    this.cyan_Button = new PushButton(this);
-   this.cyan_Button.text = "Cyan";
+   this.cyan_Button.text = "Cyan [180]";
+   this.cyan_Button.backgroundColor = 0xFF00FFFF; 	// bg color
    this.cyan_Button.onClick = function() {
-      SetCannedRange(MIN_CYAN, MAX_CYAN, "C");
+      SetCannedRange(MIN_CYAN, MAX_CYAN, "C", data.defaultHueRange);
    };
    this.cyan_Button.toolTip =
       "<p>Set parameters to select cyan hues.</p>";
 
    this.magenta_Button = new PushButton(this);
-   this.magenta_Button.text = "Magenta";
+   this.magenta_Button.text = "Magenta [270]";
+   this.magenta_Button.backgroundColor = 0xFFFF00FF; 	// bg color
    this.magenta_Button.onClick = function() {
-      SetCannedRange(MIN_MAGENTA, MAX_MAGENTA, "M");
+      SetCannedRange(MIN_MAGENTA, MAX_MAGENTA, "M", data.defaultHueRange);
    };
    this.magenta_Button.toolTip =
       "<p>Set parameters to select magenta hues.</p>";
 
    this.yellow_Button = new PushButton(this);
-   this.yellow_Button.text = "Yellow";
+   this.yellow_Button.text = "Yellow [60]";
+   this.yellow_Button.backgroundColor = 0xFFFFFF00; 	// bg color
+   
    this.yellow_Button.onClick = function() {
-      SetCannedRange(MIN_YELLOW, MAX_YELLOW, "Y");
+      SetCannedRange(MIN_YELLOW, MAX_YELLOW, "Y", data.defaultHueRange);
    };
    this.yellow_Button.toolTip =
       "<p>Set parameters to select yellow hues.</p>";
+
 
    this.RGB_ButtonPane = new HorizontalSizer;
    this.RGB_ButtonPane.spacing = 6;
@@ -617,6 +637,30 @@ function ColorMaskDialog() {
    this.hueParams_Sizer.add(this.CMY_ButtonPane);
 
 
+   this.hueStep_Label = new Label(this);
+   this.hueStep_Label.text = "Hue presets range step";
+   this.hueStep_Label.minWidth = labelMinWidth;
+
+   this.hueStep_ComboBox = new ComboBox( this );
+   this.hueStep_ComboBox.editEnabled = true;
+   this.hueStep_ComboBox.addItem( "UltraWide - 120deg" );
+   this.hueStep_ComboBox.addItem( "Wide - 90deg" );
+   this.hueStep_ComboBox.addItem( "*Default - 60deg*" );
+   this.hueStep_ComboBox.addItem( "Low - 30deg" );
+   this.hueStep_ComboBox.currentItem = data.defaultHueRange;
+   this.hueStep_ComboBox.onItemSelected = function()
+   {
+      data.defaultHueRange = this.dialog.hueStep_ComboBox.currentItem;
+   };
+
+
+   this.AdditionalParameters_ButtonPane = new HorizontalSizer;
+   this.AdditionalParameters_ButtonPane.spacing = 6;
+   
+   this.AdditionalParameters_ButtonPane.add(this.hueStep_Label);
+   this.AdditionalParameters_ButtonPane.add(this.hueStep_ComboBox);
+   this.hueParams_Sizer.add(this.AdditionalParameters_ButtonPane);
+
 
 
    this.lumParams_Sizer = new VerticalSizer;
@@ -627,7 +671,7 @@ function ColorMaskDialog() {
    this.minLum = new NumericControl(this);
    data.minLum_control = this.minLum;
 
-   this.minLum.label.text = "Min Lumninance value:";
+   this.minLum.label.text = "Min Luminance value:";
    this.minLum.label.minWidth = labelMinWidth;
    this.minLum.slider.setRange(0, 1000);
    this.minLum.slider.minWidth = sliderMinWidth;
@@ -643,7 +687,7 @@ function ColorMaskDialog() {
    this.maxLum = new NumericControl(this);
    data.maxLum_control = this.maxLum;
 
-   this.maxLum.label.text = "Max Lumninance value:";
+   this.maxLum.label.text = "Max Luminance value:";
    this.maxLum.label.minWidth = labelMinWidth;
    this.maxLum.slider.setRange(0, 1000);
    this.maxLum.slider.minWidth = sliderMinWidth;
