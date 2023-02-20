@@ -73,6 +73,7 @@ function ProcessCameraHeaders() {
 			else if ( curWidth == CAMERA_IMAGEWIDTH_NOOVERSCAN[fileData.camera].bin1 || curWidth ==  CAMERA_IMAGEWIDTH_NOOVERSCAN[fileData.camera].bin2 )
 				retVal = 0;
 		}
+		debug("calcOverscanPresent: " + retVal, dbgNotice);
 		return retVal;
    }
 

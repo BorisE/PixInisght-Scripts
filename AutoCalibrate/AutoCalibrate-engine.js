@@ -49,11 +49,13 @@ function AutoCalibrateEngine() {
     this.CalibratedCount = 0;
     this.CosmetizedCount = 0;
     this.RegisteredCount = 0;
-    this.NormalizedCount = 0;
+	this.NormalizedCount = 0;
     this.ApprovedCount = 0;
     this.ABECount = 0;
-
+	this.BinnedCount = 0;
+    
 	this.approveFileList = [];
+	this.NSG_FileList= [];
 
     this.BaseCalibratedOutputPath = ""; //base path
     this.NeedToCopyToFinalDirFlag = false;
@@ -141,6 +143,7 @@ function AutoCalibrateEngine() {
         console.noteln("ABE: " + this.ABECount);
         console.noteln("Registered: " + this.RegisteredCount);
         console.noteln("Normalized: " + this.NormalizedCount);
+        console.noteln("Binned: " + this.BinnedCount);
         console.noteln("************************************************************");
         console.noteln("<end><cbr><br>");
 
@@ -228,14 +231,14 @@ function AutoCalibrateEngine() {
         Console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits');
         console.noteln("************************************************************");
 
-        if (!busy) {
+        if (!busy && !this.abortRequested) {
 
             busy = true;
             needRefresh = false;
             var objFileFind = new FileFind;
 
             // Begin search
-            if (objFileFind.begin(searchPath + "/*")) {
+            if (objFileFind.begin(searchPath + "/*") && !this.abortRequested) {
                 do {
 					// if not upper dir links
                     if (objFileFind.name != "." && objFileFind.name != "..") {
@@ -316,7 +319,7 @@ function AutoCalibrateEngine() {
                             }
                         }
                     }
-                } while (objFileFind.next());
+                } while (objFileFind.next() && !this.abortRequested);
             }
 
             busy = false;
@@ -729,11 +732,11 @@ function AutoCalibrateEngine() {
             //test for Overscan and cut it if present
             if (this.CameraHeaders.calcOverscanPresent(fileData)) {
 				P.overscanEnabled = true;
-				P.overscanImageX0 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x0; //24
-				P.overscanImageY0 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y0; //0
-				P.overscanImageX1 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x1; //9600
-				P.overscanImageY1 = this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y1; //6388
-				debug("Bin1: x0=" + this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x0 + ", y0=" + this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y0 + ", x1=" + this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x1 + ", y1=" +this.CameraHeaders.CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y1, dbgNotice)
+				P.overscanImageX0 = CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x0; //24
+				P.overscanImageY0 = CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y0; //0
+				P.overscanImageX1 = CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x1; //9600
+				P.overscanImageY1 = CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y1; //6388
+				debug("Bin1: x0=" + CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x0 + ", y0=" + CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y0 + ", x1=" + CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].x1 + ", y1=" +CAMERA_OVERSCAN_MAIN_RECTANGLE[fileData.camera]["bin"+fileData.bin].y1, dbgNotice)
             } else {
                P.overscanEnabled = false;
                P.overscanImageX0 = 0;
@@ -1727,6 +1730,172 @@ function AutoCalibrateEngine() {
     }
 
     /************************************************************************************************************
+     * Сохранить файл в список для последующей обработки SubframeSelector
+     *
+     * @param
+     * @return
+     */
+
+	this.addFileForNSG = function (files)
+	{
+		if (files == false) {
+            debug("Skipping adding to NSG", dbgNormal);
+            return false;
+        }
+
+        if (!Config.NeedNSG) {
+            debug("NSG is off", dbgNormal);
+            return true;
+        }
+
+        // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+        debug("Need to approve " + files.length + " file(s)", dbgNotice);
+
+        var file = files[0];
+
+        // Start registration for all files
+        for (var i = 0; i < files.length; i++) {
+			this.NSG_FileList.push(files[i]);
+			debug("Added to NSG list <b>" + files[i] + "</b>", dbgNormal);
+		}
+		return true;
+	}
+
+    /************************************************************************************************************
+     * Запуск SubframeSelector с сохранением результатов в processIcon
+     *
+     * @param
+     * @return
+     */
+    this.runNSG = function () 
+	{
+
+        if (!Config.NeedApproving) {
+            debug("NSG is off", dbgNormal);
+            return true;
+        }
+
+        // Start approving
+        console.noteln("<end><cbr><br>",
+            "-------------------------------------------------------------");
+        console.noteln("| Begin NSG of all files (total " + this.NSG_FileList.length + ")");
+        console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("NSG Files"); }
+
+		// Assuming that all files are homogeous (i.e. have the same characteristics - same Object, same Scale, etc)
+		// So we will calculate all data based on first in the list file header
+		// @todo check that assumption is right
+		file = this.NSG_FileList[1];
+		var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+
+        // Create normalization folder
+        ApprovedOutputPath = this.BaseCalibratedOutputPath;
+        if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
+            var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+            fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
+            ApprovedOutputPath = ApprovedOutputPath + "/" + fileData.object;
+        }
+        ApprovedOutputPath = ApprovedOutputPath + "/" + Config.ApprovedFolderName;
+
+		// Check if folder exists
+		if (!File.directoryExists(ApprovedOutputPath))
+			File.createDirectory(ApprovedOutputPath, true);
+
+
+		// Create filelist
+		let filelist = [];
+        for (var i = 0; i < this.approveFileList.length; i++) {
+			/* P.subframes = [ // subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath
+				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""],
+				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""]
+			] */
+			let fileArr = [true, this.approveFileList[i], "", ""];
+			debug(fileArr, dbgNotice);
+            filelist.push(fileArr);
+		}
+
+		// Create Process for measuring
+        var P = new SubframeSelector;
+
+        P.routine = SubframeSelector.prototype.MeasureSubframes;
+		P.subframes = filelist;
+		P.outputDirectory = ApprovedOutputPath;
+		P.subframeScale = fileData.scale;
+		P.cameraGain = fileData.EGain;
+		P.fileCache = true;
+		P.nonInteractive = true;
+		P.weightingExpression = Config.SF_WeightingExpression;
+		P.approvalExpression = Config.SF_ApprovedExpression; 
+		P.cameraResolution = SubframeSelector.prototype.Bits16;
+		P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
+		P.dataUnit = SubframeSelector.prototype.Electron;
+		P.siteLocalMidnight = 24;
+		P.structureLayers = 5;
+		P.noiseLayers = 0;
+		P.hotPixelFilterRadius = 1;
+		P.applyHotPixelFilter = false;
+		P.noiseReductionFilterRadius = 0;
+		P.trimmingFactor = 0.10;
+		P.minStructureSize = 0;
+		P.sensitivity = 0.50; //new value?
+		P.peakResponse = 0.50; //new value?
+		P.brightThreshold = 3.00;
+		P.maxDistortion = 0.60; //new value?
+		P.allowClusteredSources = false;
+		P.maxPSFFits = 8000;
+		P.upperLimit = 1.0000;
+		P.backgroundExpansion = 3;
+		P.xyStretch = 1.5000;
+		P.psfFit = SubframeSelector.prototype.Gaussian;
+		P.psfFitCircular = false;
+		P.pedestal = 0;
+		P.roiX0 = 0;
+		P.roiY0 = 0;
+		P.roiX1 = 0;
+		P.roiY1 = 0;
+		P.inputHints = "";
+		P.outputHints = "";
+		P.outputExtension = ".fit";
+		P.outputPrefix = "";
+		P.outputPostfix = "_a";
+		P.outputKeyword = "SSWEIGHT";
+		P.pedestalMode = SubframeSelector.prototype.Pedestal_Keyword;
+		P.pedestalKeyword = "";
+		P.overwriteExistingFiles = true;
+		P.onError = SubframeSelector.prototype.Continue;
+		P.sortProperty = SubframeSelector.prototype.FWHM;
+		P.graphProperty = SubframeSelector.prototype.FWHM
+		P.auxGraphProperty = SubframeSelector.prototype.Eccentricity;;
+		P.useFileThreads = true;
+		P.fileThreadOverload = 1.00;
+		P.maxFileReadThreads = 0;
+		P.maxFileWriteThreads = 0;
+
+		//debug(P.toSource(), dbgNotice);
+		var status = P.executeGlobal();
+		debug("SF execute status: " + status, dbgNotice);
+
+		// Get Icon Name based on received file
+		let iconName = "";
+        if (file.match(/(.+)\/(.+)_c.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i) != null) {
+			iconName = Config.SF_IconName_beforeRegistration;
+		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i) != null) {
+			iconName = Config.SF_IconName_afterRegistration;
+        }
+
+		// Save result in text file (just in case not to loose measurement results)
+		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement.src", P.toSource());
+		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement.src</b> file");
+		
+		
+		// Save result in icon 
+		P.writeIcon(iconName);
+		console.noteln("Subframes statistics saved into <b>" + iconName+ "</b> icon");
+
+		return status;
+    }
+
+    /************************************************************************************************************
      * Debayer files
      *
      * WARNING Не тестировал работоспособность; не менял под конфигуратор, процедура осталась в оригинале
@@ -1845,6 +2014,156 @@ function AutoCalibrateEngine() {
             }
         ];
     }
+
+    /************************************************************************************************************
+     * Биннинг файлов
+     *
+     * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
+     * @return string | array of strings        полное имя файла_c_сс_r.fit включая путь
+     *
+     */
+    this.binFits = function (files) {
+        if (files == false) {
+            debug("Skipping binning", dbgNormal);
+            return false;
+        }
+
+        if (!Config.NeedBinning) {
+            debug("Software binning is off", dbgNormal);
+
+            if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
+                requestToCopy.push(files);
+                this.NeedToCopyToFinalDirFlag = false;
+            }
+
+            return files;
+        }
+
+        // Прервый всегда будет "файлом", даже если их много
+        var file = files[0];
+
+        // Start registation
+        console.noteln("<end><cbr><br>",
+            "-------------------------------------------------------------");
+        console.noteln("| [" + this.FileTotalCount + "] Begin binning of ", (files.length != 1 ? files.length + " files" : file));
+        console.noteln("-------------------------------------------------------------");
+		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("binningFits"); }
+
+        // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+        debug("Need to bin " + files.length + " file(s)", dbgNotice);
+
+        // Set registration folder
+        BinnedOutputPath = this.BaseCalibratedOutputPath;
+        if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
+            var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+            fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
+            BinnedOutputPath = BinnedOutputPath + "/" + fileData.object;
+        }
+        BinnedOutputPath = BinnedOutputPath + "/" + Config.BinnedFolderName;
+
+        // Start registration for all files
+        var newFiles = []; //empty array
+        for (var i = 0; i < files.length; i++) {
+
+            // return new file name
+            var fileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
+            var newFileName = fileName.replace(/_c_cc_r\.fit(s){0,1}$/, '_c_cc_r_x.fit');
+            if (fileName === newFileName)
+				var newFileName = fileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_x.fit');			// if no Reg
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_x.fit'); 		//if no Reg, but ABE was run before
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c_cc_b_r\.fit(s){0,1}$/, '_c_cc_b_r_x.fit'); 	//if all was run before
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c\.fit(s){0,1}$/, '_c_x.fit'); 				//if only C was run before
+            if (fileName === newFileName)	
+                var newFileName = fileName.replace(/_c_b\.fit(s){0,1}$/, '_c_b_x.fit'); 			//if no CC and ABE was run before
+            if (fileName === newFileName)
+                var newFileName = fileName.replace(/_c_b_r\.fit(s){0,1}$/, '_c_b_r_x.fit'); 		//if no CC and ABE was run before
+            
+			newFiles[i] = BinnedOutputPath + '/' + newFileName;
+
+            //Проверить - существует ли файл и стоит ли перезаписывать его
+            if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
+                Console.warningln('File ' + newFileName + ' already exists, skipping Binning');
+            } else {
+                // Check if folder exists
+                if (!File.directoryExists(BinnedOutputPath))
+                    File.createDirectory(BinnedOutputPath, true);
+
+                if (files.length > 1)
+                    Console.noteln("Binning " + files[i]);
+
+                //Open file
+                ImageWindow.open(files[i]);
+                var w = ImageWindow.openWindows[ImageWindow.openWindows.length - 1];
+
+                if (!w || w.isNull) {
+                    Console.criticalln("Error opening image file: " + files[i]);
+                    return false;
+                }
+
+                var BINproc;
+
+				var BINproc = new IntegerResample;
+
+				BINproc.zoomFactor = -2;
+				BINproc.downsamplingMode = IntegerResample.prototype.Average;
+				BINproc.noGUIMessages = true;
+				BINproc.metric = false;
+				BINproc.forceResolution = false;
+
+
+                //Запустить
+				status = false;
+                with (BINproc) {
+                    status = executeOn(w.mainView);
+                    //
+                    // save
+                    //
+                    w.saveAs(newFiles[i], false, false, true, !Config.OverwriteAllFiles);
+                }
+                w.purge();
+                w.forceClose(); //w.close();
+
+                this.ProcessesCompleted++;
+
+				if (status) {
+					this.BinnedCount++;
+					
+				} else {
+					if (this.progressDialog) { this.progressDialog.updateBar_Error("IntegerResample.executeGlobal() failed", fileName); }
+				}
+                console.noteln("<end><cbr><br>",
+                    "-------------------------------------------------------------");
+                console.noteln(" [" + this.FileTotalCount + "] End of binning ");
+                console.noteln("-------------------------------------------------------------");
+
+
+            }
+
+            if (File.exists(newFiles[i])) {
+                // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
+                var fn = "";
+                if (	   (fn = newFiles[i].match(/(.+)\/(.+)_c_(.*)x.fit(s){0,1}$/i)) != null
+                   ) {
+                    debug("path: " + fn[1], dbgNotice);
+                    debug("matched: " + fn[2], dbgNotice);
+                    debug("file is binned of " + fn[2], dbgNotice);
+
+                    AddFileToArray(FITS.BINNED, newFiles[i], fn[2], fn[1]); //type, full name, signature, path
+                } else {
+                    debug("PATTERN NOT FOUND");
+                }
+            } else {
+                return false;
+            }
+
+        }
+
+        return newFiles;
+    }
+
 
     /************************************************************************************************************
      * Получение данных из заголовка фита

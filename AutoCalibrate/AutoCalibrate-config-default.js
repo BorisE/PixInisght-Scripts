@@ -20,7 +20,9 @@ Config.NeedCosmeticCorrection = false;                   // КОСМЕТИКА?
 Config.NeedABE = false;                                  // РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = false;                             // ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
 Config.NeedNormalization = false;                        // НОРМАЛИЗОВАТЬ ФОН?
-Config.NeedApproving = false;                            // ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ? Пока не работает (глюк PI?)
+Config.NeedApproving = false;                            // Подготовить к оценке
+Config.NeedBinning = false;								 // Make integer resample
+Config.NeedNSG = false;									 // Normalized Scale Gradient
 
 // Библиотеки калибровки/референосов
 Config.CalibratationMastersPath = 'd:/DSlrRemote/Masters Structure/Vedrus'; // без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
@@ -59,6 +61,7 @@ Config.DebayerdFolderName = "debayered";            // без финальног
 Config.ABEFolderName = "dABE";                      // без финального "/" //Подпапка с результатом ABE
 Config.RegisteredFolderName = "registered";         // без финального "/" 	//Подпапка с фитами после выравнивания
 Config.NormilizedFolderName = "rnormilized";        // без финального "/" 	//Подпапка с фитами после нормализации
+Config.BinnedFolderName = "zbinning"
 
 Config.ApprovedFolderName = "approved";             // без финального "/"   //Подпапка с отобранными фитами
 

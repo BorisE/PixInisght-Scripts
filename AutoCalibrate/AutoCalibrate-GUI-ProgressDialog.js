@@ -44,6 +44,9 @@ function AutocalibrationProgressDialog() {
 
     var labelWidth_Count = this.font.width("999000");
     var labelWidth_Stage = this.font.width("Cosmetic Correction");
+    var labelWidth_Dark = this.font.width("dark-BIN_1-TEMP_25deg-EXPTIME_1200_n31.xisf");
+    var labelWidth_Bias = this.font.width("bias-TEMP_25deg-BIN_1_n117.xisf");
+	var labelWidth_FileInfo = this.font.width("Bias");
     var ttStr = ""; //temp str var
 
 
@@ -71,7 +74,8 @@ function AutocalibrationProgressDialog() {
        //
        // 2. Current file and stage
        //
-       this.CurrentFileName_Edit = new Edit(this);
+       // line 1
+	   this.CurrentFileName_Edit = new Edit(this);
        with (this.CurrentFileName_Edit) {
          readOnly = true;
          text = "";
@@ -93,14 +97,100 @@ function AutocalibrationProgressDialog() {
            "<p>Current processing stage.</p>" +
            "</p>";
        }
-       this.currentStatus_GroupBox = new GroupBox(this);
-       this.currentStatus_GroupBox.title = "Current file processing";
-       this.currentStatus_GroupBox.sizer = new HorizontalSizer;
-       this.currentStatus_GroupBox.sizer.margin = 6;
-       this.currentStatus_GroupBox.sizer.spacing = 4;
-       this.currentStatus_GroupBox.sizer.add(this.CurrentFileName_Edit, 100);
-       this.currentStatus_GroupBox.sizer.add(this.CurrentFileStage_Edit);
 
+	   this.Line1_sizer = new HorizontalSizer(this);
+       with (this.Line1_sizer) {
+		   spacing = 4;
+		   add(this.CurrentFileName_Edit, 100);
+		   add(this.CurrentFileStage_Edit);
+       }
+		/*
+       // line 2
+       this.CurrentDarksPath_Edit = new Edit(this);
+       with (this.CurrentDarksPath_Edit) {
+         readOnly = true;
+         text = "SW250/Atik383/darks/-25";
+         toolTip =
+           "SW250/Atik383/darks/-25";
+       }
+	   this.CurrentMasterBiasFile_Edit = new Edit(this);
+       with (this.CurrentMasterBiasFile_Edit) {
+         readOnly = true;
+         text = "bias-TEMP_25deg-BIN_1_n117.xisf";
+         minWidth = labelWidth_FileInfo;
+         maxWidth = labelWidth_FileInfo;
+         //width = 4;
+         toolTip =
+           "bias-TEMP_25deg-BIN_1_n117.xisf";
+       }
+       this.CurrentMasterDarkFile_Edit = new Edit(this);
+       with (this.CurrentMasterDarkFile_Edit) {
+         readOnly = true;
+         text = "dark-BIN_1-TEMP_25deg-EXPTIME_1200_n31.xisf";
+         minWidth = labelWidth_FileInfo;
+         maxWidth = labelWidth_FileInfo;
+         //width = 4;
+         toolTip =
+           "dark-BIN_1-TEMP_25deg-EXPTIME_1200_n31.xisf";
+       }
+
+	   this.Line2_sizer = new HorizontalSizer(this);
+       with (this.Line2_sizer) {
+		   spacing = 4;
+		   add(this.CurrentDarksPath_Edit, 100);
+		   add(this.CurrentMasterBiasFile_Edit);
+		   add(this.CurrentMasterDarkFile_Edit);
+       }
+	   
+       // line 3
+       this.CurrentFlatsPath_Edit = new Edit(this);
+       with (this.CurrentFlatsPath_Edit) {
+         readOnly = true;
+         text = "SW250/Atik383/flats/masterflats 20171209-16" ;
+         toolTip =
+           "SW250/Atik383/flats/masterflats 20171209-16";
+       }
+	   this.CurrentMasterFlatFile_Edit = new Edit(this);
+       with (this.CurrentMasterFlatFile_Edit) {
+         readOnly = true;
+         text = "flat-FILTER_B-BINNING_1.xisf";
+         minWidth = labelWidth_FileInfo;
+         maxWidth = labelWidth_FileInfo;
+         //width = 4;
+         toolTip =
+           "flat-FILTER_B-BINNING_1.xisf";
+       }
+       this.CurrentCosmeticCorrection_Edit = new Edit(this);
+       with (this.CurrentCosmeticCorrection_Edit) {
+         readOnly = true;
+         text = "Cosmetic_SW250_Atik383";
+         minWidth = labelWidth_FileInfo;
+         maxWidth = labelWidth_FileInfo;
+         //width = 4;
+         toolTip =
+           "Cosmetic_SW250_Atik383";
+       }
+
+	   this.Line3_sizer = new HorizontalSizer(this);
+       with (this.Line3_sizer) {
+		   spacing = 4;
+		   add(this.CurrentFlatsPath_Edit, 100);
+		   add(this.CurrentMasterFlatFile_Edit);
+		   add(this.CurrentCosmeticCorrection_Edit);
+       }
+				*/
+	   this.currentStatus_GroupBox = new GroupBox(this);
+	   with (this.currentStatus_GroupBox) {
+		   title = "Current file processing";
+	   
+		   sizer = new VerticalSizer;
+		   sizer.margin = 6;
+		   sizer.spacing = 4;
+		   sizer.add(this.Line1_sizer);
+		   //sizer.add(this.Line2_sizer);
+		   //sizer.add(this.Line3_sizer);
+		   
+	   }
 
        //
        // 3. ProgressBar
@@ -126,18 +216,28 @@ function AutocalibrationProgressDialog() {
            "<p>Total files to process.</p>" +
            "</p>";
        }
+       this.progressSlider = new Slider(this);
+       with (this.progressSlider) {
+			minValue = 0;
+			maxValue = totalCnt;
+			value = 0;
+       }
 
        this.Progress_Sizer = new HorizontalSizer;
        with (this.Progress_Sizer) {
          spacing = 4;
          add(this.CurrentFileCount_Edit);
          add(this.TotalFiles_Edit);
-         addStretch();
+		 add(this.progressSlider, 100);
+         //addStretch();
        }
+	   
+	   // Error messages
 
        this.ErrorMessage_Text = new TextBox(this);
 		with (this.ErrorMessage_Text) {
 			readOnly = true;
+			minHeight = 300;
 			toolTip =
 			"<p>Error messages.</p>" +
 			"</p>";
@@ -206,6 +306,8 @@ function AutocalibrationProgressDialog() {
    {
       this.CurrentFileCount_Edit.text = curI.toString();
       this.CurrentFileName_Edit.text = curFile;
+      this.CurrentFileName_Edit.text = curFile;	
+      this.progressSlider.value = curI;
    }
 
    this.updateBar_NewProcess = function (processStage)
@@ -215,7 +317,7 @@ function AutocalibrationProgressDialog() {
 
    this.updateBar_Error = function (errorMessage, curFile)
    {
-      this.ErrorMessage_Text.text = curFile + ": " + errorMessage;
+      this.ErrorMessage_Text.text += curFile + ": " + errorMessage + "\n";
    }
 
 

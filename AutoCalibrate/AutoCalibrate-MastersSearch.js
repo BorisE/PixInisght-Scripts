@@ -257,9 +257,19 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate) {
 					//Test if this is folder with flats
 					var matches = objFileFind.name.match(DIR_DATE_PATTERN);
 					if (matches) {
-						var datest=""; // need to concatanate if dir in form of 2022-10-09
-						for (var i = 0; i < matches.length; i++) {
-							datest=datest + matches[i];
+						var datest=""; 
+						//debug("matches.length = " + matches.length, dbgNotice);
+						//debug("matches[0] = " + matches[0], dbgNotice);
+						//debug("matches[0].length = " + matches[0].length, dbgNotice);
+						if (matches[0].length < 8) {
+						// need to concatanate if dir in form of 2022-10-09
+							for (var i = 0; i < matches.length; i++) {
+								datest=datest + matches[i];
+							}
+						}
+						else 
+						{
+							datest=matches[0];
 						}
 						datepacklist_date[datepacklist_date.length] = datest;
 						datepacklist_dirname[datepacklist_dirname.length] = objFileFind.name;
