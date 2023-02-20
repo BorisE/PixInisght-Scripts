@@ -299,7 +299,7 @@ function AutoCalibrateEngine() {
 									}
 									else 
 									{
-										console.warningln("this.progressDialog.abortRequested: " + this.progressDialog.abortRequested + ", this.abortRequested: "+this.abortRequested);
+										//console.warningln("this.progressDialog.abortRequested: " + this.progressDialog.abortRequested + ", this.abortRequested: "+this.abortRequested);
 									}
 
                                     //Process by full pipeline
@@ -668,6 +668,12 @@ function AutoCalibrateEngine() {
             debug("Calibration is off", dbgNormal);
             return fileName;
         }
+		
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
 
         // Start calibration
         console.noteln("<end><cbr><br>",
@@ -864,6 +870,12 @@ function AutoCalibrateEngine() {
             return fileName;
         }
 
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
         // Start cosmetic correction
         console.noteln("<end><cbr><br>",
             "-------------------------------------------------------------");
@@ -983,6 +995,12 @@ function AutoCalibrateEngine() {
             debug("ABE processing is off", dbgNormal);
             return files;
         }
+
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
@@ -1149,6 +1167,13 @@ function AutoCalibrateEngine() {
 
             return files;
         }
+
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
@@ -1396,6 +1421,12 @@ function AutoCalibrateEngine() {
             return files;
         }
 
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
 
@@ -1580,6 +1611,12 @@ function AutoCalibrateEngine() {
             return true;
         }
 
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to approve " + files.length + " file(s)", dbgNotice);
 
@@ -1608,6 +1645,13 @@ function AutoCalibrateEngine() {
             debug("Approving is off", dbgNormal);
             return true;
         }
+
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
 
         // Start approving
         console.noteln("<end><cbr><br>",
@@ -1748,6 +1792,12 @@ function AutoCalibrateEngine() {
             return true;
         }
 
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to approve " + files.length + " file(s)", dbgNotice);
 
@@ -1774,6 +1824,12 @@ function AutoCalibrateEngine() {
             debug("NSG is off", dbgNormal);
             return true;
         }
+
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
 
         // Start approving
         console.noteln("<end><cbr><br>",
@@ -1913,6 +1969,12 @@ function AutoCalibrateEngine() {
             return [file];
         }
 
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
+
         console.writeln('start to debayer fit: ' + file.dst);
 
         var P = new Debayer;
@@ -2038,6 +2100,12 @@ function AutoCalibrateEngine() {
 
             return files;
         }
+
+		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+			console.criticalln("Abort requsted, breaking ...");
+			this.abortRequested = true;
+			return false;
+		}
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];

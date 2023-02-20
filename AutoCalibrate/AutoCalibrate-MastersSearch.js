@@ -326,11 +326,13 @@ function SearchForBIAS (pathMasterLib, fileData) {
 			if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
-				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? BIAS_FILE_PATTERN_WO_OVERSCAN : BIAS_FILE_PATTERN_ANY; 
+				//var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? BIAS_FILE_PATTERN_WO_OVERSCAN : BIAS_FILE_PATTERN_ANY; 
 							//new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
 							//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
-							//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
-							
+							//solution (old): if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+							//solution new: use _o suffix for overscan and no suffix for overscan free master. And... we don't need any fork here
+				var regExp = BIAS_FILE_PATTERN_ANY; 
+				
 				var matches = objFileFind.name.match( regExp ); 
 				if (matches) {
 					debug("Found bin: " + matches[BIAS_FILE_PATTERN_BINNING_POS], dbgNotice);
@@ -381,10 +383,13 @@ function SearchForDARK (pathMasterLib, fileData) {
 			if (!objFileFind.isDirectory && objFileFind.name != "." && objFileFind.name != "..") {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
-				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? DARKS_FILE_PATTERN_WO_OVERSCAN : DARKS_FILE_PATTERN_ANY; 
-							//new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
-							//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
-							//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? DARKS_FILE_PATTERN_W_OVERSCAN : DARKS_FILE_PATTERN_WO_OVERSCAN; 
+							//very new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
+							//problem 1: if you use dark wo overscan you need to calibrate it, but then PIX thinks, that he ought to delete overscan from dark too and ... critical error, because there is no overscan in dark
+							//solution: use dark with overscan!
+							//problem 2: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
+							//solution old: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+							//solution new: use masters with _o suffix for overscan and in any other case asume that there is no overscan
 
 				var matches = objFileFind.name.match(regExp);
 				if (matches) {
@@ -468,10 +473,12 @@ function SearchForFLAT (pathMasterLib, fileData) {
 				debug('found file: ' + objFileFind.name, dbgNotice);
 
 				//Test if this is flat
-				var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? FLATS_FILE_PATTERN_WO_OVERSCAN : FLATS_FILE_PATTERN_ANY; 
+				//var regExp = this.CameraHeaders.calcOverscanPresent(fileData) ? FLATS_FILE_PATTERN_WO_OVERSCAN : FLATS_FILE_PATTERN_ANY; 
 							//new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
 							//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
-							//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+							//solution (old): if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+							//solution new: use _o suffix for overscan and no suffix for overscan free master. And... we don't need any fork here
+				var regExp = FLATS_FILE_PATTERN_ANY; 
 				
 				var matches = objFileFind.name.match( regExp ); // new conception: use overscan removed version even for light with overscan
 				if (matches) {

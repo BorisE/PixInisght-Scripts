@@ -4,7 +4,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.3 beta 1"
+ #define VERSION "6.3 beta 2"
  #define COMPILE_DATE "2023/02/20"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
@@ -24,6 +24,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+
+v 6.3 beta 2[2023/02/20]
+- change overscan handling
+- more responsive to abort run button
 
 v 6.3 beta 1[2023/02/20]
 - bugfix with overscan handling

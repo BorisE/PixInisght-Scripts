@@ -245,8 +245,11 @@ var BIAS_FILE_PATTERN_BINNING_POS = 4;																			//pattern id (regexp ma
 // [...dark...EXPTIME_1200...BIN] - слово DARK, EXPTIME|EXP_число и BIN_число должны быть обязательно. Число через пробел, _, без пробела
 // Примеры: dark-TEMP_30deg-EXPTIME_1200-BINNING_2 | masterdark_from20181218 exp120sec bin 2
 //var DARKS_FILE_PATTERN_W_OVERSCAN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+)(?!.*_c).*$', 'i');
-var DARKS_FILE_PATTERN_WO_OVERSCAN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*_c.*$', 'i');  //dark.*((bin|binning)(\s|_)*(\d)){1}.*(EXPTIME|EXP)(\s|_)*(\d+)(?!.*_c).*$
-var DARKS_FILE_PATTERN_ANY = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*$', 'i');
+//var DARKS_FILE_PATTERN_WO_OVERSCAN = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*_c.*$', 'i');  //dark.*((bin|binning)(\s|_)*(\d)){1}.*(EXPTIME|EXP)(\s|_)*(\d+)(?!.*_c).*$
+//var DARKS_FILE_PATTERN_ANY = new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*$', 'i');
+var DARKS_FILE_PATTERN_W_OVERSCAN 	= new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*_o.*$', 'i');  //смэтчит все на _o в конце
+var DARKS_FILE_PATTERN_WO_OVERSCAN	= new RegExp('dark.*((bin|binning)(\\s|_)*(\\d)){1}.*(EXPTIME|EXP)(\\s|_)*(\\d+).*([^o])[.](.+)$', 'i'); // all except o character в конце
+
 var DARKS_FILE_PATTERN_BINNING_POS  = 4;																								//pattern id (regexp match) for bin part in DARKS_FILE_PATTERN
 var DARKS_FILE_PATTERN_EXPOSURE_POS = 7;																								//pattern id (regexp match) for exposure part in DARKS_FILE_PATTERN
 

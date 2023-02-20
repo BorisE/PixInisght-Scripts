@@ -162,8 +162,14 @@ CХЕМА ХРАНЕНИЯ:
 
 OVERSCAN HANDLING
 //new conception: if overscan in light is present, delete overscan and use calibration masters without overscan!
-//problem: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
-//solution: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+
+//problem 1: if you use dark wo overscan you need to calibrate it, but then PIX thinks, that he ought to delete overscan and from the dark also and we got ... critical error, because there is no overscan in dark
+//solution: use dark with overscan! 
+//remark: this is problem for darks only
+
+//problem 2: masters wo overscan should have _c suffix. But then I need to rename all masters even for cameras that can't have overscan.
+//solution old, canceled: if light has oversan area, then for this period search for masters with _c suffix. In any other case, use wo _c and asume that this is master wo overscan
+//solution new: rename all darks with overscan to "_o" suffix (i.e. dark-TEMP_20deg-P3-BINNING_1-EXPTIME_120-n42_o.fit) and use all masters without this suffix as overscan free files
 
 Есть ли в кадре оверсан определяется функцией calcOverscanPresent: сначала проверяется, есть ли камера в массиве CAMERA_IMAGEWIDTH_OVERSCAN, а затем сравнивается размер кадра в пикселях с указанным в массиве 
 Важно! Оверскан проверяется не по флагам в заголовке, а по размеру кадров!
