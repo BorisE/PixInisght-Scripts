@@ -48,22 +48,26 @@
 // ----------------------------------------------------------------------------
 
 /*
- * ColorMask v1.4
+ * ColorMask v1.0 mod 1
  *
  * Build a mask to select a color range in an image.
  *
  * Copyright (C) 2015-2017 Rick Stevenson (rsj.stevenson@gmail.com). All rights reserved.
+ * 
+ * Modification by Boris Emchenko
  *
- * 1.4 [2023/02/11] new setting: hue range step (can be selected 30-60-90-120)
-					color buttons
- * 1.3 [2023/02/10] hue calculatiions changed to hue from HSV color space
-					buttons rearranged
-					minor design changes
- * 1.2 [2020/06/14] luminance & chrominance filter
- * 1.1 [2020/06/12] saving settings between script calls
+ * 1.0 mod 1 [2023/02/11] 
+	engine: new hue calculatiions changed to hue from HSV color space
+	engine: luminance & chrominance filter
+	UI: hue range step (can be selected 30-60-90-120)
+	UI: color buttons
+	UI: buttons rearranged
+	UI: minor design changes
+	UI: saving settings between script calls
+	Aux: store start/end hue values in PixelMath script for history explorer
  */
 
-#feature-id    Utilities2 > ColorMask
+#feature-id    Utilities > ColorMask_mod
 
 #feature-info  A script that creates a mask selecting a specified color range
 
@@ -77,7 +81,7 @@
 #include <pjsr/DataType.jsh>
 #include <pjsr/Color.jsh>
 
-#define VERSION   "1.4"
+#define VERSION   "1.0 mod 1"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
@@ -102,11 +106,11 @@
 #define MIN_MAGENTA     270
 #define MAX_MAGENTA     330
 
-// Default step 60 deg (i.e. red is in 330..30 range)
-// But for wide step it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
-// But for low step it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
-#define HUE_RANGE_STEP_WIDE_ADJ 	15
-#define HUE_RANGE_STEP_LOW_ADJ 	-15
+// Default step 60 deg (i.e. reds are in 330..30 range)
+// But for "wide step" it is 90 deg (i.e. reds are in 315..45 range), so we should adjust default values by 15 deg
+// For "low step" it is 30 deg (i.e. reds are in 345..15 range), so we should adjust default values by -15 deg
+#define HUE_RANGE_STEP_WIDE_ADJ 		15
+#define HUE_RANGE_STEP_LOW_ADJ 			-15
 #define HUE_RANGE_STEP_ULTRAWIDE_ADJ 	30
 
 // 
@@ -142,7 +146,6 @@ function ColorMask(image, name) {
       console.writeln("Mask strength: ", format("%4.3f", data.maskStrength));
       console.writeln("Mask suffix: ", data.maskSuff);
       console.writeln("Default Hue Range: ", data.defaultHueRange);
-	  
    }
 
    // Pick an unused name for the mask

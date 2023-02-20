@@ -1,0 +1,11 @@
+If Rick wouldn't object, I will post here a slight modification of his marvelous ColorMask script.
+Some of modifications include:
+- added Luminance and Chrominance numeric filters (useful if you want for example make a mask for only bright not all reds in the image)
+- hue calculation changed from CIEh() function to H(), so hue numerical values are more familiar (mentioned above Adam Block video was about this)
+Also some slight interface modifications were made: you can set hue range which is used when you press color preset buttons; buttons themselves are now colored and rearranged according to their hue value; all parameters are now stored between script calls.
+
+
+
+
+
+
