@@ -604,7 +604,7 @@ function ColorMaskDialog() {
    /* bitmap */
    let thisFilePath = #__FILE__;
    let thisDirectory = File.extractDrive( thisFilePath ) + File.extractDirectory( thisFilePath );
-   this.bitmap = new Bitmap( thisDirectory + "/hue-wheel2.png" );
+   this.bitmap = new Bitmap( thisDirectory + "/hue-wheel3.png" );
 
    this.bitmapControl = new Control( this );
    this.bitmapControl.setScaledMinSize( 256, 256 );
@@ -613,15 +613,23 @@ function ColorMaskDialog() {
         let g;
         try {
             g = new Graphics(this);
-            g.clipRect = new Rect(0, 0, this.width, this.height);
+            //g.clipRect = new Rect(0, 0, this.width, this.height);
+            g.antialiasing = true;
+            g.smoothInterpolation=true;
+            this.setScaledFixedWidth(256);
+            this.setScaledFixedHeight(256);
+
+
             //g.drawBitmap( 0, 0, this.dialog.bitmap );
             //g.drawBitmap( 0, 0, this.dialog.bitmap.scaled( Math.min( this.width, this.height )/ Math.max( this.dialog.bitmap.width, this.dialog.bitmap.height )  ) );
             //g.drawBitmap( 0, 0, this.dialog.bitmap.scaled( this.width/this.dialog.bitmap.width) );
-            g.drawScaledBitmap( 0, 0, this.width, this.height, this.dialog.bitmap);
+            g.drawScaledBitmap( 0, 0, Math.min( this.width, this.height ), Math.min( this.width, this.height ), this.dialog.bitmap);
             //g.drawBitmap( 0, 0, this.dialog.bitmap);
 
-            var X0= this.width/2 - 1;
-            var Y0= this.height/2 - 8;
+            //var X0= this.width /2 - 2;
+            //var Y0= this.height /2 - 9;
+            var X0= this.width /2 ;
+            var Y0= this.height /2;
 
             if (data.maxHue < data.minHue) {
                var R_Start = (360- data.minHue) / 180 * Math.PI + Math.PI/2;
@@ -630,16 +638,17 @@ function ColorMaskDialog() {
                var R_Start = (360- data.minHue) / 180 * Math.PI + Math.PI/2;
                var R_Len = -(data.maxHue - data.minHue) / 180 * Math.PI;
             }
-            g.pen = new Pen( 0xFF0000FF, 5 );
+            g.pen = new Pen( 0xFF000000, 5 );
             //g.brush = new Brush(0xFF0000FF);
-            g.drawArc ( X0, Y0, 100, R_Start, R_Len);
-            g.drawArc ( X0, Y0, 176, R_Start, R_Len);
+            g.drawArc ( X0, Y0, 99/512*this.width, R_Start, R_Len);
+            g.drawArc ( X0, Y0, 176/512*this.width, R_Start, R_Len);
 
-            g.pen = new Pen( 0xFF0000FF, 1 );
+            g.pen = new Pen( 0xFF000000, 1 );
             g.drawPie ( X0, Y0, 176, R_Start, R_Len);
 
             //g.drawArc ( X0, Y0, 100, 0, -Math.PI/2);
-            console.writeln("onPaint " + data.maxHue);
+            console.write("w " + this.width);
+            console.writeln(" | h " + this.height);
 
         } catch (e) {
             console.errorln("Error! " + e);
@@ -647,7 +656,6 @@ function ColorMaskDialog() {
             g.end();
         }
    };
-
 
 
    /* preset buttons */
@@ -993,7 +1001,7 @@ function ColorMaskDialog() {
 
    this.windowTitle = TITLE + " Script";
    this.adjustToContents();
-   this.setFixedSize();
+   //this.setFixedSize();
 }
 
 
