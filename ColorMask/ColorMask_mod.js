@@ -2,7 +2,7 @@
 // PixInsight JavaScript Runtime API - PJSR Version 1.0
 // ----------------------------------------------------------------------------
 // ColorMask.js - Released 2017-07-07T12:11:59Z
-// and later modified by Boris Emchenko
+// and later modified by Boris Emchenko (see below)
 // ----------------------------------------------------------------------------
 //
 // This file is part of ColorMask Script version 1.0
@@ -48,7 +48,7 @@
 // ----------------------------------------------------------------------------
 
 /*
- * ColorMask v1.0 mod 1
+  * ColorMask v1.0 mod 2
  *
  * Build a mask to select a color range in an image.
  *
@@ -56,6 +56,11 @@
  * 
  * Modification by Boris Emchenko
  *
+ * 1.0 mod 2 [2023/02/27] 
+	execution on target view doesn't shows dialog
+	min/max limits for Lum and Chrom are always min/max
+	some bigfixes and code optimization
+	
  * 1.0 mod 1 [2023/02/11] 
 	engine: new hue calculatiions changed to hue from HSV color space
 	engine: luminance & chrominance filter
@@ -65,7 +70,7 @@
 	UI: minor design changes
 	UI: saving settings between script calls
 	Aux: store start/end hue values in PixelMath script for history explorer
- */
+  */
 
 #feature-id    Utilities > ColorMask_mod
 
@@ -81,7 +86,7 @@
 #include <pjsr/DataType.jsh>
 #include <pjsr/Color.jsh>
 
-#define VERSION   "1.0 mod 1"
+#define VERSION   "1.0 mod 2"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
@@ -106,11 +111,11 @@
 #define MIN_MAGENTA     270
 #define MAX_MAGENTA     330
 
-// Default step 60 deg (i.e. reds are in 330..30 range)
-// But for "wide step" it is 90 deg (i.e. reds are in 315..45 range), so we should adjust default values by 15 deg
-// For "low step" it is 30 deg (i.e. reds are in 345..15 range), so we should adjust default values by -15 deg
-#define HUE_RANGE_STEP_WIDE_ADJ 		15
-#define HUE_RANGE_STEP_LOW_ADJ 			-15
+// Default step 60 deg (i.e. red is in 330..30 range)
+// But for wide step it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
+// But for low step it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
+#define HUE_RANGE_STEP_WIDE_ADJ 	15
+#define HUE_RANGE_STEP_LOW_ADJ 	-15
 #define HUE_RANGE_STEP_ULTRAWIDE_ADJ 	30
 
 // 
@@ -133,29 +138,20 @@
  * Create color mask for specified image.
  * name is used to generate a unique name for the result.
  */
-function ColorMask(image, name) {
+function ColorMask() {
+   
    if (DEBUG) {
-      console.writeln("ColorMask: ", name);
-      console.writeln("Minpoint: ", format("%6.3f", data.minHue));
-      console.writeln("Maxpoint: ", format("%6.3f", data.maxHue));
-      console.writeln("Lum filter min: ", format("%6.3f", data.minLum));
-      console.writeln("Lum filter max: ", format("%6.3f", data.maxLum));
-      console.writeln("Chrom filter min: ", format("%6.3f", data.minChrom));
-      console.writeln("Chrom filter max: ", format("%6.3f", data.maxChrom));
-      console.writeln("Mask type: ", format("%d", data.maskType));
-      console.writeln("Mask strength: ", format("%4.3f", data.maskStrength));
-      console.writeln("Mask suffix: ", data.maskSuff);
-      console.writeln("Default Hue Range: ", data.defaultHueRange);
+		printParameters();
    }
 
    // Pick an unused name for the mask
    var MaskName = null;
-   if (ImageWindow.windowById(name + CM_SUFF + data.maskSuff).isNull)
-      MaskName = name + CM_SUFF + data.maskSuff;
+   if (ImageWindow.windowById(data.targetView.id + CM_SUFF + data.maskSuff).isNull)
+      MaskName = data.targetView.id + CM_SUFF + data.maskSuff;
    else {
       for (var n = 1 ; n <= 99 ; n++) {
-         if (ImageWindow.windowById(name + CM_SUFF + data.maskSuff + n).isNull) {
-            MaskName = name + CM_SUFF + data.maskSuff + n;
+         if (ImageWindow.windowById(data.targetView.id + CM_SUFF + data.maskSuff + n).isNull) {
+            MaskName = data.targetView.id + CM_SUFF + data.maskSuff + n;
             break;
          }
       }
@@ -191,15 +187,13 @@ function ColorMask(image, name) {
    }
 
    //Luminance filter
-   var lumFilter = "*iif(CIEL($T)>=" + data.minLum + " && CIEL($T)<= " + data.maxLum + " ,1 ,0)";
+   var lumFilter = "*iif(CIEL($T)>=" + Math.min(data.minLum,data.maxLum) + " && CIEL($T)<= " + Math.max(data.minLum,data.maxLum) + " ,1 ,0)";
    //Chrominance filter
-   var chromFilter = "*iif(CIEc($T)>=" + data.minChrom + " && CIEc($T)<= " + data.maxChrom + " ,1 ,0)";
+   var chromFilter = "*iif(CIEc($T)>=" + Math.min(data.minChrom,data.maxChrom) + " && CIEc($T)<= " + Math.max(data.minChrom,data.maxChrom) + " ,1 ,0)";
    
 
    if (min < max) {
       // Range: 0..min..mid..max..1
-      if (DEBUG)
-         console.writeln("Range: 0..min..mid..max..1");
       mid = (min + max)/2;
       ldist = mid-min;
       rdist = max-mid;
@@ -210,8 +204,6 @@ function ColorMask(image, name) {
          mid = (min + max+1)/2;
          if (mid < 1) {
             // Range: 0..max..min..mid..1
-            if (DEBUG)
-				console.writeln("Range: 0..max..min..mid..1");
             ldist = mid - min;
             rdist = max + 1 - mid;
             PM.expression = "iif(H($T)<=" + max + ",~mtf((" + max + "-H($T))/" + rdist + "," + mtfBal + ")" + maskMod + "," +
@@ -221,8 +213,6 @@ function ColorMask(image, name) {
          } else {
             mid = mid - 1;
             // Range: 0..mid..max..min..1
-            if (DEBUG)
-               console.writeln("Range: 0..mid..max..min..1");
             ldist = mid + 1 - min;
             rdist = max - mid;
             PM.expression = "iif(H($T)<=" + mid + ",~mtf((H($T)+1-" + min + ")/" + ldist + "," + mtfBal + ")" + maskMod + "," +
@@ -251,8 +241,8 @@ function ColorMask(image, name) {
    PM.createNewImage = true;
    PM.showNewImage = true;
    PM.newImageId = MaskName;
-   PM.newImageWidth = image.width;
-   PM.newImageHeight = image.height;
+   PM.newImageWidth = data.targetView.image.width;
+   PM.newImageHeight = data.targetView.image.height;
    PM.newImageAlpha = false;
    PM.newImageColorSpace = PixelMath.prototype.Gray;
    PM.newImageSampleFormat = PixelMath.prototype.f32;
@@ -321,8 +311,8 @@ function ColorMask(image, name) {
 }
 
 /*
- * The ColorMaskData object defines functional parameters for the
- * ColorMask routine.
+ * The ColorMaskData object defines functional parameters for the ColorMask routine.
+ * They are starting default values
  */
 function ColorMaskData() {
    // Get access to the active image window
@@ -336,11 +326,11 @@ function ColorMaskData() {
    this.maxHue_control = null;
    this.minLum = 0.0;
    this.minLum_control = null;
-   this.maxLum = 0.0;
+   this.maxLum = 1.0;
    this.maxLum_control = null;
    this.minChrom = 0.0;
    this.minChrom_control = null;
-   this.maxChrom = 0.0;
+   this.maxChrom = 1.0;
    this.maxChrom_control = null;
    this.maskType = MASK_CHROMINANCE;
    this.maskStrength = DEFAULT_STRENGTH;
@@ -366,13 +356,15 @@ function exportParameters() {
    Parameters.set("maskType", data.maskType);
    Parameters.set("maskStrength", data.maskStrength);
    Parameters.set("blurLayers", data.blurLayers);
+   Parameters.set("maskSuff", data.maskSuff);
    Parameters.set("defaultHueRange", data.defaultHueRange);
 }
 
 /*
- * Restore saved parameters.
+ * Restore saved parameters from process icon.
  */
 function importParameters() {
+   if (DEBUG) console.writeln("<sub>Loading parameters from ScriptInstance</sub>");
    if(Parameters.has("minHue"))
       data.minHue = Parameters.getReal("minHue");
    if(Parameters.has("maxHue"))
@@ -391,6 +383,8 @@ function importParameters() {
       data.maskStrength = Parameters.getReal("maskStrength");
    if(Parameters.has("blurLayers"))
       data.blurLayers = Parameters.getInteger("blurLayers");
+   if(Parameters.has("maskSuff"))
+      data.maskSuff = Parameters.getString("maskSuff");
    if(Parameters.has("defaultHueRange"))
       data.defaultHueRange = Parameters.getInteger("defaultHueRange");
 }
@@ -414,6 +408,7 @@ function saveIndexed(key, index, type, value) {
  * Load / Save from Settings Storage
  */
 function loadSettings () {
+    if (DEBUG) console.writeln("<sub>Loading parameters from PixInisght settings storage</sub>");
 	var o;
 	if ((o = load("minHue", DataType_Float)) != null)
 		data.minHue = o;
@@ -433,6 +428,8 @@ function loadSettings () {
 		data.maskStrength = o;
 	if ((o = load("blurLayers", DataType_Int16)) != null)
 		data.blurLayers = o;
+	if ((o = load("maskSuff", DataType_String8)) != null)
+		data.maskSuff = o;
 	if ((o = load("defaultHueRange", DataType_Int16)) != null)
 		data.defaultHueRange = o;
 
@@ -448,27 +445,62 @@ function saveSettings () {
 	save("maskType", DataType_Int16, data.maskType);
 	save("maskStrength", DataType_Float, data.maskStrength);
 	save("blurLayers", DataType_Int16, data.blurLayers);
+	save("maskSuff", DataType_String8, data.maskSuff);
 	save("defaultHueRange", DataType_Int16, data.defaultHueRange);
 
 	if (DEBUG) {
-		console.writeln("\n<b>Settings saved:</b>");
+		console.writeln("<sub><br><b>Settings saved:</b></sub>");
 		this.printParameters();
 		console.writeln("\n");
 	};
 }
 
 function printParameters () {
-	console.writeln("minHue:		" + data.minHue);
-	console.writeln("maxHue:		" + data.maxHue);
-	console.writeln("minLum:		" + data.minLum);
-	console.writeln("maxLum:		" + data.maxLum);
-	console.writeln("minChrom:		" + data.minChrom);
-	console.writeln("maxChrom:		" + data.maxChrom);
-	console.writeln("maskType:		" + data.maskType);
-	console.writeln("maskStrength:	" + data.maskStrength);
-	console.writeln("blurLayers:	" + data.blurLayers);
-	console.writeln("defaultHueRange:" + data.defaultHueRange);
+
+	console.write("<sub>");
+	console.writeln("Running on image:	[" + data.targetView.id + "]");
+	console.writeln("Hue minpoint:		", format("%5.0f", data.minHue));
+	console.writeln("Hue maxpoint:		", format("%5.0f", data.maxHue));
+	console.writeln("Lum filter min:		" + format("%4.3f", data.minLum));
+	console.writeln("Lum filter max:		", format("%4.3f", data.maxLum));
+	console.writeln("Chrom filter min:	", format("%4.3f", data.minChrom));
+	console.writeln("Chrom filter max:	", format("%4.3f", data.maxChrom));
+	console.writeln("Mask type:		", format("%5d", data.maskType));
+	console.writeln("Mask strength:		" + format("%4.3f", data.maskStrength));
+	console.writeln("Mask suffix:		" + format("%5s", data.maskSuff));
+	console.writeln("Mask blur layers:	" + format("%5d", data.blurLayers));
+	console.writeln("Hue Range id:		" + format("%5d", data.defaultHueRange));
+	console.write("</sub>");
+}
+
+/*
+ * Wrapper function to run ColorMask engine
+ */
+
+function runEngine() {
 	
+	// Only works on a colour image, duh! 
+	// Strict check for 3 channel replaced with "not less then 3" because of possible alpha channel presence
+	if (data.targetView.image.numberOfChannels < 3) {
+		(new MessageBox("You must supply an RGB color image.",
+		   TITLE, StdIcon_Error, StdButton_Ok)).execute();
+		return false;
+	}
+	
+	console.abortEnabled = true;
+	if (DEBUG)
+		console.show();
+
+	var t0 = new Date;
+
+	data.targetView.beginProcess(UndoFlag_NoSwapFile);
+	ColorMask();
+	data.targetView.endProcess();
+
+	var t1 = new Date;
+	console.writeln(format("<end><cbr>ColorMask: %.2f s", (t1.getTime() - t0.getTime())/1000));
+	
+	return true;
 }
 
 /*
@@ -509,7 +541,7 @@ function ColorMaskDialog() {
                          "number of small scale wavelet layers with MultiscaleLinearTransform." +
                          "<p>Copyright &copy; 2015-2017 Rick Stevenson. All rights reserved.<br>" +
                          "Some enhancement made by Boris Emchenko 2020-2023.</p>" +
-						 "<p><br><a href=https://miro.medium.com/v2/resize:fit:4800/format:webp/1*rHwnCLd1NhMeBEDY-93gAA.png>Color wheel link (right-click and copy to browser)</a>" +
+						 "<p><br><a href=https://shreyasminocha.me/img/hsl-intuition/hue-wheel.png>Color wheel link (right-click and copy/paste to browser)</a>" +
 						 "</p>";
 
 						 
@@ -548,7 +580,7 @@ function ColorMaskDialog() {
    this.minHue.setRange(0.0, 360.0);
    this.minHue.setPrecision(4);
    this.minHue.setValue(data.minHue);
-   this.minHue.onValueUpdated = function(value) { data.minHue = value; data.maskSuff = ""; }
+   this.minHue.onValueUpdated = function(value) { data.minHue = value; data.maskSuff = data.minHue + "_" + data.maxHue; }
    this.minHue.toolTip =
       "<p>Start of the color range specified as a Hue value between 0 and 360 degrees.</p>";
 
@@ -564,7 +596,7 @@ function ColorMaskDialog() {
    this.maxHue.setRange(0.0, 360.0);
    this.maxHue.setPrecision(4);
    this.maxHue.setValue(data.maxHue);
-   this.maxHue.onValueUpdated = function(value) { data.maxHue = value; data.maskSuff = ""; }
+   this.maxHue.onValueUpdated = function(value) { data.maxHue = value; data.maskSuff = data.minHue + "_" + data.maxHue; }
    this.maxHue.toolTip =
       "<p>End of the color range specified as a Hue value between 0 and 360 degrees.</p>";
 
@@ -579,6 +611,16 @@ function ColorMaskDialog() {
    this.red_Button.toolTip =
       "<p>Set parameters to select red hues.</p>";
 
+   this.yellow_Button = new PushButton(this);
+   this.yellow_Button.text = "Yellow [60]";
+   this.yellow_Button.backgroundColor = 0xFFFFFF00; 	// bg color
+   
+   this.yellow_Button.onClick = function() {
+      SetCannedRange(MIN_YELLOW, MAX_YELLOW, "Y", data.defaultHueRange);
+   };
+   this.yellow_Button.toolTip =
+      "<p>Set parameters to select yellow hues.</p>";
+
    this.green_Button = new PushButton(this);
    this.green_Button.text = "Green [120]";
    this.green_Button.backgroundColor = 0xFF00FF00; 	// bg color
@@ -587,15 +629,6 @@ function ColorMaskDialog() {
    };
    this.green_Button.toolTip =
       "<p>Set parameters to select green hues.</p>";
-
-   this.blue_Button = new PushButton(this);
-   this.blue_Button.text = "Blue [240]";
-   this.blue_Button.backgroundColor = 0xFF0000FF; 	// bg color
-   this.blue_Button.onClick = function() {
-      SetCannedRange(MIN_BLUE, MAX_BLUE, "B", data.defaultHueRange);
-   };
-   this.blue_Button.toolTip =
-      "<p>Set parameters to select blue hues.</p>";
 
    this.cyan_Button = new PushButton(this);
    this.cyan_Button.text = "Cyan [180]";
@@ -606,8 +639,17 @@ function ColorMaskDialog() {
    this.cyan_Button.toolTip =
       "<p>Set parameters to select cyan hues.</p>";
 
+   this.blue_Button = new PushButton(this);
+   this.blue_Button.text = "Blue [240]";
+   this.blue_Button.backgroundColor = 0xFF0000FF; 	// bg color
+   this.blue_Button.onClick = function() {
+      SetCannedRange(MIN_BLUE, MAX_BLUE, "B", data.defaultHueRange);
+   };
+   this.blue_Button.toolTip =
+      "<p>Set parameters to select blue hues.</p>";
+
    this.magenta_Button = new PushButton(this);
-   this.magenta_Button.text = "Magenta [270]";
+   this.magenta_Button.text = "Magenta [300]";
    this.magenta_Button.backgroundColor = 0xFFFF00FF; 	// bg color
    this.magenta_Button.onClick = function() {
       SetCannedRange(MIN_MAGENTA, MAX_MAGENTA, "M", data.defaultHueRange);
@@ -615,15 +657,6 @@ function ColorMaskDialog() {
    this.magenta_Button.toolTip =
       "<p>Set parameters to select magenta hues.</p>";
 
-   this.yellow_Button = new PushButton(this);
-   this.yellow_Button.text = "Yellow [60]";
-   this.yellow_Button.backgroundColor = 0xFFFFFF00; 	// bg color
-   
-   this.yellow_Button.onClick = function() {
-      SetCannedRange(MIN_YELLOW, MAX_YELLOW, "Y", data.defaultHueRange);
-   };
-   this.yellow_Button.toolTip =
-      "<p>Set parameters to select yellow hues.</p>";
 
 
    this.RGB_ButtonPane = new HorizontalSizer;
@@ -652,7 +685,7 @@ function ColorMaskDialog() {
    this.hueStep_ComboBox.addItem( "*Default - 60deg*" );
    this.hueStep_ComboBox.addItem( "Low - 30deg" );
    this.hueStep_ComboBox.toolTip =
-      "<p>Hue range in degrees used when you press any of the above color preset buttons. By default, 60-degree range are used, but can be changed to wider or lower values. Obviously, start and end hue values can be fine-tuned manually with the help of appropriate controls</p>";
+      "<p>Hue range in degrees used when you press any of the above color preset buttons. By default, 60-degree range is used, but can be changed to wider or lower range. Obviously, start and end hue values can be fine-tuned manually with the help of appropriate controls</p>";
    this.hueStep_ComboBox.currentItem = data.defaultHueRange;
    this.hueStep_ComboBox.onItemSelected = function()
    {
@@ -684,9 +717,9 @@ function ColorMaskDialog() {
    this.minLum.setRange(0.0, 1.0);
    this.minLum.setPrecision(4);
    this.minLum.setValue(data.minLum);
-   this.minLum.onValueUpdated = function(value) { data.minLum = value; data.maskSuff = ""; }
+   this.minLum.onValueUpdated = function(value) { data.minLum = value; }
    this.minLum.toolTip =
-      "<p>Min luminance value to include in mask.</p>";
+      "<p>Min luminance value to be included in mask.</p>";
 
    this.lumParams_Sizer.add(this.minLum);
 
@@ -700,9 +733,9 @@ function ColorMaskDialog() {
    this.maxLum.setRange(0.0, 1.0);
    this.maxLum.setPrecision(4);
    this.maxLum.setValue(data.maxLum);
-   this.maxLum.onValueUpdated = function(value) { data.maxLum = value; data.maskSuff = ""; }
+   this.maxLum.onValueUpdated = function(value) { data.maxLum = value; }
    this.maxLum.toolTip =
-      "<p>Max luminance value to include in mask.</p>";
+      "<p>Max luminance value to be included in mask.</p>";
 
    this.lumParams_Sizer.add(this.maxLum);
 
@@ -723,9 +756,9 @@ function ColorMaskDialog() {
    this.minChrom.setRange(0.0, 1.0);
    this.minChrom.setPrecision(4);
    this.minChrom.setValue(data.minChrom);
-   this.minChrom.onValueUpdated = function(value) { data.minChrom = value; data.maskSuff = ""; }
+   this.minChrom.onValueUpdated = function(value) { data.minChrom = value; }
    this.minChrom.toolTip =
-      "<p>Min chrominance value to include in mask.</p>";
+      "<p>Min chrominance value to be included in mask.</p>";
 
    this.chromParams_Sizer.add(this.minChrom);
 
@@ -739,9 +772,9 @@ function ColorMaskDialog() {
    this.maxChrom.setRange(0.0, 1.0);
    this.maxChrom.setPrecision(4);
    this.maxChrom.setValue(data.maxChrom);
-   this.maxChrom.onValueUpdated = function(value) { data.maxChrom = value; data.maskSuff = ""; }
+   this.maxChrom.onValueUpdated = function(value) { data.maxChrom = value; }
    this.maxChrom.toolTip =
-      "<p>Max chrominance value to include in mask.</p>";
+      "<p>Max chrominance value to be included in mask.</p>";
 
    this.chromParams_Sizer.add(this.maxChrom);
 
@@ -884,6 +917,7 @@ function ColorMaskDialog() {
    this.setFixedSize();
 }
 
+
 // Our dialog inherits all properties and methods from the core Dialog object.
 ColorMaskDialog.prototype = new Dialog;
 
@@ -896,21 +930,17 @@ function main()
       console.hide();
 
    if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
-      if (DEBUG)
-         console.writeln("Script instance");
+      if (DEBUG) {
+		 if (Parameters.isViewTarget) 
+			console.writeln("<sub>Executed on target view</sub>");
+		 else
+			console.writeln("<sub>Global context</sub>");
+	  }
       importParameters();
-   }
-   else
-   {
-	  loadSettings();
-   }
-
-   if (Parameters.isViewTarget) {
-      if (DEBUG)
-         console.writeln("Executed on target view");
    } else {
-      if (DEBUG)
-         console.writeln("Direct or global context");
+      if (DEBUG) 
+         console.writeln("<sub>Direct context</sub>");
+	  loadSettings();
    }
 
    if (!data.targetView) {
@@ -919,41 +949,31 @@ function main()
       return;
    }
 
-   var dialog = new ColorMaskDialog();
-   for (;;) {
-      if (!dialog.execute())
-         break;
-
-      // A view must be selected.
-      if (data.targetView.isNull) {
-         (new MessageBox("You must select a view to apply this script.",
-               TITLE, StdIcon_Error, StdButton_Ok)).execute();
-         continue;
-      }
-
-      // Only works on a colour image, duh!
-      if (data.targetView.image.numberOfChannels != 3) {
-         (new MessageBox("You must supply an RGB color image.",
-               TITLE, StdIcon_Error, StdButton_Ok)).execute();
-         continue;
-      }
-
-      console.abortEnabled = true;
-      console.show();
-
-      var t0 = new Date;
-
-      data.targetView.beginProcess(UndoFlag_NoSwapFile);
-      ColorMask(data.targetView.image, data.targetView.id);
-      data.targetView.endProcess();
-
-      var t1 = new Date;
-      console.writeln(format("<end><cbr>ColorMask: %.2f s", (t1.getTime() - t0.getTime())/1000));
+   if (Parameters.isViewTarget) {
 	  
-	  saveSettings();
+	  runEngine();
+   
+   } else {
+	   var dialog = new ColorMaskDialog();
+	   for (;;) {
+		  if (!dialog.execute())
+			 break;
 
-      // Quit after successful execution.
-      break;
+		  // A view must be selected.
+		  if (data.targetView.isNull) {
+			 (new MessageBox("You must select a view to apply this script.",
+				   TITLE, StdIcon_Error, StdButton_Ok)).execute();
+			 continue;
+		  }
+
+
+		  runEngine();
+		  
+		  saveSettings();
+
+		  // Quit after successful execution.
+		  break;
+	  }
    }
 }
 
