@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.3 beta 2"
- #define COMPILE_DATE "2023/02/20"
+ #define VERSION "6.3 beta 2b"
+ #define COMPILE_DATE "2023/02/25"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2023 Boris Emchenko<br/>"
@@ -24,6 +24,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+v 6.3 beta 2b [2023/02/25]
+- progress dialog calling changed
+- todo: auto binning
+- todo: makig process icon for NSG
 
 v 6.3 beta 2[2023/02/20]
 - change overscan handling
@@ -34,8 +38,8 @@ v 6.3 beta 1[2023/02/20]
 - bufix with date handling (if there was additional numbers)
 - progressBar error displaying multiline
 - some clarification in docs
-- InProgress: auto binning
-- InProgress: makig process icon for NSG
+- todo: auto binning
+- todo: makig process icon for NSG
 
 v 6.2 [2023/01/24]
 - progressBar error displaying

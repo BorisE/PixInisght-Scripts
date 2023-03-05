@@ -102,7 +102,7 @@ Config.DarkExposureLenghtTolerance = 30; // В секундах; MasterDark  в�
 // Данный параметр разрешае ему быть на 30 сек короче! если задать 0, то будут рассматриваться только те дарки, которые длинее
 
 // Формат файла
-Config.OutputFormatIC = ImageCalibration.prototype.f32; //default
+Config.OutputFormatIC = ImageCalibration.prototype.i16; //default - .f32, .i16
 //Config.OutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
 

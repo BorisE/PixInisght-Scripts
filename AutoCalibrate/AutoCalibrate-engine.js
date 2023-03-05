@@ -1653,6 +1653,13 @@ function AutoCalibrateEngine() {
 		}
 
 
+		if (this.approveFileList.length==0) {
+			console.warningln();
+			console.warningln("Approving: there is no files to measure, exiting ...");
+			return false;
+		}
+		
+
         // Start approving
         console.noteln("<end><cbr><br>",
             "-------------------------------------------------------------");
@@ -1762,8 +1769,8 @@ function AutoCalibrateEngine() {
         }
 
 		// Save result in text file (just in case not to loose measurement results)
-		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement.src", P.toSource());
-		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement.src</b> file");
+		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement_source.src", P.toSource());
+		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement_source.src</b> file");
 		
 		
 		// Save result in icon 
