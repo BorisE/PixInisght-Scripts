@@ -82,7 +82,7 @@
 #include <pjsr/DataType.jsh>
 #include <pjsr/Color.jsh>
 
-#define VERSION   "2.0"
+#define VERSION   "2.0b2"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
@@ -638,17 +638,24 @@ function ColorMaskDialog() {
                var R_Start = (360- data.minHue) / 180 * Math.PI + Math.PI/2;
                var R_Len = -(data.maxHue - data.minHue) / 180 * Math.PI;
             }
+
+            var RV_inner = 99/512*this.width;
+            var RV_outer = 176/512*this.width;
+
             g.pen = new Pen( 0xFF000000, 5 );
             //g.brush = new Brush(0xFF0000FF);
-            g.drawArc ( X0, Y0, 99/512*this.width, R_Start, R_Len);
-            g.drawArc ( X0, Y0, 176/512*this.width, R_Start, R_Len);
+            g.drawArc ( X0, Y0, RV_inner, R_Start, R_Len);
+            g.drawArc ( X0, Y0, RV_outer, R_Start, R_Len);
 
             g.pen = new Pen( 0xFF000000, 1 );
-            g.drawPie ( X0, Y0, 176, R_Start, R_Len);
+            g.drawPie ( X0, Y0, RV_outer, R_Start, R_Len);
 
             //g.drawArc ( X0, Y0, 100, 0, -Math.PI/2);
             console.write("w " + this.width);
-            console.writeln(" | h " + this.height);
+            console.write(" | h " + this.height);
+            console.write(" | RVinner " + RV_inner);
+            console.write(" | RV_outer " + RV_outer);
+            console.writeln();
 
         } catch (e) {
             console.errorln("Error! " + e);
@@ -1001,7 +1008,7 @@ function ColorMaskDialog() {
 
    this.windowTitle = TITLE + " Script";
    this.adjustToContents();
-   //this.setFixedSize();
+   this.setFixedSize();
 }
 
 
