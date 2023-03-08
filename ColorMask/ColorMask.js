@@ -116,9 +116,9 @@
 #define MIN_MAGENTA     270
 #define MAX_MAGENTA     330
 
-// Default step 60 deg (i.e. red is in 330..30 range)
-// But for wide step it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
-// But for low step it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
+// Default range is 60 deg (i.e. red is in 330..30 range)
+// For wide range it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
+// For low range it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
 #define HUE_RANGE_STEP_WIDE_ADJ 	15
 #define HUE_RANGE_STEP_LOW_ADJ 	-15
 #define HUE_RANGE_STEP_ULTRAWIDE_ADJ 	30

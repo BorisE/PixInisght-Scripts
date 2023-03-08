@@ -53,12 +53,12 @@
  * Build a mask to select a color range in an image.
  *
  * Copyright (C) 2015-2017 Rick Stevenson (rsj.stevenson@gmail.com). All rights reserved.
- * 
- * Special thanks to Adam Block for his advices and contributions.
+ *
+ * Special thanks to Adam Block for his advices and contribution.
  *
  * Modifications made by Boris Emchenko:
  *
- * 1.0 mod 3 [2023/03/06] 
+ * 1.0 mod 3 [2023/03/08] 
 	interface enhancement - hue wheel added
 	displaying hue range on hue wheel
 	
@@ -116,9 +116,9 @@
 #define MIN_MAGENTA     270
 #define MAX_MAGENTA     330
 
-// Default step 60 deg (i.e. red is in 330..30 range)
-// But for wide step it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
-// But for low step it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
+// Default range is 60 deg (i.e. red is in 330..30 range)
+// For wide range it is 90 deg (i.e. red is in 315..45 range), so we should adjust default by 15 deg
+// For low range it is 30 deg (i.e. red is in 345..15 range), so we should adjust default by -15 deg
 #define HUE_RANGE_STEP_WIDE_ADJ 	15
 #define HUE_RANGE_STEP_LOW_ADJ 	-15
 #define HUE_RANGE_STEP_ULTRAWIDE_ADJ 	30
@@ -325,9 +325,9 @@ function ColorMaskData() {
 
    if (!window.isNull)
       this.targetView = window.currentView;
-   this.minHue = 0.0;
+   this.minHue = 330.0;
    this.minHue_control = null;
-   this.maxHue = 0.0;
+   this.maxHue = 30.0;
    this.maxHue_control = null;
    this.minLum = 0.0;
    this.minLum_control = null;
@@ -527,6 +527,7 @@ function ColorMaskDialog() {
    this.__base__();
 
    var labelMinWidth = Math.round(this.font.width("Start hue:") + 2.0 * this.font.width('M'));
+   var labelLumMinWidth = Math.round(this.font.width("Min luminance value:") + 2.0 * this.font.width('M'));
    var sliderMaxValue = 360;
    var sliderMinWidth = 256;
 
@@ -624,17 +625,19 @@ function ColorMaskDialog() {
             g = new Graphics(this);
             g.antialiasing = true;
             g.smoothInterpolation=true;
-
+            //g.opacity = 0.5;
             this.setScaledFixedWidth(256);
             this.setScaledFixedHeight(256);
 
+
+            //g.drawBitmap( 0, 0, this.dialog.bitmap );
+            //g.drawBitmap( 0, 0, this.dialog.bitmap.scaled( Math.min( this.width, this.height )/ Math.max( this.dialog.bitmap.width, this.dialog.bitmap.height )  ) );
+            //g.drawBitmap( 0, 0, this.dialog.bitmap.scaled( this.width/this.dialog.bitmap.width) );
             g.drawScaledBitmap( 0, 0, Math.min( this.width, this.height ), Math.min( this.width, this.height ), this.dialog.bitmap);
+            //g.drawBitmap( 0, 0, this.dialog.bitmap);
 
-            var X0= this.width / 2 ;
-            var Y0= this.height / 2;
-
-            var RV_inner = 101/512*this.width;
-            var RV_outer = 174/512*this.width;
+            var X0= this.width /2 ;
+            var Y0= this.height /2;
 
             if (data.maxHue < data.minHue) {
                var R_Start = (360- data.minHue) / 180 * Math.PI + Math.PI/2;
@@ -643,6 +646,9 @@ function ColorMaskDialog() {
                var R_Start = (360- data.minHue) / 180 * Math.PI + Math.PI/2;
                var R_Len = -(data.maxHue - data.minHue) / 180 * Math.PI;
             }
+
+            var RV_inner = 101/512*this.width;
+            var RV_outer = 174/512*this.width;
 
             g.pen = new Pen( 0xFF000000, 5 );
             g.drawArc ( X0, Y0, RV_inner, R_Start, R_Len);
@@ -660,7 +666,7 @@ function ColorMaskDialog() {
             }
 
         } catch (e) {
-            console.errorln("Error rendering hue wheel! ", e);
+            console.errorln("Error rendering hue wheel! ", e.message);
         } finally {
             g.end();
         }
@@ -767,8 +773,10 @@ function ColorMaskDialog() {
 
 
    this.hueStep_Label = new Label(this);
-   this.hueStep_Label.text = "Hue preset range step";
-   this.hueStep_Label.minWidth = labelMinWidth;
+   this.hueStep_Label.text = "Hue preset range:";
+   this.hueStep_Label.minWidth = labelLumMinWidth;
+   this.hueStep_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+
 
    this.hueStep_ComboBox = new ComboBox( this );
    this.hueStep_ComboBox.editEnabled = true;
@@ -777,7 +785,7 @@ function ColorMaskDialog() {
    this.hueStep_ComboBox.addItem( "Default - 60deg" );
    this.hueStep_ComboBox.addItem( "Narrow - 30deg" );
    this.hueStep_ComboBox.toolTip =
-      "<p>Hue range in degrees used when you press any of the color preset buttons. By default, 60-degree range is used, but can be changed to wider or lower range. Obviously, start and end hue values can be fine-tuned manually with the help of appropriate controls</p>";
+      "<p>Hue range in degrees used when you press any of the above color preset buttons. By default, 60-degree range is used, but can be changed to wider or lower range. Obviously, start and end hue values can be fine-tuned manually with the help of appropriate controls</p>";
    this.hueStep_ComboBox.currentItem = data.defaultHueRange;
    this.hueStep_ComboBox.onItemSelected = function()
    {
@@ -789,7 +797,7 @@ function ColorMaskDialog() {
    this.AdditionalParameters_ButtonPane.spacing = 6;
 
    this.AdditionalParameters_ButtonPane.add(this.hueStep_Label);
-   this.AdditionalParameters_ButtonPane.add(this.hueStep_ComboBox);
+   this.AdditionalParameters_ButtonPane.add(this.hueStep_ComboBox,100);
    this.hueParams_Sizer.add(this.AdditionalParameters_ButtonPane);
 
 
@@ -804,8 +812,8 @@ function ColorMaskDialog() {
    this.minLum = new NumericControl(this);
    data.minLum_control = this.minLum;
 
-   this.minLum.label.text = "Min Luminance value:";
-   this.minLum.label.minWidth = labelMinWidth;
+   this.minLum.label.text = "Min luminance value:";
+   this.minLum.label.minWidth = labelLumMinWidth;
    this.minLum.slider.setRange(0, 1000);
    this.minLum.slider.minWidth = sliderMinWidth;
    this.minLum.setRange(0.0, 1.0);
@@ -821,7 +829,7 @@ function ColorMaskDialog() {
    data.maxLum_control = this.maxLum;
 
    this.maxLum.label.text = "Max Luminance value:";
-   this.maxLum.label.minWidth = labelMinWidth;
+   this.maxLum.label.minWidth = labelLumMinWidth;
    this.maxLum.slider.setRange(0, 1000);
    this.maxLum.slider.minWidth = sliderMinWidth;
    this.maxLum.setRange(0.0, 1.0);
@@ -844,7 +852,7 @@ function ColorMaskDialog() {
    data.minChrom_control = this.minChrom;
 
    this.minChrom.label.text = "Min Chrominance value:";
-   this.minChrom.label.minWidth = labelMinWidth;
+   this.minChrom.label.minWidth = labelLumMinWidth;
    this.minChrom.slider.setRange(0, 1000);
    this.minChrom.slider.minWidth = sliderMinWidth;
    this.minChrom.setRange(0.0, 1.0);
@@ -860,7 +868,7 @@ function ColorMaskDialog() {
    data.maxChrom_control = this.maxChrom;
 
    this.maxChrom.label.text = "Max Chrominance value:";
-   this.maxChrom.label.minWidth = labelMinWidth;
+   this.maxChrom.label.minWidth = labelLumMinWidth;
    this.maxChrom.slider.setRange(0, 1000);
    this.maxChrom.slider.minWidth = sliderMinWidth;
    this.maxChrom.setRange(0.0, 1.0);
@@ -937,6 +945,8 @@ function ColorMaskDialog() {
    this.blurLayers_Label = new Label(this);
    this.blurLayers_Label.minWidth = labelMinWidth;
    this.blurLayers_Label.text = "Mask blur: layers to remove ";
+   this.blurLayers_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+   
 
    this.blurLayers_SpinBox = new SpinBox(this);
    this.blurLayers_SpinBox.minValue = 0;
@@ -957,7 +967,8 @@ function ColorMaskDialog() {
    this.buttons_Sizer.spacing = 6;
 
    this.newInstance_Button = new ToolButton(this);
-   this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
+   this.newInstance_Button.icon = this.scaledResource( ":/process-interface/new-instance.png" );
+   this.newInstance_Button.setScaledFixedSize( 10, 10 );
    this.newInstance_Button.toolTip = "New Instance";
    this.newInstance_Button.onMousePress = function()
    {
@@ -1076,4 +1087,3 @@ main();
 
 // ----------------------------------------------------------------------------
 // EOF ColorMask.js - Released 2017-07-07T12:11:59Z
-// and later modified by Boris Emchenko (see above)
