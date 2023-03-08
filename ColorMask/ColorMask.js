@@ -53,19 +53,28 @@
  * Build a mask to select a color range in an image.
  *
  * Copyright (C) 2015-2017 Rick Stevenson (rsj.stevenson@gmail.com). All rights reserved.
- *
- * 2.0 [2023/03/05] interface enhancement - hue wheel added
-					displaying hue range on hue wheel
- * 1.5 [2023/02/27] execution on target view doesn't shows dialog
-					min/max limits for Lum and Chrom are always min/max
-					some bigfixes
- * 1.4 [2023/02/11] new setting: hue range step (can be selected 30-60-90-120)
-					color buttons
- * 1.3 [2023/02/10] hue calculatiions changed to hue from HSV color space
-					buttons rearranged
-					minor design changes
- * 1.2 [2020/06/14] luminance & chrominance filter
- * 1.1 [2020/06/12] saving settings between script calls
+ * Modified by Boris Emchenko 2020-2023
+ 
+ * 2.0b[2023/03/08] 
+		interface elements fine tunning
+ * 2.0 [2023/03/06] 
+		interface enhancement - hue wheel added
+		displaying hue range on hue wheel
+ * 1.5 [2023/02/27] 
+		execution on target view doesn't shows dialog
+		min/max limits for Lum and Chrom are always min/max
+		some bigfixes
+ * 1.4 [2023/02/11] 
+		new setting: hue range step (can be selected 30-60-90-120)
+		color buttons
+ * 1.3 [2023/02/10] 
+		hue calculatiions changed to hue from HSV color space
+		buttons rearranged
+		minor design changes
+ * 1.2 [2020/06/14] 
+		luminance & chrominance filter
+ * 1.1 [2020/06/12] 
+		saving settings between script calls
  */
 
 #feature-id    Utilities2 > ColorMask
@@ -82,7 +91,7 @@
 #include <pjsr/DataType.jsh>
 #include <pjsr/Color.jsh>
 
-#define VERSION   "2.0b2"
+#define VERSION   "2.0b"
 #define TITLE     "ColorMask"
 
 #define DEBUG     true
@@ -316,9 +325,9 @@ function ColorMaskData() {
 
    if (!window.isNull)
       this.targetView = window.currentView;
-   this.minHue = 0.0;
+   this.minHue = 330.0;
    this.minHue_control = null;
-   this.maxHue = 0.0;
+   this.maxHue = 30.0;
    this.maxHue_control = null;
    this.minLum = 0.0;
    this.minLum_control = null;
@@ -518,6 +527,7 @@ function ColorMaskDialog() {
    this.__base__();
 
    var labelMinWidth = Math.round(this.font.width("Start hue:") + 2.0 * this.font.width('M'));
+   var labelLumMinWidth = Math.round(this.font.width("Min luminance value:") + 2.0 * this.font.width('M'));
    var sliderMaxValue = 360;
    var sliderMinWidth = 256;
 
@@ -604,7 +614,7 @@ function ColorMaskDialog() {
    /* bitmap */
    let thisFilePath = #__FILE__;
    let thisDirectory = File.extractDrive( thisFilePath ) + File.extractDirectory( thisFilePath );
-   this.bitmap = new Bitmap( thisDirectory + "/hue-wheel3.png" );
+   this.bitmap = new Bitmap( thisDirectory + "/hue-wheel.png" );
 
    this.bitmapControl = new Control( this );
    this.bitmapControl.setScaledMinSize( 256, 256 );
@@ -613,9 +623,9 @@ function ColorMaskDialog() {
         let g;
         try {
             g = new Graphics(this);
-            //g.clipRect = new Rect(0, 0, this.width, this.height);
             g.antialiasing = true;
             g.smoothInterpolation=true;
+            //g.opacity = 0.5;
             this.setScaledFixedWidth(256);
             this.setScaledFixedHeight(256);
 
@@ -626,8 +636,6 @@ function ColorMaskDialog() {
             g.drawScaledBitmap( 0, 0, Math.min( this.width, this.height ), Math.min( this.width, this.height ), this.dialog.bitmap);
             //g.drawBitmap( 0, 0, this.dialog.bitmap);
 
-            //var X0= this.width /2 - 2;
-            //var Y0= this.height /2 - 9;
             var X0= this.width /2 ;
             var Y0= this.height /2;
 
@@ -639,26 +647,26 @@ function ColorMaskDialog() {
                var R_Len = -(data.maxHue - data.minHue) / 180 * Math.PI;
             }
 
-            var RV_inner = 99/512*this.width;
-            var RV_outer = 176/512*this.width;
+            var RV_inner = 101/512*this.width;
+            var RV_outer = 174/512*this.width;
 
             g.pen = new Pen( 0xFF000000, 5 );
-            //g.brush = new Brush(0xFF0000FF);
             g.drawArc ( X0, Y0, RV_inner, R_Start, R_Len);
             g.drawArc ( X0, Y0, RV_outer, R_Start, R_Len);
 
             g.pen = new Pen( 0xFF000000, 1 );
             g.drawPie ( X0, Y0, RV_outer, R_Start, R_Len);
 
-            //g.drawArc ( X0, Y0, 100, 0, -Math.PI/2);
-            console.write("w " + this.width);
-            console.write(" | h " + this.height);
-            console.write(" | RVinner " + RV_inner);
-            console.write(" | RV_outer " + RV_outer);
-            console.writeln();
+            if (DEBUG) {
+               console.write("w " + this.width);
+               console.write(" | h " + this.height);
+               console.write(" | RVinner " + RV_inner);
+               console.write(" | RV_outer " + RV_outer);
+               console.writeln();
+            }
 
         } catch (e) {
-            console.errorln("Error! " + e);
+            console.errorln("Error rendering hue wheel! ", e.message);
         } finally {
             g.end();
         }
@@ -667,7 +675,7 @@ function ColorMaskDialog() {
 
    /* preset buttons */
    this.red_Button = new PushButton(this);
-   this.red_Button.backgroundColor = 0xFFFF0000; 	// bg color
+   this.red_Button.backgroundColor = 0xFFFF4040; 	// bg color
    this.red_Button.text = "Red [0]";
    this.red_Button.onClick = function() {
       SetCannedRange(MIN_RED, MAX_RED, "R", data.defaultHueRange);
@@ -708,7 +716,7 @@ function ColorMaskDialog() {
 
    this.blue_Button = new PushButton(this);
    this.blue_Button.text = "Blue [240]";
-   this.blue_Button.backgroundColor = 0xFF0000FF; 	// bg color
+   this.blue_Button.backgroundColor = 0xFF3030FF; 	// bg color
    this.blue_Button.onClick = function() {
       SetCannedRange(MIN_BLUE, MAX_BLUE, "B", data.defaultHueRange);
       this.dialog.bitmapControl.repaint();
@@ -733,19 +741,19 @@ function ColorMaskDialog() {
 
    this.HueWheel_MediumPane_Left = new VerticalSizer;
    this.HueWheel_MediumPane_Left.spacing = 6;
-   this.HueWheel_MediumPane_Left.addSpacing (6);
+   this.HueWheel_MediumPane_Left.addSpacing (5);
    this.HueWheel_MediumPane_Left.add(this.magenta_Button);
-   this.HueWheel_MediumPane_Left.addSpacing (10);
+   this.HueWheel_MediumPane_Left.addSpacing (25);
    this.HueWheel_MediumPane_Left.add(this.blue_Button);
-   this.HueWheel_MediumPane_Left.addSpacing (6);
+   this.HueWheel_MediumPane_Left.addSpacing (5);
 
    this.HueWheel_MediumPane_Right = new VerticalSizer;
    this.HueWheel_MediumPane_Right.spacing = 6;
-   this.HueWheel_MediumPane_Right.addSpacing (6);
+   this.HueWheel_MediumPane_Right.addSpacing (5);
    this.HueWheel_MediumPane_Right.add(this.yellow_Button);
-   this.HueWheel_MediumPane_Right.addSpacing (10);
+   this.HueWheel_MediumPane_Right.addSpacing (25);
    this.HueWheel_MediumPane_Right.add(this.green_Button);
-   this.HueWheel_MediumPane_Right.addSpacing (6);
+   this.HueWheel_MediumPane_Right.addSpacing (5);
 
 
 
@@ -765,15 +773,17 @@ function ColorMaskDialog() {
 
 
    this.hueStep_Label = new Label(this);
-   this.hueStep_Label.text = "Hue preset range step";
-   this.hueStep_Label.minWidth = labelMinWidth;
+   this.hueStep_Label.text = "Hue preset range:";
+   this.hueStep_Label.minWidth = labelLumMinWidth;
+   this.hueStep_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+
 
    this.hueStep_ComboBox = new ComboBox( this );
    this.hueStep_ComboBox.editEnabled = true;
    this.hueStep_ComboBox.addItem( "UltraWide - 120deg" );
    this.hueStep_ComboBox.addItem( "Wide - 90deg" );
-   this.hueStep_ComboBox.addItem( "*Default - 60deg*" );
-   this.hueStep_ComboBox.addItem( "Low - 30deg" );
+   this.hueStep_ComboBox.addItem( "Default - 60deg" );
+   this.hueStep_ComboBox.addItem( "Narrow - 30deg" );
    this.hueStep_ComboBox.toolTip =
       "<p>Hue range in degrees used when you press any of the above color preset buttons. By default, 60-degree range is used, but can be changed to wider or lower range. Obviously, start and end hue values can be fine-tuned manually with the help of appropriate controls</p>";
    this.hueStep_ComboBox.currentItem = data.defaultHueRange;
@@ -787,9 +797,8 @@ function ColorMaskDialog() {
    this.AdditionalParameters_ButtonPane.spacing = 6;
 
    this.AdditionalParameters_ButtonPane.add(this.hueStep_Label);
-   this.AdditionalParameters_ButtonPane.add(this.hueStep_ComboBox);
+   this.AdditionalParameters_ButtonPane.add(this.hueStep_ComboBox,100);
    this.hueParams_Sizer.add(this.AdditionalParameters_ButtonPane);
-
 
 
 
@@ -803,8 +812,8 @@ function ColorMaskDialog() {
    this.minLum = new NumericControl(this);
    data.minLum_control = this.minLum;
 
-   this.minLum.label.text = "Min Luminance value:";
-   this.minLum.label.minWidth = labelMinWidth;
+   this.minLum.label.text = "Min luminance value:";
+   this.minLum.label.minWidth = labelLumMinWidth;
    this.minLum.slider.setRange(0, 1000);
    this.minLum.slider.minWidth = sliderMinWidth;
    this.minLum.setRange(0.0, 1.0);
@@ -820,7 +829,7 @@ function ColorMaskDialog() {
    data.maxLum_control = this.maxLum;
 
    this.maxLum.label.text = "Max Luminance value:";
-   this.maxLum.label.minWidth = labelMinWidth;
+   this.maxLum.label.minWidth = labelLumMinWidth;
    this.maxLum.slider.setRange(0, 1000);
    this.maxLum.slider.minWidth = sliderMinWidth;
    this.maxLum.setRange(0.0, 1.0);
@@ -843,7 +852,7 @@ function ColorMaskDialog() {
    data.minChrom_control = this.minChrom;
 
    this.minChrom.label.text = "Min Chrominance value:";
-   this.minChrom.label.minWidth = labelMinWidth;
+   this.minChrom.label.minWidth = labelLumMinWidth;
    this.minChrom.slider.setRange(0, 1000);
    this.minChrom.slider.minWidth = sliderMinWidth;
    this.minChrom.setRange(0.0, 1.0);
@@ -859,7 +868,7 @@ function ColorMaskDialog() {
    data.maxChrom_control = this.maxChrom;
 
    this.maxChrom.label.text = "Max Chrominance value:";
-   this.maxChrom.label.minWidth = labelMinWidth;
+   this.maxChrom.label.minWidth = labelLumMinWidth;
    this.maxChrom.slider.setRange(0, 1000);
    this.maxChrom.slider.minWidth = sliderMinWidth;
    this.maxChrom.setRange(0.0, 1.0);
@@ -936,6 +945,8 @@ function ColorMaskDialog() {
    this.blurLayers_Label = new Label(this);
    this.blurLayers_Label.minWidth = labelMinWidth;
    this.blurLayers_Label.text = "Mask blur: layers to remove ";
+   this.blurLayers_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+   
 
    this.blurLayers_SpinBox = new SpinBox(this);
    this.blurLayers_SpinBox.minValue = 0;
@@ -956,7 +967,8 @@ function ColorMaskDialog() {
    this.buttons_Sizer.spacing = 6;
 
    this.newInstance_Button = new ToolButton(this);
-   this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
+   this.newInstance_Button.icon = this.scaledResource( ":/process-interface/new-instance.png" );
+   this.newInstance_Button.setScaledFixedSize( 10, 10 );
    this.newInstance_Button.toolTip = "New Instance";
    this.newInstance_Button.onMousePress = function()
    {
