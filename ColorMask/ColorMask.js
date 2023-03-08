@@ -527,7 +527,7 @@ function ColorMaskDialog() {
    this.__base__();
 
    var labelMinWidth = Math.round(this.font.width("Start hue:") + 2.0 * this.font.width('M'));
-   var labelLumMinWidth = Math.round(this.font.width("Min luminance value:") + 2.0 * this.font.width('M'));
+   var labelLumMinWidth = Math.round(this.font.width("Min Luminance value:") + 2.0 * this.font.width('M'));
    var sliderMaxValue = 360;
    var sliderMinWidth = 256;
 
@@ -812,7 +812,7 @@ function ColorMaskDialog() {
    this.minLum = new NumericControl(this);
    data.minLum_control = this.minLum;
 
-   this.minLum.label.text = "Min luminance value:";
+   this.minLum.label.text = "Min Luminance value:";
    this.minLum.label.minWidth = labelLumMinWidth;
    this.minLum.slider.setRange(0, 1000);
    this.minLum.slider.minWidth = sliderMinWidth;
