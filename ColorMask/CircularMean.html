@@ -1,0 +1,21 @@
+<script>
+
+var mean = circularMean([350,5,15]);
+
+function circularMean (AngelsArr) {
+	var res = 0;
+	var s = 0, c = 0, cnt = 0;
+	
+	for (let i = 0; i< AngelsArr.length; i++)
+	{
+		s+= Math.sin( AngelsArr[i] / 180 * Math.PI );
+		c+= Math.cos( AngelsArr[i] / 180 * Math.PI );
+	}
+	
+	res = ( Math.atan (s/c) + ( c < 0 ? Math.PI : (s < 0 ? 2 * Math.PI : 0) ) ) * 180 / Math.PI ;
+	
+	return res;
+}
+
+console.log ("Mean: " + mean);
+</script>

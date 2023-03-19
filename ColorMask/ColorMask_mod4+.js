@@ -49,7 +49,7 @@
 // ----------------------------------------------------------------------------
 
 /*
- * ColorMask v1.0 mod 5c
+ * ColorMask v1.0 mod 4
  *
  * Build a mask to select a color range in an image.
  *
@@ -59,12 +59,6 @@
  *
  * Modifications made by Boris Emchenko (BE) and Mike Cranfield (MC):
  *
- * 1.0 mod 5c (BE) [2023/03/13]
-	added probe size element to average hue readings (with the help of circular mean)
-
- * 1.0 mod 5a (MC) [2023/03/13]
-	added STF checkbox for working with linear images
-	
  * 1.0 mod 4 (MC) [2023/03/08]
 	interface enhancement - interactive image view added
 	start, end and range hue setting via image view
@@ -103,10 +97,10 @@
 #include <pjsr/Color.jsh>
 #include <pjsr/ColorSpace.jsh>
 
-#define VERSION   "1.0 mod 5"
+#define VERSION   "1.0 mod 4"
 #define TITLE     "ColorMask"
 
-#define DEBUG     false
+#define DEBUG     true
 #define SETTINGS_KEY_BASE "ColorMask/"
 
 // Predefined hue ranges.
@@ -150,6 +144,10 @@
 
 // Mask name suffix
 #define CM_SUFF         "_cm"
+
+#define PROBESIZE_X 		3
+#define PROBESIZE_Y 		3
+
 
 /*
  * Create color mask for specified image.
@@ -357,7 +355,6 @@ function ColorMaskData() {
    this.maskSuff = "";
    this.defaultHueRange = HUE_RANGE_STEP_TYPE_MED;
    this.hueSelection = -1;
-   this.probeSize=0;
 }
 
 // Global parameters.
@@ -378,8 +375,6 @@ function exportParameters() {
    Parameters.set("blurLayers", data.blurLayers);
    Parameters.set("maskSuff", data.maskSuff);
    Parameters.set("defaultHueRange", data.defaultHueRange);
-   Parameters.set("probeSize", data.probeSize);
-   
 }
 
 /*
@@ -409,8 +404,6 @@ function importParameters() {
       data.maskSuff = Parameters.getString("maskSuff");
    if(Parameters.has("defaultHueRange"))
       data.defaultHueRange = Parameters.getInteger("defaultHueRange");
-   if(Parameters.has("probeSize"))
-      data.probeSize = Parameters.getInteger("probeSize");  
 }
 
 
@@ -426,26 +419,6 @@ function save(key, type, value) {
 }
 function saveIndexed(key, index, type, value) {
 	save(key + '_' + index.toString(), type, value);
-}
-
-/*
- * View copy routine
- */
-function copyView( view, newName)
-{
-
-   var win = new ImageWindow(view.image.width, view.image.height,
-                             view.image.numberOfChannels,
-                             view.image.bitsPerSample, view.image.isReal,
-                             view.image.isColor,
-                             newName);
-   win.zoomToFit();
-   win.hide();
-   win.mainView.beginProcess(UndoFlag_NoSwapFile);
-   win.mainView.image.apply(view.image);
-   win.mainView.endProcess();
-   win.mainView.stf = view.stf;
-   return win.mainView;
 }
 
 /*
@@ -476,8 +449,6 @@ function loadSettings () {
 		data.maskSuff = o;
 	if ((o = load("defaultHueRange", DataType_Int16)) != null)
 		data.defaultHueRange = o;
-	if ((o = load("probeSize", DataType_Int16)) != null)
-		data.probeSize = o;
 
 }
 
@@ -493,7 +464,6 @@ function saveSettings () {
 	save("blurLayers", DataType_Int16, data.blurLayers);
 	save("maskSuff", DataType_String8, data.maskSuff);
 	save("defaultHueRange", DataType_Int16, data.defaultHueRange);
-	save("probeSize", DataType_Int16, data.probeSize);
 
 	if (DEBUG) {
 		console.writeln("<sub><br><b>Settings saved:</b></sub>");
@@ -517,7 +487,6 @@ function printParameters () {
 	console.writeln("Mask suffix:		" + format("%5s", data.maskSuff));
 	console.writeln("Mask blur layers:	" + format("%5d", data.blurLayers));
 	console.writeln("Hue Range id:		" + format("%5d", data.defaultHueRange));
-	console.writeln("ProbeSize id:		" + format("%5d", data.probeSize));
 	console.write("</sub>");
 }
 
@@ -580,8 +549,6 @@ function ImageView()
    this.originalImage = new Image();
    this.imageSelection = new Rect();
 
-   this.enableSTF = false;
-
    this.readoutPoint = new Point();
    this.readoutData = [0, 0, 0] // Hue, Saturation, Value
    this.showReadout = false;
@@ -621,12 +588,8 @@ function ImageView()
       if (view.id != "")
       {
          this.baseImage.free();
-         this.baseImage = new Image(view.image.width, view.image.height, view.image.numberOfChannels,view.image.colorSpace, 32, 1);
-         this.baseImage.apply( view.image );
-         if (this.enableSTF)
-         {
-            this.applySTF(this.baseImage, view.stf);
-         }
+         this.baseImage = new Image(view.image.width, view.image.height, view.image.numberOfChannels,view.image.colorSpace, 32, 1)
+         this.baseImage.assign(view.image);
 
          this.baseImageHSV.free();
 
@@ -658,12 +621,18 @@ function ImageView()
       this.repaint();
    }
 
-   this.setSTF = function( enableSTF )
+   this.calculateReadout = function()
    {
-      this.enableSTF = enableSTF;
-      this.setImage( this.targetView );
-   }
+      if (this.originalImage.isColor)
+      {
+         let img = this.baseImageHSV;
 
+		this.readoutData[0] = img.sample(this.readoutPoint, 0);
+		this.readoutData[1] = img.sample(this.readoutPoint, 1);
+		this.readoutData[2] = img.sample(this.readoutPoint, 2);
+      }
+      this.onReadoutChange()
+   }
 
    this.viewPort = function()
    {
@@ -842,20 +811,19 @@ function ImageView()
    {
       if (this.originalImage.isColor)
       {
-         let cnt=0, h_values = [], avgS = 0, avgV = 0;
-		 let ProbeSize = data.probeSize * 2 + 1;
+         let cnt=0, avgH = 0, avgS = 0, avgV = 0;
 		 
-		 for (let dx = -Math.floor(ProbeSize/2); dx <= Math.floor(ProbeSize/2); dx++)
+		 for (let dx = -Math.floor(PROBESIZE_X/2); dx <= Math.floor(PROBESIZE_X/2); dx++)
 		 {
-			 for (let dy = -Math.floor(ProbeSize/2); dy <= Math.floor(ProbeSize/2); dy++)
+			 for (let dy = -Math.floor(PROBESIZE_Y/2); dy <= Math.floor(PROBESIZE_Y/2); dy++)
 			 {
-				 h_values.push(this.baseImageHSV.sample(this.readoutPoint.x + dx, this.readoutPoint.y + dy, 0) * 360.0 );
+				 avgH += this.baseImageHSV.sample(this.readoutPoint.x + dx, this.readoutPoint.y + dy, 0);
 				 avgS += this.baseImageHSV.sample(this.readoutPoint.x + dx, this.readoutPoint.y + dy, 1);
 				 avgV += this.baseImageHSV.sample(this.readoutPoint.x + dx, this.readoutPoint.y + dy, 2);
 				 cnt++;
 			 }
 		 }
-		 this.readoutData[0] = this.circularMean (h_values) / 360.0;
+		 this.readoutData[0] = avgH / cnt;
 		 this.readoutData[1] = avgS / cnt;
 		 this.readoutData[2] = avgV / cnt;
 
@@ -895,98 +863,6 @@ function ImageView()
       let viewY0 = this.viewPort().height * (imgPoint.y - isT) / this.imageSelection.height + this.viewPort().top;
       return new Point(viewX0, viewY0);
    }
-   
-   this.circularMean = function (AngelsInDegrees_Arr) 
-   {
-		var s = 0, c = 0;
-		for (let i = 0; i< AngelsInDegrees_Arr.length; i++)
-		{
-			s+= Math.sin( AngelsInDegrees_Arr[i] / 180 * Math.PI );
-			c+= Math.cos( AngelsInDegrees_Arr[i] / 180 * Math.PI );
-		}
-		return ( Math.atan (s/c) + ( c < 0 ? Math.PI : (s < 0 ? 2 * Math.PI : 0) ) ) * 180 / Math.PI ;
-   }
-
-   this.applyHistogram = function(view)
-   {
-      var stf = view.stf;
-
-      var H = [[  0, 0.0, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0]];
-
-      if (view.image.isColor)
-      {
-         for (var c = 0; c < 3; c++)
-         {
-            H[c][0] = stf[c][1];
-            H[c][1] = stf[c][0];
-         }
-      }
-      else
-      {
-         H[3][0] = stf[0][1];
-         H[3][1] = stf[0][0];
-      }
-
-      var STF = new ScreenTransferFunction;
-
-      view.stf =  [ // c0, c1, m, r0, r1
-      [0.00000, 1.00000, 0.50000, 0.00000, 1.00000],
-      [0.00000, 1.00000, 0.50000, 0.00000, 1.00000],
-      [0.00000, 1.00000, 0.50000, 0.00000, 1.00000],
-      [0.00000, 1.00000, 0.50000, 0.00000, 1.00000]
-      ];
-
-      STF.executeOn(view)
-
-      var HT = new HistogramTransformation;
-      HT.H = H;
-
-      HT.executeOn(view)
-   }
-
-   this.applySTF = function(img, stf)
-   {
-      var H = [[  0, 0.0, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0],
-               [  0, 0.5, 1.0, 0, 1.0]];
-
-      if (img.isColor)
-      {
-         for (var c = 0; c < 3; c++)
-         {
-            H[c][0] = stf[c][1];
-            H[c][1] = stf[c][0];
-         }
-      }
-      else
-      {
-         H[3][0] = stf[0][1];
-         H[3][1] = stf[0][0];
-      }
-
-      //var STF = new ScreenTransferFunction;
-
-      //view.stf =  [ // c0, c1, m, r0, r1
-      //[0.00000, 1.00000, 0.50000, 0.00000, 1.00000],
-      //[0.00000, 1.00000, 0.50000, 0.00000, 1.00000],
-      //[0.00000, 1.00000, 0.50000, 0.00000, 1.00000],
-      //[0.00000, 1.00000, 0.50000, 0.00000, 1.00000]
-      //];
-
-      //STF.executeOn(view)
-
-      var HT = new HistogramTransformation;
-      HT.H = H;
-
-      HT.executeOn(img)
-   }
-
 }
 ImageView.prototype = new Frame;
 
@@ -1110,34 +986,6 @@ function ColorMaskDialog() {
    this.imageButtonsSizer2.add(this.setEndButton);
    this.imageButtonsSizer2.add(this.setRangeButton);
 
-   this.stf_CheckBox = new CheckBox( this );
-   this.stf_CheckBox.text = 'Enable STF';
-   this.stf_CheckBox.toolTip = 'ScreenTransferFunction';
-   this.stf_CheckBox.onCheck = function( checked )
-   {
-      this.dialog.imageView.setSTF(checked, true);
-   }
-   
-   this.probeSize_ComboBox = new ComboBox( this );
-   this.probeSize_ComboBox.editEnabled = true;
-   this.probeSize_ComboBox.addItem( "1x1" );
-   this.probeSize_ComboBox.addItem( "3x3" );
-   this.probeSize_ComboBox.addItem( "5x5" );
-   this.probeSize_ComboBox.addItem( "7x7" );
-   this.probeSize_ComboBox.addItem( "9x9" );
-   this.probeSize_ComboBox.addItem( "11x11" );
-   this.probeSize_ComboBox.addItem( "13x13" );
-   this.probeSize_ComboBox.addItem( "15x15" );
-   this.probeSize_ComboBox.editEnabled = false;
-   this.probeSize_ComboBox.toolTip =
-      "<p>Probe size to average hue readings</p>";
-   this.probeSize_ComboBox.currentItem = data.probeSize;
-   this.probeSize_ComboBox.onItemSelected = function()
-   {
-      data.probeSize = this.dialog.probeSize_ComboBox.currentItem;
-   };
-   
-
    this.targetImage_Label = new Label(this);
    this.targetImage_Label.text = "Target image: ";
    this.targetImage_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -1153,14 +1001,7 @@ function ColorMaskDialog() {
       this.dialog.imageView.setImage( view );
    };
 
-   this.targetImageHeaderSizer = new HorizontalSizer
-   this.targetImageHeaderSizer.add(this.targetImage_Label);
-   this.targetImageHeaderSizer.addStretch();
-   this.targetImageHeaderSizer.add(this.stf_CheckBox);
-   this.targetImageHeaderSizer.addSpacing(6);
-   this.targetImageHeaderSizer.add(this.probeSize_ComboBox);
-
-   this.targetImage_Sizer.add(this.targetImageHeaderSizer);
+   this.targetImage_Sizer.add(this.targetImage_Label);
    this.targetImage_Sizer.add(this.targetImage_ViewList, 100);
    this.targetImage_Sizer.add(this.imageButtonsSizer1);
    this.targetImage_Sizer.add(this.imageView);
@@ -1221,16 +1062,10 @@ function ColorMaskDialog() {
             g = new Graphics(this);
             g.antialiasing = true;
             g.smoothInterpolation=true;
-            //g.opacity = 0.5;
             this.setScaledFixedWidth(256);
             this.setScaledFixedHeight(256);
 
-
-            //g.drawBitmap( 0, 0, this.dialog.bitmap );
-            //g.drawBitmap( 0, 0, this.dialog.bitmap.scaled( Math.min( this.width, this.height )/ Math.max( this.dialog.bitmap.width, this.dialog.bitmap.height )  ) );
-            //g.drawBitmap( 0, 0, this.dialog.bitmap.scaled( this.width/this.dialog.bitmap.width) );
             g.drawScaledBitmap( 0, 0, Math.min( this.width, this.height ), Math.min( this.width, this.height ), this.dialog.bitmap);
-            //g.drawBitmap( 0, 0, this.dialog.bitmap);
 
             var X0= this.width /2 ;
             var Y0= this.height /2;
@@ -1387,7 +1222,6 @@ function ColorMaskDialog() {
    this.hueStep_ComboBox.addItem( "Wide - 90deg" );
    this.hueStep_ComboBox.addItem( "Default - 60deg" );
    this.hueStep_ComboBox.addItem( "Narrow - 30deg" );
-   this.hueStep_ComboBox.editEnabled = false;
    this.hueStep_ComboBox.toolTip =
       "<p>Hue range in degrees used when you press any of the above color preset buttons. By default, 60-degree range is used, but can be changed to wider or lower range. Obviously, start and end hue values can be fine-tuned manually with the help of appropriate controls</p>";
    this.hueStep_ComboBox.currentItem = data.defaultHueRange;
