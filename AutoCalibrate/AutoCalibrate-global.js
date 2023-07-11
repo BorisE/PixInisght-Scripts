@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.3 beta 2b"
- #define COMPILE_DATE "2023/02/25"
+ #define VERSION "6.3 beta 3"
+ #define COMPILE_DATE "2023/07/11"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2023 Boris Emchenko<br/>"
@@ -14,7 +14,7 @@
 
 /*
 Copyright (C) 2016  Oleg Milantiev (oleg@milantiev.com http://oleg.milantiev.com)
-Developed 2019-2022 by Boris Emchenko http://astromania.info
+Developed 2019-2023 by Boris Emchenko http://astromania.info
  */
 
 /*
@@ -23,6 +23,9 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.3 beta 3 [2023/07/11]
+- Camera presets rounding for floats
 
 v 6.3 beta 2b [2023/02/25]
 - progress dialog calling changed

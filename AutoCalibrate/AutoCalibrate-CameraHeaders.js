@@ -112,11 +112,18 @@ function ProcessCameraHeaders() {
 					// cycle all preset conditions to test
 					var OurPreset = true;
 					for( var PresetCondition in CAMERA_PRESETS[fileData.camera][PresetName] ) {
+						
 						debug( "		test condition " + PresetCondition + ': ' + CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] , dbgNotice);
 						
-						if (CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] != fileData[PresetCondition]) 
+						var CurVal = fileData[PresetCondition];
+						// if value is float rount to 3 digits
+						if (typeof CurVal === 'number' &&  !Number.isNaN(CurVal) &&  !Number.isInteger(CurVal) ) {
+							CurVal = CurVal.toFixed(3);
+						}
+						
+						if (CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] != CurVal) 
 						{
-							debug( "		" + CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] + '!=' + fileData[PresetCondition], dbgNotice);
+							debug( "		" + CAMERA_PRESETS[fileData.camera][PresetName][PresetCondition] + '!=' + CurVal, dbgNotice);
 							OurPreset = false;
 							break; // preset conditions loop
 						}
