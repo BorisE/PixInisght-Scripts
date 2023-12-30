@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.3 beta 3"
- #define COMPILE_DATE "2023/07/11"
+ #define VERSION "6.3 beta 4"
+ #define COMPILE_DATE "2023/08/26"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2023 Boris Emchenko<br/>"
@@ -23,6 +23,10 @@ Version History
 TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.3 beta 4 [2023/08/26]
+- bugfix: save NeedApproving parameter
+- workaround for QSI special mode
 
 v 6.3 beta 3 [2023/07/11]
 - Camera presets rounding for floats

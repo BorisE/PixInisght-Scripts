@@ -36,7 +36,7 @@ if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATH
     Config.OutputPath = 'Calibrated'; // без финального "/" (@todo убрать. если есть)
 //В случае использования абсолютного способа адресации (PATHMODE.ABSOLUTE):
 } else if (Config.PathMode == PATHMODE.ABSOLUTE) {
-    Config.OutputPath = 'e:/DSlrRemote'; // без финального "/" (@todo убрать. если есть)
+    Config.OutputPath = 'e:/DSlrRemote/-NGC6946/_TeamWork/Attempt 20230803/BorisE'; // без финального "/" (@todo убрать. если есть)
 //Иначе - можно игнорировать
 } else {
     Config.OutputPath = '';
@@ -192,7 +192,12 @@ var CAMERA_PRESETS = {
 			},
 			FRAG: {
 				ReadOutMode: "Fast Readout", EGain: 0.477
-			}
+			},
+			IQAG: {
+				ReadOutMode: "Use Adv Dialog", EGain: 0.486
+			}, //workaround, because i don't have special calibration masters for it, nor remember what does it mean
+			
+
 		},
 	};
 

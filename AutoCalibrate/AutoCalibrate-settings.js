@@ -49,6 +49,8 @@ function ConfigData() {
             this.NeedRegister = o;
         if ((o = load("NeedNormalization", DataType_Boolean)) != null)
             this.NeedNormalization = o;
+		if ((o = load("NeedApproving", DataType_Boolean)) != null)
+            this.NeedApproving = o;
 
         if ((o = load("CalibratationMastersPath", DataType_String)) != null)
             this.CalibratationMastersPath = o;
@@ -74,12 +76,14 @@ function ConfigData() {
         save("NeedABE", DataType_Boolean, this.NeedABE);
         save("NeedRegister", DataType_Boolean, this.NeedRegister);
         save("NeedNormalization", DataType_Boolean, this.NeedNormalization);
+        save("NeedApproving", DataType_Boolean, this.NeedApproving);
 
         save("CalibratationMastersPath", DataType_String, this.CalibratationMastersPath);
         save("RegistrationReferencesPath", DataType_String, this.RegistrationReferencesPath);
         save("NormalizationReferencesPath", DataType_String, this.NormalizationReferencesPath);
 
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
+        save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
 
         if (DEBUG) {
@@ -99,11 +103,12 @@ function ConfigData() {
         Parameters.set("PathMode", this.PathMode);
         Parameters.set("SearchInSubDirs", this.SearchInSubDirs);
 
-        Parameters.set("NeedCalibration", this.NeedCalibration);
-        Parameters.set("NeedCosmeticCorrection", this.NeedCosmeticCorrection);
-        Parameters.set("NeedABE", this.NeedABE);
-        Parameters.set("NeedRegister", this.NeedRegister);
-        Parameters.set("NeedNormalization", this.NeedNormalization);
+        Parameters.set("NeedCalibration", 			this.NeedCalibration);
+        Parameters.set("NeedCosmeticCorrection", 	this.NeedCosmeticCorrection);
+        Parameters.set("NeedABE", 					this.NeedABE);
+        Parameters.set("NeedRegister", 				this.NeedRegister);
+        Parameters.set("NeedNormalization", 		this.NeedNormalization);
+        Parameters.set("NeedApproving", 			this.NeedApproving);
 
         Parameters.set("CalibratationMastersPath", this.CalibratationMastersPath);
         Parameters.set("RegistrationReferencesPath", this.RegistrationReferencesPath);
@@ -140,6 +145,8 @@ function ConfigData() {
             this.NeedRegister = Parameters.getBoolean("NeedRegister");
         if (Parameters.has("NeedNormalization"))
             this.NeedNormalization = Parameters.getBoolean("NeedNormalization");
+        if (Parameters.has("NeedApproving"))
+            this.NeedApproving = Parameters.getBoolean("NeedApproving");
 
         if (Parameters.has("CalibratationMastersPath"))
             this.CalibratationMastersPath = Parameters.getString("CalibratationMastersPath");
@@ -170,6 +177,7 @@ function ConfigData() {
         console.writeln("NeedABE:                        " + this.NeedABE);
         console.writeln("NeedRegister:                   " + this.NeedRegister);
         console.writeln("NeedNormalization:              " + this.NeedNormalization);
+        console.writeln("NeedApproving:              	 " + this.NeedApproving);
 
         console.writeln("CalibratationMastersPath:       " + this.CalibratationMastersPath);
         console.writeln("RegistrationReferencesPath:     " + this.RegistrationReferencesPath);

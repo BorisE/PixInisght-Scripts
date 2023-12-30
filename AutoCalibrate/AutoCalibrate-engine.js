@@ -28,8 +28,8 @@ Developed 2019 by Boris Emchenko
  
 #include "AutoCalibrate-MastersSearch.js"
 
- #include <pjsr/DataType.jsh>
- #include <pjsr/UndoFlag.jsh>
+#include <pjsr/DataType.jsh>
+#include <pjsr/UndoFlag.jsh>
 
 // ======== # processing class ===============================================
 /// @class AutoCalibrateEngine perform AutoCalibration processing
@@ -1824,7 +1824,7 @@ function AutoCalibrateEngine() {
      * @param
      * @return
      */
-    this.runNSG = function () 
+    this.runNSG = function (filterName) 
 	{
 
         if (!Config.NeedApproving) {
@@ -1869,91 +1869,39 @@ function AutoCalibrateEngine() {
 		let filelist = [];
         for (var i = 0; i < this.approveFileList.length; i++) {
 			/* P.subframes = [ // subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath
-				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""],
-				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""]
+            ["file0", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200831_Red_300s_1x1_-25degC_0.0degN_000020225+++_c_cc_r.fit¬1689062234000¬0.000011519755741154521¬MRS¬32.1415¬1.8646119489991¬300¬2020-08-31T20:10:10¬Red¬"],
+            ["file1", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200831_Red_300s_1x1_-25degC_0.0degN_000020226+++_c_cc_r.fit¬1689062237000.0002¬0.000011646760821512618¬MRS¬31.9331¬1.87407410000989¬300¬2020-08-31T20:16:02¬Red¬"],
+            ["file2", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200831_Red_300s_1x1_-25degC_0.0degN_000020227+++_c_cc_r.fit¬1689062240000¬0.000011764867900663195¬MRS¬31.6944¬1.88529425292196¬300¬2020-08-31T20:21:55¬Red¬"],
 			] */
-			let fileArr = [true, this.approveFileList[i], "", ""];
+			let fileArr = ["file" + i, this.approveFileList[i]];
 			debug(fileArr, dbgNotice);
             filelist.push(fileArr);
 		}
 
 		// Create Process for measuring
-        var P = new SubframeSelector;
+        ProcessIconName = "NGC_" + filterName;
+        var P =  ProcessInstance.fromIcon(ProcessIconName);
 
-        P.routine = SubframeSelector.prototype.MeasureSubframes;
-		P.subframes = filelist;
-		P.outputDirectory = ApprovedOutputPath;
-		P.subframeScale = fileData.scale;
-		P.cameraGain = fileData.EGain;
-		P.fileCache = true;
-		P.nonInteractive = true;
-		P.weightingExpression = Config.SF_WeightingExpression;
-		P.approvalExpression = Config.SF_ApprovedExpression; 
-		P.cameraResolution = SubframeSelector.prototype.Bits16;
-		P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
-		P.dataUnit = SubframeSelector.prototype.Electron;
-		P.siteLocalMidnight = 24;
-		P.structureLayers = 5;
-		P.noiseLayers = 0;
-		P.hotPixelFilterRadius = 1;
-		P.applyHotPixelFilter = false;
-		P.noiseReductionFilterRadius = 0;
-		P.trimmingFactor = 0.10;
-		P.minStructureSize = 0;
-		P.sensitivity = 0.50; //new value?
-		P.peakResponse = 0.50; //new value?
-		P.brightThreshold = 3.00;
-		P.maxDistortion = 0.60; //new value?
-		P.allowClusteredSources = false;
-		P.maxPSFFits = 8000;
-		P.upperLimit = 1.0000;
-		P.backgroundExpansion = 3;
-		P.xyStretch = 1.5000;
-		P.psfFit = SubframeSelector.prototype.Gaussian;
-		P.psfFitCircular = false;
-		P.pedestal = 0;
-		P.roiX0 = 0;
-		P.roiY0 = 0;
-		P.roiX1 = 0;
-		P.roiY1 = 0;
-		P.inputHints = "";
-		P.outputHints = "";
-		P.outputExtension = ".fit";
-		P.outputPrefix = "";
-		P.outputPostfix = "_a";
-		P.outputKeyword = "SSWEIGHT";
-		P.pedestalMode = SubframeSelector.prototype.Pedestal_Keyword;
-		P.pedestalKeyword = "";
-		P.overwriteExistingFiles = true;
-		P.onError = SubframeSelector.prototype.Continue;
-		P.sortProperty = SubframeSelector.prototype.FWHM;
-		P.graphProperty = SubframeSelector.prototype.FWHM
-		P.auxGraphProperty = SubframeSelector.prototype.Eccentricity;;
-		P.useFileThreads = true;
-		P.fileThreadOverload = 1.00;
-		P.maxFileReadThreads = 0;
-		P.maxFileWriteThreads = 0;
-
+        P.parameters = [ ["referenceFile", "E:/DSlrRemote/_NormalizationReferences/M72_20200902_Red_300s_1x1_-25degC_0.0degN_000020307_c_cc_r.fit"],
+                ["pixelSize", fileData.scale ],
+                ["focalLength", fileData.focallen],
+                ["selectedTarget", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200901_Red_300s_1x1_-20degC_0.0degN_000020264_c_cc_r.fit"],
+                filelist
+            ];
+        
 		//debug(P.toSource(), dbgNotice);
 		var status = P.executeGlobal();
-		debug("SF execute status: " + status, dbgNotice);
+		debug("NGC execute status: " + status, dbgNotice);
 
 		// Get Icon Name based on received file
-		let iconName = "";
-        if (file.match(/(.+)\/(.+)_c.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i) != null) {
-			iconName = Config.SF_IconName_beforeRegistration;
-		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i) != null) {
-			iconName = Config.SF_IconName_afterRegistration;
-        }
-
 		// Save result in text file (just in case not to loose measurement results)
 		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement.src", P.toSource());
 		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement.src</b> file");
 		
 		
 		// Save result in icon 
-		P.writeIcon(iconName);
-		console.noteln("Subframes statistics saved into <b>" + iconName+ "</b> icon");
+		P.writeIcon(ProcessIconName);
+		console.noteln("NGC Process saved into <b>" + ProcessIconName+ "</b> icon");
 
 		return status;
     }
@@ -2256,7 +2204,8 @@ function AutoCalibrateEngine() {
 
         try
         {
-             var image = ImageWindow.open(fileName)[0];
+            var image = ImageWindow.open(fileName)[0];
+			var keywords = image.keywords; // this line put here to hangle exception correctly, because the prev line doesn't be catched for some reason (FITS?)
         }
         catch ( error )
         {
@@ -2265,7 +2214,6 @@ function AutoCalibrateEngine() {
           return false;
         }
 
-        var keywords = image.keywords;
         for (var k in keywords) {
 
             if (typeof headers[keywords[k].name] != 'undefined') {
@@ -2351,6 +2299,7 @@ function AutoCalibrateEngine() {
             temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
             bin:            parseInt(headers.XBINNING), // 1
             scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.265, //
+            focallen:       parseFloat(headers['FOCALLEN']), // 1368
 			width :			Width,
 			height:			Height,
             qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
