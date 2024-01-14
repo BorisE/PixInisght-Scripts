@@ -25,7 +25,7 @@ Config.NeedBinning = false;								 // Make integer resample
 Config.NeedNSG = false;									 // Normalized Scale Gradient
 
 // Библиотеки калибровки/референосов
-Config.CalibratationMastersPath = 'd:/DSlrRemote/Masters Structure/Vedrus'; // без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
+Config.CalibratationMastersPath = "e:/DSlrRemote/_Calibration masters library/Vedrus"; // без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
 Config.RegistrationReferencesPath = 'e:/DSlrRemote/_RegistrationReferences'; // без финального "/"  //Папка с библиотекой референсов для выравнивания по звездам
 Config.NormalizationReferencesPath = 'e:/DSlrRemote/_NormalizationReferences'; // без финального "/"  //Папка с библиотекой референсов для выравнивания фона
 
@@ -76,7 +76,7 @@ Config.SkipDirsBeginWith = "_";
 Config.SkipDirs = [Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
 Config.SkipDirs.push('asteroids', 'bad', 'Bad', 'Aligned'); //User (чувствительно к регистру)
 // Пропустить каталоги, если имя каталога содержит одну из строк
-Config.SkipDirsContains = ['.data', '.pxiproject', '_old'];
+Config.SkipDirsContains = ['.data', '.pxiproject', '_old', 'Attempt'];
 
 //Пропускать файлы, содержащние
 Config.SkipFilesContains = ['---', '+--'];
@@ -193,7 +193,7 @@ var CAMERA_PRESETS = {
 			FRAG: {
 				ReadOutMode: "Fast Readout", EGain: 0.477
 			},
-			IQAG: {
+			ADAG: {
 				ReadOutMode: "Use Adv Dialog", EGain: 0.486
 			}, //workaround, because i don't have special calibration masters for it, nor remember what does it mean
 			
