@@ -6,16 +6,18 @@
    Based on AutoStretch.js by AdP, DeLinear.js by Hartmut V. Bornemann
 
 #include <pjsr/UndoFlag.jsh>
+#include "lib/STFAutoStretch.js"
 
-// Shadows clipping point in (normalized) MAD units from the median.
-#define DEFAULT_AUTOSTRETCH_SCLIP  -2.255 // just AutoStretch
-// Target mean background in the [0,1] range.
-#define DEFAULT_AUTOSTRETCH_TBGND   0.25
+// just AutoStretch
+#define _DEFAULT_AUTOSTRETCH_SCLIP  -2.8 // Shadows clipping point in (normalized) MAD units from the median.
+#define _DEFAULT_AUTOSTRETCH_TBGND   0.25  // Target mean background in the [0,1] range.
 
-#define DEFAULT_BOOSTEDSTRETCH_SCLIP  -1.69 // BoostedAutoStretch
+// BoostedAutoStretch
+#define DEFAULT_BOOSTEDSTRETCH_SCLIP  -1.69 
 #define DEFAULT_BOOSTEDSTRETCH_TBGND   0.5
 
-#define VERY_BOOSTED_STRETCH_SCLIP  -0.05 // my VeryBoosted
+// my VeryBoosted
+#define VERY_BOOSTED_STRETCH_SCLIP  -0.05 
 #define VERY_BOOSTED_STRETCH_TBGND   0.25
 #define ADJUST_FACTOR  0.02 // my VeryBoosted
 
@@ -24,7 +26,6 @@
 // *********
 // This object has been copied and simplified from the AutoSTF script from Juan Conejero
 // *********
-
 function AutoStretch()
 {
    // Default STF Parameters
@@ -105,6 +106,8 @@ function AutoStretch()
 
       return {m:m, c0:c0, c1:1};
    }
+   
+   
    /*
     * STF Auto Stretch routine
     */
@@ -149,6 +152,8 @@ function AutoStretch()
    }
 };
 
+//function STFAutoStretch( view, shadowsClipping, targetBackground, rgbLinked )
+
 function main()
 {
    // access current active image window.
@@ -157,23 +162,18 @@ function main()
    if ( window.isNull )
       throw new Error( "No active image" );
 
-   Console.writeln( "<end><cbr><br><b>De-linearize " + window.currentView.fullId + "</b>" );
+   Console.noteln( "<end><cbr><br>Apply VeryBoosted STF to <b>" + window.currentView.fullId + "</b>" );
    Console.flush();
 
    var currentView = ImageWindow.activeWindow.currentView;
 
   Console.writeln('ApplyAutoSTF');
 
-  var AutoSTF = new AutoStretch();
-
-  // Just AutoStretch
-  //AutoSTF.Apply( currentView, true, DEFAULT_AUTOSTRETCH_SCLIP, DEFAULT_AUTOSTRETCH_TBGND );
-
-  // BoostedAutoStretch
-  //AutoSTF.Apply( currentView, true, DEFAULT_BOOSTEDSTRETCH_SCLIP, DEFAULT_BOOSTEDSTRETCH_TBGND );
-
   // Very Boosted Stretch
-  AutoSTF.Apply( currentView, true, VERY_BOOSTED_STRETCH_SCLIP, VERY_BOOSTED_STRETCH_TBGND );
+  //AutoSTF.Apply( currentView, true, VERY_BOOSTED_STRETCH_SCLIP, VERY_BOOSTED_STRETCH_TBGND );
+  STFAutoStretch(currentView, VERY_BOOSTED_STRETCH_SCLIP, VERY_BOOSTED_STRETCH_TBGND, true);
+	
+
 
 
 }
