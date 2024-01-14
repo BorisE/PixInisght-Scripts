@@ -48,7 +48,7 @@
 // ****************************************************************************
 
 /*
- * ExtractWaveletLayers v1.1
+ * ExtractWaveletLayers v1.2
  *
  * A utility script that splits the selected image into a number of  wavelet
  * layers. Each wavelet layer is provided as a new image  window that is
@@ -59,9 +59,12 @@
  * Copyright (C) 2009 Pleiades Astrophoto S.L.
  * Written by Juan Conejero (PTeam)
  *
- * 1.1 [2024/01/13] 
+ * 1.1 [2024/01/13]
  *	- added MMT scaling function
- *  - layers numbering starts an 1 (prev on 0)
+ * - layers numbering starts an 1 (prev on 0)
+ * 1.2 [2024/01/14]
+ *	- autoSTF
+ * - auto placement in grid
  *
  */
 
@@ -71,8 +74,7 @@
                wavelet layers. Each wavelet layer is provided as a new image \
                window that is generated dynamically. The user can select the \
                number of wavelet layers to extract and the wavelet scaling \
-               function used to perform the wavelet decomposition. \
-			   Keep in mind that extracted layers are for visual examination purpose only.
+               function used to perform the wavelet decomposition.
 
 #feature-icon  ExtractWaveletLayers.xpm
 
@@ -83,8 +85,10 @@
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/StdCursor.jsh>
 #include <pjsr/UndoFlag.jsh>
+#include "lib/STFAutoStretch.js"
 
-#define VERSION "1.1"
+
+#define VERSION "1.2"
 #define TITLE "ExtractWaveletLayers"
 
 /**
@@ -175,14 +179,38 @@ function ExtractWaveletLayers( data )
    if ( !data.extractResidual )
       --n;
 
+   // Output data
+   Console.noteln("Working on image: <b>" + data.targetView.id + "</b>");
+   Console.writeln("Number of data layers: " + data.numberOfLayers);
+   Console.writeln(data.extractResidual? "Plus residual" : "Without residual");
    Console.writeln("Total number of layers: " + (n+1));
+
+   // Calculate positions
+   var ScreenWidth = 4100;
+   var maxColumnInterval = 1000;
+   var maxRowInterval = 1000;
+   var maxRows = 2;
+
+   var ColumnInterval = Math.min(image.width, maxColumnInterval);
+   var RowInterval = Math.min(image.height, maxRowInterval);
+
+   var ColumnNum = Math.floor(ScreenWidth / ColumnInterval);
+   var RowNum = Math.min ( Math.ceil((n+1) / ColumnNum), maxRows);
+
+   Console.writeln("Column: " + ColumnNum );
+   Console.writeln("Rows: " + RowNum );
+   Console.writeln("Column Interval: " + ColumnInterval );
+   Console.writeln("Row Interval: " + RowInterval );
+
+
+   //return;
 
    // Extract wavelet layers. Layer j = data.numberOfLayers is the residual
    // large-scale image. For j < n, we have detail wavelet layers.
    for ( var j = 0; j <= n; ++j )
    {
       // Identifier of the layer image
-      var id = (j < data.numberOfLayers) ? format( "layer%02d", j+1 ) : "residual";
+      var id = data.targetView.id + "_" + ((j < data.numberOfLayers) ? format( "L%02d", j+1 ) : "Res") + "_";
 
       // New window for this layer image.
       // Initially, we create a one-pixel grayscale image (1x1x1).
@@ -212,6 +240,16 @@ function ExtractWaveletLayers( data )
       // in absolute value. This script is for visualization purposes.
       if ( j < n )
          view1.image.rescale();
+
+      // AutoStretch
+      STFAutoStretch(view1);
+
+      // Place windows on screen
+      var row = Math.floor( j / ColumnNum );
+      var col = j - Math.floor( row * ColumnNum );
+      if (row > RowNum-1) row = 0.5;
+      Console.writeln("Layer " + j + ": (" + col + ", " + row + ")");
+      window1.position = new Point (col * ColumnInterval, row * RowInterval);
 
       // Inform the core application that we have finished processing the view.
       view1.endProcess();
@@ -297,7 +335,7 @@ function ExtractWaveletLayersDialog()
    this.helpLabel.useRichText = true;
    this.helpLabel.text = "<p><b>" + TITLE + " v" + VERSION + "</b> &mdash; A script that splits an image into " +
       "a number of <i>wavelet layers</i>. Each wavelet layer is provided as a new image " +
-      "window generated dynamically. This script does not modify the target image.</p>";
+      "window generated dynamically. This script does not modify the target image. <br>Keep in mind that extracted layers are for visual examination purpose only.</p>";
 
    this.targetImage_Label = new Label( this );
    this.targetImage_Label.text = "Target image:";
@@ -327,7 +365,7 @@ function ExtractWaveletLayersDialog()
    this.numberOfLayers_SpinBox.minValue = 1;
    this.numberOfLayers_SpinBox.maxValue = 10;
    this.numberOfLayers_SpinBox.value = data.numberOfLayers;
-   this.numberOfLayers_SpinBox.toolTip = "<p>Number of wavelet layers that will be extracted as new images.</p>";
+   this.numberOfLayers_SpinBox.toolTip = "<p>Number of wavelet layers that will be extracted as new images. Note that residual layer isn't included in this count</p>";
    this.numberOfLayers_SpinBox.onValueUpdated = function( value )
    {
       data.numberOfLayers = value;
