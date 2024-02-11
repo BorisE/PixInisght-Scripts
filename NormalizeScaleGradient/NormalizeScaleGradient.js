@@ -17,7 +17,7 @@
 // this program.  If not, see <http://www.gnu.org/licenses/>.
 // =================================================================================
 "use strict";
-#feature-id NormalizeScaleGradient : Batch Processing > NormalizeScaleGradient+
+#feature-id NormalizeScaleGradient : Batch Processing > NormalizeScaleGradient
 
 #feature-icon @script_icons_dir/NormalizeScaleGradient.svg
 
@@ -27,7 +27,7 @@ Copyright &copy; 2019-2022 John Murphy.<br/> \
 StarDetector.jsh: Copyright &copy; 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.<br/>
 
 #define TITLE "NormalizeScaleGradient+"
-#define VERSION "3.0.1b"
+#define VERSION "3.0.3b"
 #define TEST false
 #define ABORT 1
 #define ASK_USER 2
@@ -172,10 +172,10 @@ function main() {
     NSG_FILENAME_HEADERS_MAP = new Map();   // Map: filename -> HeaderEntries
 	
 	defaultExtension = ".fit"
-    defaultOutputFileFormat = new FileFormat( defaultExtension, false/*toRead*/, true/*toWrite*/ );
-
+    defaultOutputFileFormat = new FileFormat( defaultExtension, false/*toRead*/, true/*toWrite*/ );    
     
-    /**
+	
+	/**
      * If checks are all ok, displays ImageIntegration
      * @param {NsgData} data
      * @param {Boolean} allowIntegrationRun 
