@@ -17,7 +17,7 @@
 // this program.  If not, see <http://www.gnu.org/licenses/>.
 // =================================================================================
 "use strict";
-#feature-id NormalizeScaleGradient : Batch Processing > NormalizeScaleGradient
+#feature-id NormalizeScaleGradient : Batch Processing > NormalizeScaleGradient+
 
 #feature-icon @script_icons_dir/NormalizeScaleGradient.svg
 
