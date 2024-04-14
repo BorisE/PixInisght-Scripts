@@ -24,7 +24,7 @@
 
 */
 
-#feature-id    Utilities2 > Repaired HSV Separation
+#feature-id    Utilities2 > Repaired HSV Separation+
 
 #feature-info Create HSV images from an RGB image<br/>\
    <br/>\
@@ -39,9 +39,12 @@
    can als be stretched separately. This can then be blended with the recombined RGB just \
    mentioned to produce an aesthetically more conventional result. \
    <br/>\
-   Copyright (C) 2013 Bob Andersson
+   Copyright (C) 2013 Bob Andersson \
+   <br/>\
+   Modified by BorisE 2024 (RGB with Unrepaired V)
+   
 
-#define VERSION   "1.0.3"
+#define VERSION   "1.0.3b"
 #define TITLE   "Repaired HSV Separation Script"
 
 #define DEBUG true
@@ -82,7 +85,7 @@ function DarkMaskLayersData()
    this.v_Name = "";
    this.outputOrigV = false;
    this.ov_Name = "";
-   this.outputRGB = false;
+   this.outputRGB = true;
    this.r_Name = "";
    this.BlackClips = 0;
    this.WhiteClips = 0.5;
@@ -365,7 +368,7 @@ function SeparateAndClean()
       sampleFormat = SameAsSource;
       executeOn(inputWindowCopy.mainView, false);
    }  // with channelExtraction
-   if (data.outputOrigV)
+   if (data.outputOrigV || data.outputRGB)      // Changed by BorisE
    {  // Currently holds a copy of the input image so assign it the orginal V image
       with (inputWindowCopy.mainView)
       {  // Assuming here that the change in image parameters isn't a problem
@@ -647,10 +650,6 @@ function SeparateAndClean()
       endProcess();
    }
 
-   // Now restore the correct z order
-   ImageWindow.windowById(data.h_Name).bringToFront();
-   ImageWindow.windowById(data.s_Name).bringToFront();
-   ImageWindow.windowById(data.v_Name).bringToFront();
 
    if (data.outputRGB)
    {
@@ -663,11 +662,23 @@ function SeparateAndClean()
       with (cc)
       {
          colorSpace = HSV;
-         channels = [[true, data.h_Name], [true, data.s_Name], [true, data.v_Name]];
+         channels = [[true, data.h_Name], [true, data.s_Name], [true, data.ov_Name]];       // Changed by BorisE
          executeOn(repairedRGB.mainView, false);
       }
       repairedRGB.zoomToOptimalFit();
       repairedRGB.show();
+      
+      // Added by BorisE - Close all intermediate images if Repaired RGB created
+      ImageWindow.windowById(data.h_Name).forceClose();
+      ImageWindow.windowById(data.s_Name).forceClose();
+      ImageWindow.windowById(data.v_Name).forceClose();
+      ImageWindow.windowById(data.ov_Name).forceClose();
+   } else {
+      // Change by BorisE: this images are discarded if outputRGB option selected 
+      // Now restore the correct z order
+      ImageWindow.windowById(data.h_Name).bringToFront();
+      ImageWindow.windowById(data.s_Name).bringToFront();
+      ImageWindow.windowById(data.v_Name).bringToFront();
    }
 
 
@@ -733,11 +744,12 @@ function HSVSepDialog()
    this.help_Label.useRichText = true;
    this.help_Label.text = "<p><b>" + TITLE + " v" + VERSION + "</b> &mdash; Converts a color source image into H, Sv and V " +
                           "separations and additionally can attempt to restore blown areas of the H and Sv images." +
-                          "<p>Copyright &copy; 2013 Bob Andersson</p>";
+                          "<p>Copyright &copy; 2013 Bob Andersson</p>" + 
+                          "<p>Modified 2024 by BorisE</p>";
 
    // Add Target Image label and ViewList
    this.targetImage_Label = new Label( this );
-   this.targetImage_Label.minWidth = this.targetImage_Label.maxWidth = labelWidthMax; // align with labels inside group boxes below
+   this.targetImage_Label.minWidth = labelWidthMax; // align with labels inside group boxes below
    this.targetImage_Label.useRichText = true;
    this.targetImage_Label.text = "The target image is: <b>" + data.targetView.id + "</b>";
    this.targetImage_Label.textAlignment = TextAlign_Left|TextAlign_VertCenter;
@@ -1208,6 +1220,7 @@ function main()
    else
    {
       console.hide();
+      console.writeln("Working on image: <b>" + window.mainView.id + "</b>");
       dp.load();
       console.writeln("Initialising histogram data");
       initialiseHistogram();
