@@ -1,8 +1,8 @@
- #ifndef AutoCalibrate_camera_headers_js
+#ifndef AutoCalibrate_camera_headers_js
 	#include "AutoCalibrate-CameraHeaders.js"
- #endif
+#endif
 
- CameraHeaders = new ProcessCameraHeaders();
+var CameraHeaders = new ProcessCameraHeaders();
 
 /*********************************************************
  * Найти подходящие мастера для текущего кадра

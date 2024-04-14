@@ -4,11 +4,11 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.3 beta 5"
- #define COMPILE_DATE "2024/01/7"
+ #define VERSION "6.3.1"
+ #define COMPILE_DATE "2024/04/14"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
- #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2023 Boris Emchenko<br/>"
+ #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2024 Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "AutoCalibrate/"
 
@@ -21,8 +21,14 @@ Developed 2019-2023 by Boris Emchenko http://astromania.info
 Version History
 
 TODO:
+- Добавить Gradient Correction
+- Добавить автозапуск NSG
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.3.1 [2024/04/14]
+- Light bugfix
+- promote from beta
 
 v 6.3 beta 5 [2024/01/07]
 - QSI special mode bugfix
