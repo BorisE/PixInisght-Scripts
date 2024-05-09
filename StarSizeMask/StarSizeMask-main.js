@@ -28,24 +28,39 @@
 
 function main() {
    console.abortEnabled = true;
-   var refImage = ImageWindow.activeWindow.mainView.image;
+   var refView = ImageWindow.activeWindow.currentView;
 
-   var SSMObj = new StarSizeMask_engine;
+   console.noteln("<cbr><b>" + __SCRIPT_NAME + "</b> by Boris Emchenko");
+   console.noteln("v" + __SCRIPT_VERSION + " from "+ __SCRIPT_DATE + "<br>");
+
+   console.writeln ("Working on: <b>" + refView.id + "</b><br>");
+
+   var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
-   SSMObj.GetStars( refImage );
+   SSMObj.GetStars( refView );
    SSMObj.printStars();
+   SSMObj.saveStars("d:/stars.csv");
+   //SSMObj.createMask();
 
-   var Stars1 = SSMObj.filterStars(2,50);
-   SSMObj.printStars(Stars1);
-
-   SSMObj.createMask(Stars1);
+   //var Stars1 = SSMObj.filterStars(2,30);
+   //SSMObj.printStars(Stars1);
+   //SSMObj.createMask(Stars1);
 
 }
 
 function main_test() {
    console.abortEnabled = true;
+
    var refImage = ImageWindow.activeWindow.mainView.image;
+   console.noteln("ImageWindow.activeWindow.currentView.id = " + ImageWindow.activeWindow.currentView.id);
+   console.noteln("ImageWindow.activeWindow.currentView.image.height = " + ImageWindow.activeWindow.currentView.image.height);
+
+   //let q = ImageWindow.activeWindow.currentView.window.imageToCelestial( {x:100.0, y:100.0} );
+   let q = refView.window.imageToCelestial( 100.0, 100.0 );
+   console.writeln ( q.x, q.y ) ;
+
+   //return false;
 
    var stars_test = [];
    stars_test.push( {pos: {x : 6000.233434, y : 1000.299}, size: 250,   rect: {x0:10, y0:14, x1:15, y1:20}, flux : 232, bkg : 0.00921, nmax : 1 });

@@ -19,6 +19,8 @@
 #ifndef __STARSIZEMASK_VERSION_JSH__
 #define __STARSIZEMASK_VERSION_JSH__
 
-#define __STARSIZEMASK_VERSION "0.1"
+#define __SCRIPT_NAME "StarSizeMask"
+#define __SCRIPT_VERSION "0.2"
+#define __SCRIPT_DATE "20240509"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
