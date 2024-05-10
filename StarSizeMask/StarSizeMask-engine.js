@@ -19,6 +19,8 @@
 #define __PJSR_STAR_OBJECT_DEFINED  1
 
 #include <pjsr/StarDetector.jsh>
+#include <pjsr/BitmapFormat.jsh>
+#include <pjsr/ColorSpace.jsh>
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/MorphOp.jsh>
 
@@ -50,9 +52,21 @@ function Star( pos, flux, bkg, rect, size, nmax )
    // Extended properties
    // Radius from size
    this.sizeRadius = Math.sqrt(this.size/Math.PI); 
-   // Size grouping
+   // Width
+   this.w = this.rect.x1 - this.rect.x0; 
+   // Height
+   this.h = this.rect.y1 - this.rect.y0; 
+
+   // Size grouping 
    // calculated latter on the whole array
    this.sizeGroup = undefined;
+   // Flux grouping 
+   // calculated latter on the whole array
+   this.fluxGroup = undefined;
+   // Flux log
+   // calculated latter on the whole array
+   this.fluxLog = undefined;
+   
 }
 
 
@@ -87,6 +101,13 @@ function StarSizeMask_engine()
    this.SD.structureLayers = 5;
 
    this.SizeGrouping = {
+      minIntervalWidth: 1.0,          // minimum interval width for Size Grouping, in pixels
+      maxIntervalsNumber: 5,           // maximum number of result intervals fro Size Grouping
+      numIntervals: undefined,         // Calculated number of intervals
+      IntervalWidth: undefined         // Calculated interval width
+   };
+
+   this.FluxGrouping = {
       minIntervalWidth: 1.0,          // minimum interval width for Size Grouping, in pixels
       maxIntervalsNumber: 5,           // maximum number of result intervals fro Size Grouping
       numIntervals: undefined,         // Calculated number of intervals
@@ -193,15 +214,15 @@ function StarSizeMask_engine()
          if ( s.bkg > this.Stat.bg_max )
             this.Stat.bg_max = s.bkg;
 
-         if ( (s.rect.x1-s.rect.x0) < this.Stat.w_min )
-            this.Stat.w_min = (s.rect.x1-s.rect.x0);
-         if ( (s.rect.x1-s.rect.x0) > this.Stat.w_max )
-            this.Stat.w_max = (s.rect.x1-s.rect.x0);
+         if ( s.w < this.Stat.w_min )
+            this.Stat.w_min = s.w;
+         if ( s.w > this.Stat.w_max )
+            this.Stat.w_max = s.w;
 
-         if ( (s.rect.y1-s.rect.y0) < this.Stat.h_min )
-            this.Stat.h_min = (s.rect.y1-s.rect.y0);
-         if ( (s.rect.y1-s.rect.y0) > this.Stat.h_max )
-            this.Stat.h_max = (s.rect.y1-s.rect.y0);
+         if ( s.h < this.Stat.h_min )
+            this.Stat.h_min = s.h;
+         if ( s.h > this.Stat.h_max )
+            this.Stat.h_max = s.h;
 
          if ( s.size < this.Stat.size_min )
             this.Stat.size_min = s.size;
@@ -217,6 +238,8 @@ function StarSizeMask_engine()
    
       // run calculate Size grouping
       this.CalculateStarStats_SizeGrouping(StarsArray);
+      // run calculate Flux grouping
+      this.CalculateStarStats_FluxGroupingLog(StarsArray);
       
       return true;
    }
@@ -240,7 +263,7 @@ function StarSizeMask_engine()
       if (!numIntervals)
       {
          var numSizeIntervals1 =   sizeWidth / this.SizeGrouping.minIntervalWidth ;
-         var numSizeIntervals0 =  Math.round( sizeWidth / this.SizeGrouping.minIntervalWidth );
+         var numSizeIntervals0 =  Math.round( numSizeIntervals1 );
          this.SizeGrouping.numIntervals = Math.min ( numSizeIntervals0, this.SizeGrouping.maxIntervalsNumber);
       } 
       else 
@@ -250,7 +273,7 @@ function StarSizeMask_engine()
       
       this.SizeGrouping.IntervalWidth = Math.round(sizeWidth / this.SizeGrouping.numIntervals * 10.0) / 10.0; // rounding to 0.1
       
-      debug("SizeGrouping: sizeWidth=" + sizeWidth + ", numSizeIntervals0=(" + numSizeIntervals1 + ", " + numSizeIntervals0 + ")");
+      debug("SizeGrouping: sizeWidth=" + sizeWidth + ", numSizeIntervals1,0=(" + numSizeIntervals1 + ", " + numSizeIntervals0 + ")");
       debug("<b>SizeIntervalWidth=" + this.SizeGrouping.IntervalWidth + ", numSizeIntervals=" + this.SizeGrouping.numIntervals + "</b>");
       
       var StarsSizeGoupCnt_arr = [];
@@ -270,15 +293,114 @@ function StarSizeMask_engine()
       return StarsSizeGoupCnt_arr;
    }
 
+   /*
+    * Calculate Stars statistics  - grouping by StarSize
+   */
+   this.CalculateStarStats_FluxGrouping = function (StarsArray = undefined, numIntervals = undefined)
+   {
+      debug("Running [" + "CalculateStarStats_FluxGrouping" + "]");
+      
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+
+      var fluxWidth = this.Stat.flux_max - this.Stat.flux_min;
+      
+      // if not given calculate intervals 
+      if (!numIntervals)
+      {
+         var numFluxIntervals1 =   fluxWidth / this.FluxGrouping.minIntervalWidth ;
+         var numFluxIntervals0 =  Math.round( numFluxIntervals1 );
+         this.FluxGrouping.numIntervals = Math.min ( numFluxIntervals0, this.FluxGrouping.maxIntervalsNumber);
+      } 
+      else 
+      {
+         this.FluxGrouping.numIntervals = numIntervals;
+      }
+      
+      this.FluxGrouping.IntervalWidth = Math.round(fluxWidth / this.FluxGrouping.numIntervals * 10.0) / 10.0; // rounding to 0.1
+      
+      debug("FluxGrouping: fluxWidth=" + fluxWidth + ", numFluxIntervals0=(" + numFluxIntervals1 + ", " + numFluxIntervals0 + ")");
+      debug("<b>FluxIntervalWidth=" + this.FluxGrouping.IntervalWidth + ", numFluxIntervals=" + this.FluxGrouping.numIntervals + "</b>");
+      
+      let StarsFluxGoupCnt_arr = [];
+      for( i=0; i < StarsArray.length; i++)
+      {
+         let s = StarsArray[i];
+         let GroupInterval = Math.trunc( (s.flux - this.Stat.flux_min) / this.FluxGrouping.IntervalWidth );
+         StarsArray[i].fluxGroup = (GroupInterval < this.FluxGrouping.numIntervals ? GroupInterval : this.FluxGrouping.numIntervals-1) ;
+         if (! StarsFluxGoupCnt_arr[StarsArray[i].fluxGroup])
+            StarsFluxGoupCnt_arr[StarsArray[i].fluxGroup] = 1;
+         else
+            StarsFluxGoupCnt_arr[StarsArray[i].fluxGroup]++;
+      }
+      
+      this.StarsFluxGoupCnt = StarsFluxGoupCnt_arr;
+      
+      return StarsFluxGoupCnt_arr;
+   }
+
+   /*
+    * Calculate Stars statistics  - grouping by StarSize
+   */
+   this.CalculateStarStats_FluxGroupingLog = function (StarsArray = undefined, numIntervals = undefined)
+   {
+      debug("Running [" + "CalculateStarStats_FluxGroupingLog" + "]");
+      
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+
+      var fluxWidth = Math.log10( this.Stat.flux_max / this.Stat.flux_min );
+      
+      // if not given calculate intervals 
+      if (!numIntervals)
+      {
+         var numFluxIntervals1 =   fluxWidth / this.FluxGrouping.minIntervalWidth ;
+         var numFluxIntervals0 =  Math.round( numFluxIntervals1 );
+         this.FluxGrouping.numIntervals = Math.min ( numFluxIntervals0, this.FluxGrouping.maxIntervalsNumber);
+      } 
+      else 
+      {
+         this.FluxGrouping.numIntervals = numIntervals;
+      }
+      
+      this.FluxGrouping.IntervalWidth = Math.round(fluxWidth / this.FluxGrouping.numIntervals * 10.0) / 10.0; // rounding to 0.1
+      
+      debug("FluxGrouping: fluxWidth=" + fluxWidth + ", numFluxIntervals0=(" + numFluxIntervals1 + ", " + numFluxIntervals0 + ")");
+      debug("<b>FluxIntervalWidth=" + this.FluxGrouping.IntervalWidth + ", numFluxIntervals=" + this.FluxGrouping.numIntervals + "</b>");
+      
+      let StarsFluxGoupCnt_arr = [];
+      for( i=0; i < StarsArray.length; i++)
+      {
+         let s = StarsArray[i];
+         let GroupInterval = Math.trunc( Math.log10(s.flux / this.Stat.flux_min) / this.FluxGrouping.IntervalWidth );
+         StarsArray[i].fluxLog = Math.log10( s.flux / this.Stat.flux_min ) ;
+         StarsArray[i].fluxGroup = (GroupInterval < this.FluxGrouping.numIntervals ? GroupInterval : this.FluxGrouping.numIntervals-1) ;
+         if (! StarsFluxGoupCnt_arr[StarsArray[i].fluxGroup])
+            StarsFluxGoupCnt_arr[StarsArray[i].fluxGroup] = 1;
+         else
+            StarsFluxGoupCnt_arr[StarsArray[i].fluxGroup]++;
+      }
+      
+      this.StarsFluxGoupCnt = StarsFluxGoupCnt_arr;
+      
+      return StarsFluxGoupCnt_arr;
+   }
+
 
    /*
     * Filter out some Stars
    */
-   this.filterStars = function (minSize = 0, maxSize = 65535, StarsArray = undefined)
+   this.filterStarsBySize = function (minRadius = 0, maxRadius = 65535, StarsArray = undefined)
    {
-      debug("Running [" + "filterStars" + "]");
+      debug("Running [" + "filterStarsBySize" + "]");
       
-      console.writeln(format("Filtering StarSizes to [%d, %d]", minSize, maxSize));
+      console.writeln(format("Filtering StarSizes to [%d, %d)", minRadius, maxRadius));
       
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -290,13 +412,41 @@ function StarSizeMask_engine()
       StarsArray.forEach(
          function (s)
          {
-            if ( s.size>=minSize && s.size<=maxSize  )
+            if ( s.sizeRadius >= minRadius && s.sizeRadius < maxRadius  )
               FilteredStars.push(s); 
          }
       )
 
       return FilteredStars;
    }
+
+   /*
+    * Filter out some Stars
+   */
+   this.filterStarsByFlux = function (minFlux = 0, maxFlux = 65535, StarsArray = undefined)
+   {
+      debug("Running [" + "filterStarsByFlux" + "]");
+      
+      console.writeln(format("Filtering StarFluxes to [%d, %d)", minFlux, maxFlux));
+      
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+      
+      var FilteredStars=[];
+      StarsArray.forEach(
+         function (s)
+         {
+            if ( s.flux >= minFlux && s.flux < maxFlux  )
+              FilteredStars.push(s); 
+         }
+      )
+
+      return FilteredStars;
+   }
+
 
    /*
     * Print Stars array to console
@@ -317,14 +467,14 @@ function StarSizeMask_engine()
 
       // Header
       console.noteln( "-".repeat(70) );
-      console.noteln( format("(%6s, %6s): %5s / %7s | [%3s, %3s]: %4s %4s | %4s | SzGr", "x", "y", "flux", "bckgrnd", "w", "h", "size", "R", "nmax"));
+      console.noteln( format("(%6s, %6s): %5s / %7s | [%3s, %3s]: %4s %4s | %4s | SG | FG", "x", "y", "flux (flLog)", "bckgrnd", "w", "h", "size", "R", "nmax"));
       console.noteln( "-".repeat(70) );
       
       // Rows
       StarsArray.forEach(
          function (s)
          {
-            console.writeln( format("(%6.1f, %6.1f): %5.2f / %7.5f | [%3d, %3d]: %4d %4.1f |  (%1d) | %1d", s.pos.x, s.pos.y, s.flux, s.bkg, (s.rect.x1-s.rect.x0), (s.rect.y1-s.rect.y0), s.size, s.sizeRadius, s.nmax, s.sizeGroup));
+            console.writeln( format("(%6.1f, %6.1f): %5.2f (%4.2f) / %7.5f | [%3d, %3d]: %4d %4.1f |  (%1d) | %1d | %1d", s.pos.x, s.pos.y, s.flux, s.fluxLog, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup));
          }
       )
 
@@ -347,6 +497,20 @@ function StarSizeMask_engine()
             
          console.writeln( format("(%d) [%3.1f, %3.1f]: %3d", i, lo, hi, (this.StarsSizeGoupCnt[i] ? this.StarsSizeGoupCnt[i] : 0) ) );
       }
+
+      // Print Flux Grouping
+      var lo=hi=0;
+      console.noteln("<cbr><br>Flux grouping " + "[" + this.StarsFluxGoupCnt.length + "]:");
+      for(i=0; i< this.StarsFluxGoupCnt.length; i++)
+      {
+         lo = this.Stat.flux_min + i * this.FluxGrouping.IntervalWidth;
+         if (i == this.StarsFluxGoupCnt.length-1)
+            hi = this.Stat.flux_max;
+         else
+            hi = lo + this.FluxGrouping.IntervalWidth;
+            
+         console.writeln( format("(%d) [%3.1f, %3.1f]: %3d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+      }
       
       return true;
    }
@@ -367,6 +531,7 @@ function StarSizeMask_engine()
       if (!fileName)
          fileName = "StarSizeMask.csv"
       
+      console.writeln("Writing to file <b>" + fileName + "</b>...");
       try
       {
          var f = File.createFileForWriting( fileName );
@@ -388,6 +553,7 @@ function StarSizeMask_engine()
                
          }
          f.close();
+         console.writeln("Done");
       }
       catch (ex)
       {
@@ -438,6 +604,55 @@ function StarSizeMask_engine()
       w.mainView.beginProcess( UndoFlag_NoSwapFile );
       w.mainView.image.blend( bmp );
       w.mainView.endProcess();
+      w.show();
+      w.zoomToFit();
+
+      return true;
+   }
+
+   /*
+    * Create Image with detected stars marked
+   */
+   this.markStars = function (StarsArray=undefined, imageName = "DetectedStars")
+   {
+      debug("Running [" + "markStars" + "]");
+
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+
+      let bmp = new Bitmap( this.sourceImage.width, this.sourceImage.height );
+      bmp.fill( 0x0 );
+
+      let G = new VectorGraphics( bmp );
+      G.antialiasing = true;
+      //G.pen = new Pen( 0xffffffff );
+      G.pen = new Pen(0xffff00ff, 1); //   g.pen= new Pen(0xff32CD32, 2);
+
+      //G.pen = new Pen( 0xff000000 );
+
+      for ( let i = 0, n = StarsArray.length ; i < n; ++i )
+      {
+         let s = StarsArray[i];
+         G.strokeEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1 );
+         G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
+      }
+      G.end();
+
+      let w = new ImageWindow( this.sourceImage.width, this.sourceImage.height,
+                               3,      // numberOfChannels
+                               this.sourceImage.bitsPerSample,      // bitsPerSample
+                               this.sourceImage.isReal,  // floatSample
+                               true,  // color
+                               imageName );
+      w.mainView.beginProcess( UndoFlag_NoSwapFile );
+      w.mainView.image.assign( this.sourceImage );
+      w.mainView.image.colorSpace = ColorSpace_RGB,
+      w.mainView.image.blend( bmp );
+      w.mainView.endProcess();
+
       w.show();
       w.zoomToFit();
 

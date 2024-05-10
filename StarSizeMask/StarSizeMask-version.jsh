@@ -20,7 +20,7 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.2"
-#define __SCRIPT_DATE "20240509"
+#define __SCRIPT_VERSION "0.3"
+#define __SCRIPT_DATE "20240510"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */

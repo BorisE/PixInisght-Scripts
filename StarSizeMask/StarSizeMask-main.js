@@ -35,17 +35,26 @@ function main() {
 
    console.writeln ("Working on: <b>" + refView.id + "</b><br>");
 
+
    var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
-   SSMObj.GetStars( refView );
+   AllStars = SSMObj.GetStars( refView );
    SSMObj.printStars();
-   SSMObj.saveStars("d:/stars.csv");
+
+   //SSMObj.saveStars("d:/stars.csv");
    //SSMObj.createMask();
 
-   //var Stars1 = SSMObj.filterStars(2,30);
-   //SSMObj.printStars(Stars1);
-   //SSMObj.createMask(Stars1);
+
+   //var Stars2 = SSMObj.filterStarsBySize(3.9,10);
+   //SSMObj.printStars(Stars2);
+
+   //var Stars3 = SSMObj.filterStarsByFlux(0.5,1000);
+   //SSMObj.printStars(Stars3);
+   //SSMObj.markStars(Stars3);
+
+   //SSMObj.createMask(Stars3, "StarsLarge");
+
 
 }
 
@@ -121,3 +130,24 @@ function main_test() {
 
 //main_test();
 main();
+
+function GetWindowBmp(window)
+{
+   var imageOrg = window.mainView.image;
+   var tmpW = null;
+   try
+   {
+      tmpW = new ImageWindow(imageOrg.width, imageOrg.height, imageOrg.numberOfChannels,
+         window.bitsPerSample, window.isFloatSample, imageOrg.isColor, "Aux");
+      tmpW.mainView.beginProcess(UndoFlag_NoSwapFile);
+      tmpW.mainView.image.apply(imageOrg);
+     // ApplySTF(tmpW.mainView, window.mainView.stf);
+      tmpW.mainView.endProcess();
+      var bmp = new Bitmap(imageOrg.width, imageOrg.height);
+      bmp.assign(tmpW.mainView.image.render());
+      return bmp;
+   } finally
+   {
+      tmpW.forceClose();
+   }
+}
