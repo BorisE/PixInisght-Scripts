@@ -20,7 +20,30 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.3"
-#define __SCRIPT_DATE "20240510"
+#define __SCRIPT_VERSION "0.4"
+#define __SCRIPT_DATE "20240511"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
+
+
+/*
+ * History
+
+ 0.4 [2024 05 11]
+   - DynamicPSF fitting
+   - enlarge mask
+
+ 0.3 [2024 05 10]
+   - flux/logFlux grouping
+   - filter by size
+   - filter by flux (log)
+   - mark stars
+   - enlage
+ 
+ 0.2 [2024 05 09]
+   - size Radius grouping
+   - saving to csv file
+
+ 0.1 [2024 05 07]
+   - inital working release
+ */

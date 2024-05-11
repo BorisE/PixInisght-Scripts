@@ -41,9 +41,11 @@ function main() {
 
    AllStars = SSMObj.GetStars( refView );
    SSMObj.printStars();
+   SSMObj.fitStarPSF();
+   SSMObj.printStars();
 
    //SSMObj.saveStars("d:/stars.csv");
-   //SSMObj.createMask();
+   SSMObj.createMask();
 
 
    //var Stars2 = SSMObj.filterStarsBySize(3.9,10);

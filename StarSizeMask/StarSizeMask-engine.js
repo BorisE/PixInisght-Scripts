@@ -17,8 +17,11 @@
 */
 #define __PJSR_USE_STAR_DETECTOR_V2
 #define __PJSR_STAR_OBJECT_DEFINED  1
+#define __PJSR_NO_STAR_DETECTOR_TEST_ROUTINES
 
 #include <pjsr/StarDetector.jsh>
+
+#include <pjsr/UndoFlag.jsh>
 #include <pjsr/BitmapFormat.jsh>
 #include <pjsr/ColorSpace.jsh>
 #include <pjsr/ImageOp.jsh>
@@ -57,6 +60,9 @@ function Star( pos, flux, bkg, rect, size, nmax )
    // Height
    this.h = this.rect.y1 - this.rect.y0; 
 
+   let AdjFact = Math.min ( ( this.flux > 1 ? this.flux : 1) * 1.5, 3);
+   this.rectEx = new Rect (this.pos.x - this.w * AdjFact * 0.5, this.pos.y - this.h * AdjFact * 0.5, this.pos.x + this.w * AdjFact * 0.5, this.pos.y + this.h * AdjFact * 0.5);
+
    // Size grouping 
    // calculated latter on the whole array
    this.sizeGroup = undefined;
@@ -66,6 +72,21 @@ function Star( pos, flux, bkg, rect, size, nmax )
    // Flux log
    // calculated latter on the whole array
    this.fluxLog = undefined;
+   
+   // DynamicPSF parameters
+   this.PSF_StarIndex = undefined;
+   this.PSF_Status = undefined;
+   this.PSF_b  = undefined;
+   this.PSF_a  = undefined;
+   this.PSF_cx  = undefined;
+   this.PSF_cy  = undefined;
+   this.PSF_sx  = undefined;
+   this.PSF_sy  = undefined;
+   this.PSF_theta = undefined;
+   this.PSF_residual = undefined;
+   this.PSF_flux = undefined;
+   
+   this.PSF_rect = undefined;
    
 }
 
@@ -87,7 +108,8 @@ function StarSizeMask_engine()
     */
    this.Stars = undefined,
 
-   this.sourceImage = undefined,
+   this.sourceView = undefined;;
+   this.sourceImage = undefined;
 
    this.__base__ = Object;
    this.__base__();
@@ -99,6 +121,8 @@ function StarSizeMask_engine()
    this.SD.applyHotPixelFilterToDetectionImage = false;
    this.SD.noiseReductionFilterRadius = 0;
    this.SD.structureLayers = 5;
+   //this.SD.sensitivity = parameters.starDetectionSensitivity;
+   //this.SD.upperLimit = parameters.upperLimit;
 
    this.SizeGrouping = {
       minIntervalWidth: 1.0,          // minimum interval width for Size Grouping, in pixels
@@ -164,7 +188,7 @@ function StarSizeMask_engine()
          return true;
       }
 
-	   this.SD.progressCallback = progressCallback;
+	   //this.SD.progressCallback = progressCallback;
 
 	   let T = new ElapsedTime;
 	   this.Stars = this.SD.stars( this.sourceImage );
@@ -173,6 +197,125 @@ function StarSizeMask_engine()
 
       return this.Stars;
 	}
+   
+   this.fitStarPSF = function (StarsArray = undefined)
+   {      debug("Running [" + "fitStarPSF" + "]");
+      
+      if (!StarsArray)
+         StarsArray = this.Stars;
+      
+      if (!StarsArray)
+         return false;
+
+      var dynamicPSF = new DynamicPSF;
+
+      dynamicPSF.autoPSF = true;
+      /*
+      dynamicPSF.circularPSF = false;
+      dynamicPSF.gaussianPSF = parameters.modelFunctionIndex == 0;
+      dynamicPSF.moffatPSF = false;
+      dynamicPSF.moffat10PSF = parameters.modelFunctionIndex == 1;
+      dynamicPSF.moffat8PSF = parameters.modelFunctionIndex == 2;
+      dynamicPSF.moffat6PSF = parameters.modelFunctionIndex == 3;
+      dynamicPSF.moffat4PSF = parameters.modelFunctionIndex == 4;
+      dynamicPSF.moffat25PSF = parameters.modelFunctionIndex == 5;
+      dynamicPSF.moffat15PSF = parameters.modelFunctionIndex == 6;
+      dynamicPSF.lorentzianPSF = parameters.modelFunctionIndex == 7;
+      */
+      dynamicPSF.circularPSF = false;
+      dynamicPSF.gaussianPSF = true; //parameters.modelFunctionIndex == 0;
+      dynamicPSF.moffatPSF = false;
+      dynamicPSF.moffat10PSF = false; //parameters.modelFunctionIndex == 1;
+      dynamicPSF.moffat8PSF = false; //parameters.modelFunctionIndex == 2;
+      dynamicPSF.moffat6PSF = false; //parameters.modelFunctionIndex == 3;
+      dynamicPSF.moffat4PSF = false; //parameters.modelFunctionIndex == 4;
+      dynamicPSF.moffat25PSF = false; //parameters.modelFunctionIndex == 5;
+      dynamicPSF.moffat15PSF = false; //parameters.modelFunctionIndex == 6;
+      dynamicPSF.lorentzianPSF = false; //parameters.modelFunctionIndex == 7;
+      dynamicPSF.regenerate = true;
+
+      var views = new Array;
+      views.push(new Array(this.sourceView.id));
+      dynamicPSF.views = views;
+
+
+      var radius = Math.round(0.75 * dynamicPSF.searchRadius);
+      var stars = new Array;
+      for (var i = 0; i < StarsArray.length; i++) {
+         let s = StarsArray[i];
+         stars.push(new Array(
+            0, 0, DynamicPSF.prototype.Star_DetectedOk,
+            s.pos.x - s.sizeRadius,
+            s.pos.y - s.sizeRadius,
+            s.pos.x + s.sizeRadius,
+            s.pos.y + s.sizeRadius,
+            s.pos.x,
+            s.pos.y
+         ));
+      }
+      dynamicPSF.stars = stars;
+      dynamicPSF.writeIcon("PSFSave1");
+      
+      
+      var fitted = new Array(stars.length);
+      for (var i = 0; i != fitted.length; ++i) {
+         fitted[i] = false;
+      }
+      dynamicPSF.executeGlobal();
+      dynamicPSF.writeIcon("PSFSave2");
+      
+      // starIndex, function, circular, status, B, A, cx, cy, sx, sy, theta, beta, mad, celestial, alpha, delta, flux, meanSignal
+      #define DYNAMICPSF_PSF_StarIndex 0
+      #define DYNAMICPSF_PSF_FuncType 1
+      #define DYNAMICPSF_PSF_CircularFlag 2
+      #define DYNAMICPSF_PSF_Status 3
+      #define DYNAMICPSF_PSF_b 4
+      #define DYNAMICPSF_PSF_a 5
+      #define DYNAMICPSF_PSF_cx 6
+      #define DYNAMICPSF_PSF_cy 7
+      #define DYNAMICPSF_PSF_sx 8
+      #define DYNAMICPSF_PSF_sy 9
+      #define DYNAMICPSF_PSF_theta 10
+      #define DYNAMICPSF_PSF_residual 12
+      #define DYNAMICPSF_PSF_flux 16
+      
+      #define DYNAMICPSF_Stars_x0 3
+      #define DYNAMICPSF_Stars_y0 4
+      #define DYNAMICPSF_Stars_x1 5
+      #define DYNAMICPSF_Stars_y1 6
+
+      var starProfiles = new Array;
+      var psfTable = dynamicPSF.psf;
+      var starsTable = dynamicPSF.stars;
+      for (var i = 0; i != psfTable.length; ++i) {
+         let psfRow = psfTable[i];
+         let idx = psfRow[DYNAMICPSF_PSF_StarIndex];
+         if (
+            psfRow[DYNAMICPSF_PSF_Status] == DynamicPSF.prototype.PSF_FittedOk &&
+            psfRow[DYNAMICPSF_PSF_residual] < 0.1 &&
+            !fitted[idx]
+         ) {
+            StarsArray[idx].PSF_b = psfRow[DYNAMICPSF_PSF_b];
+            StarsArray[idx].PSF_a = psfRow[DYNAMICPSF_PSF_a];
+            StarsArray[idx].PSF_cx = psfRow[DYNAMICPSF_PSF_cx];
+            StarsArray[idx].PSF_cy = psfRow[DYNAMICPSF_PSF_cy];
+            StarsArray[idx].PSF_sx = psfRow[DYNAMICPSF_PSF_sx];
+            StarsArray[idx].PSF_sy = psfRow[DYNAMICPSF_PSF_sy];
+            StarsArray[idx].PSF_theta = psfRow[DYNAMICPSF_PSF_theta];
+            StarsArray[idx].PSF_residual = psfRow[DYNAMICPSF_PSF_residual];
+            StarsArray[idx].PSF_flux = psfRow[DYNAMICPSF_PSF_flux];
+            
+            StarsArray[idx].PSF_rect = new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
+            
+            debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
+
+            fitted[idx] = true;
+         }
+      }
+      
+      return starProfiles;
+
+   }
 
    /*
     * Calculate Stars statistics
@@ -467,14 +610,30 @@ function StarSizeMask_engine()
 
       // Header
       console.noteln( "-".repeat(70) );
-      console.noteln( format("(%6s, %6s): %5s / %7s | [%3s, %3s]: %4s %4s | %4s | SG | FG", "x", "y", "flux (flLog)", "bckgrnd", "w", "h", "size", "R", "nmax"));
+      console.noteln( format(
+         "(%6s, %6s): %5s / %7s | [%3s, %3s]: %4s %4s | %4s |SzG|FlG" + 
+         "|%6s / %7s | %7s",
+         "x", "y", "flux (flLog)", "bckgrnd", "w", "h", "size", "R", "nmax",
+         "psf_F", "psf_B", "psf_A"
+      ));
       console.noteln( "-".repeat(70) );
       
       // Rows
       StarsArray.forEach(
          function (s)
          {
-            console.writeln( format("(%6.1f, %6.1f): %5.2f (%4.2f) / %7.5f | [%3d, %3d]: %4d %4.1f |  (%1d) | %1d | %1d", s.pos.x, s.pos.y, s.flux, s.fluxLog, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup));
+            console.write( format(
+               "(%6.1f, %6.1f): %5.2f (%4.2f) / %7.5f | [%3d, %3d]: %4d %4.1f |  (%1d) | %1d | %1d |",
+               s.pos.x, s.pos.y, s.flux, s.fluxLog, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
+               ));
+            if (s.PSF_flux && s.PSF_b && s.PSF_a)
+            {
+               console.write( format(
+                  "%6.2f / %7.5f | %7.5f", 
+                  s.PSF_flux, s.PSF_b, s.PSF_a
+                  ));
+            }
+            console.writeln();
          }
       )
 
@@ -568,7 +727,7 @@ function StarSizeMask_engine()
    /*
     * Create StarMask from image array
    */
-   this.createMask = function (StarsArray=undefined, maskName = "stars")
+   this.createMask = function (StarsArray=undefined, counterMask = false, maskName = "stars")
    {
       debug("Running [" + "createMask" + "]");
 
@@ -590,7 +749,15 @@ function StarSizeMask_engine()
       for ( let i = 0, n = StarsArray.length ; i < n; ++i )
       {
          let s = StarsArray[i];
-         G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFFFFFFFF) );
+         let AdjFact = (s.fluxGroup + 1) * 1.5;
+         let rectEx = new Rect (s.pos.x - s.w * AdjFact * 0.5, s.pos.y - s.h * AdjFact * 0.5, s.pos.x + s.w * AdjFact * 0.5, s.pos.y + s.h * AdjFact * 0.5);
+         //G.fillEllipse( s.rectEx.x0, s.rectEx.y0, s.rectEx.x1, s.rectEx.y1, new Brush(0xFFFFFFFF) );
+         G.fillEllipse( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, new Brush(0xFFAAAAAA) );
+         G.fillEllipse( rectEx.x0, rectEx.y0, rectEx.x1, rectEx.y1, new Brush(0xFFFFFFFF) );
+         if (counterMask) 
+            G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
+         
+
          //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
       }
       G.end();
