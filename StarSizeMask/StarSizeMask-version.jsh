@@ -29,10 +29,11 @@
 /*
  * History
 
- 0.41 [2024 05 11]
+ 0.41a [2024 05 11]
+   - StarDetector runtime hugely optimized (callback make running extremly slow)
    - bugfix: PSF wasnot working on previews
    - bugfix: failed to create a mask if no stat were previously calculated
-   - multiple fixes
+   - other multiple fixes
 
  0.4 [2024 05 11]
    - DynamicPSF fitting

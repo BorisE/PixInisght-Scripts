@@ -175,7 +175,7 @@ function StarSizeMask_engine()
             this.lastProgressPc = 0;
             processEvents();
          }
-         else
+         else if (count == total || count % 500 == 0)
          {
             let pc = Math.round( 100*count/total );
             if ( pc > this.lastProgressPc )
@@ -188,7 +188,7 @@ function StarSizeMask_engine()
          return true;
       }
 
-	   //this.SD.progressCallback = progressCallback;
+	   this.SD.progressCallback = progressCallback;
 
 	   let T = new ElapsedTime;
 	   this.Stars = this.SD.stars( this.sourceImage );
