@@ -20,7 +20,7 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.4"
+#define __SCRIPT_VERSION "0.41"
 #define __SCRIPT_DATE "20240511"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
@@ -28,6 +28,11 @@
 
 /*
  * History
+
+ 0.41 [2024 05 11]
+   - bugfix: PSF wasnot working on previews
+   - bugfix: failed to create a mask if no stat were previously calculated
+   - multiple fixes
 
  0.4 [2024 05 11]
    - DynamicPSF fitting

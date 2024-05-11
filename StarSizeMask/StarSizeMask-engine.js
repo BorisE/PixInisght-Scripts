@@ -235,7 +235,7 @@ function StarSizeMask_engine()
       dynamicPSF.regenerate = true;
 
       var views = new Array;
-      views.push(new Array(this.sourceView.id));
+      views.push(new Array(this.sourceView.fullId));
       dynamicPSF.views = views;
 
 
@@ -262,6 +262,7 @@ function StarSizeMask_engine()
          fitted[i] = false;
       }
       dynamicPSF.executeGlobal();
+      dynamicPSF.setDescription("Test");
       dynamicPSF.writeIcon("PSFSave2");
       
       // starIndex, function, circular, status, B, A, cx, cy, sx, sy, theta, beta, mad, celestial, alpha, delta, flux, meanSignal
@@ -307,11 +308,12 @@ function StarSizeMask_engine()
             
             StarsArray[idx].PSF_rect = new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
             
-            debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
+            //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
 
             fitted[idx] = true;
          }
       }
+      console.writeln(psfTable.length + " PSF fittings were gathered and added to stat");
       
       return starProfiles;
 
@@ -644,7 +646,7 @@ function StarSizeMask_engine()
       console.noteln( "=".repeat(70) );
 
       // Print Size Grouping
-      var lo=hi=0;
+      var lo=0, hi=0;
       console.noteln("<cbr><br>StarSize grouping " + "[" + this.StarsSizeGoupCnt.length + "]:");
       for(i=0; i< this.StarsSizeGoupCnt.length; i++)
       {
@@ -727,7 +729,7 @@ function StarSizeMask_engine()
    /*
     * Create StarMask from image array
    */
-   this.createMask = function (StarsArray=undefined, counterMask = false, maskName = "stars")
+   this.createMask = function (StarsArray=undefined, counterMask = true, maskName = "stars")
    {
       debug("Running [" + "createMask" + "]");
 
@@ -749,11 +751,14 @@ function StarSizeMask_engine()
       for ( let i = 0, n = StarsArray.length ; i < n; ++i )
       {
          let s = StarsArray[i];
-         let AdjFact = (s.fluxGroup + 1) * 1.5;
+         let AdjFact = ( (s.fluxGroup?s.fluxGroup:0) + 1) * 1.5;
          let rectEx = new Rect (s.pos.x - s.w * AdjFact * 0.5, s.pos.y - s.h * AdjFact * 0.5, s.pos.x + s.w * AdjFact * 0.5, s.pos.y + s.h * AdjFact * 0.5);
          //G.fillEllipse( s.rectEx.x0, s.rectEx.y0, s.rectEx.x1, s.rectEx.y1, new Brush(0xFFFFFFFF) );
-         G.fillEllipse( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, new Brush(0xFFAAAAAA) );
          G.fillEllipse( rectEx.x0, rectEx.y0, rectEx.x1, rectEx.y1, new Brush(0xFFFFFFFF) );
+         if (s.PSF_rect)
+            G.fillEllipse( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, new Brush(0xFFAAAAAA) );
+         else
+             debug("No PSF Rect for " + i);
          if (counterMask) 
             G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
          
@@ -773,6 +778,8 @@ function StarSizeMask_engine()
       w.mainView.endProcess();
       w.show();
       w.zoomToFit();
+      
+      console.writeln("StarMask [" + maskName + "] based on " + StarsArray.length + " stars was created" + (counterMask?" [countour mode]":""));
 
       return true;
    }
@@ -822,6 +829,8 @@ function StarSizeMask_engine()
 
       w.show();
       w.zoomToFit();
+
+      console.writeln("StarMap [" + imageName + "] based on " + StarsArray.length + " stars was created");
 
       return true;
    }

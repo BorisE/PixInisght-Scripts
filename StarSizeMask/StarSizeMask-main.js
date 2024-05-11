@@ -33,16 +33,19 @@ function main() {
    console.noteln("<cbr><b>" + __SCRIPT_NAME + "</b> by Boris Emchenko");
    console.noteln("v" + __SCRIPT_VERSION + " from "+ __SCRIPT_DATE + "<br>");
 
-   console.writeln ("Working on: <b>" + refView.id + "</b><br>");
+   console.writeln ("Working on image: <b>" + refView.fullId + "</b>");
+   if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
+   console.writeln ();
 
 
    var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
    AllStars = SSMObj.GetStars( refView );
-   SSMObj.printStars();
+   SSMObj.CalculateStarStats();
+   //SSMObj.printStars();
    SSMObj.fitStarPSF();
-   SSMObj.printStars();
+   //SSMObj.printStars();
 
    //SSMObj.saveStars("d:/stars.csv");
    SSMObj.createMask();
