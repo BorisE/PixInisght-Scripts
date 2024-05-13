@@ -20,15 +20,19 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.41"
-#define __SCRIPT_DATE "20240511"
+#define __SCRIPT_VERSION "0.5 alpha"
+#define __SCRIPT_DATE "20240512"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
 
 
 /*
  * History
-
+ *
+ 0.5 alpha [2024 05 12]
+   - method names put to a standard, some restructerting + doc
+   - create mask using angle from DynamicPSF (alpha, still not working properly)
+  
  0.41a [2024 05 11]
    - StarDetector runtime hugely optimized (callback make running extremly slow)
    - bugfix: PSF wasnot working on previews

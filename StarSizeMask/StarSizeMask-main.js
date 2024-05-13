@@ -41,14 +41,15 @@ function main() {
    var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
-   AllStars = SSMObj.GetStars( refView );
-   SSMObj.CalculateStarStats();
+   AllStars = SSMObj.getStars( refView );
+   SSMObj.calculateStarStats();
    //SSMObj.printStars();
    SSMObj.fitStarPSF();
-   //SSMObj.printStars();
+   SSMObj.printStars();
+   SSMObj.printGroupStat();
 
    //SSMObj.saveStars("d:/stars.csv");
-   SSMObj.createMask();
+   SSMObj.createMaskAngle(undefined, false, false);
 
 
    //var Stars2 = SSMObj.filterStarsBySize(3.9,10);
