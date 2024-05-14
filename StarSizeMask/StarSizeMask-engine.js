@@ -88,6 +88,8 @@ function Star( pos, flux, bkg, rect, size, nmax )
    
    this.PSF_rect = undefined;
    
+   this.FWHMx = undefined;
+   this.FWHMy = undefined;
 }
 
 
@@ -328,6 +330,7 @@ function StarSizeMask_engine()
       #define DYNAMICPSF_PSF_sx 8
       #define DYNAMICPSF_PSF_sy 9
       #define DYNAMICPSF_PSF_theta 10
+      #define DYNAMICPSF_PSF_beta 11
       #define DYNAMICPSF_PSF_residual 12
       #define DYNAMICPSF_PSF_flux 16
       
@@ -358,6 +361,9 @@ function StarSizeMask_engine()
             StarsArray[idx].PSF_flux = psfRow[DYNAMICPSF_PSF_flux];
             
             StarsArray[idx].PSF_rect = new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
+            
+            StarsArray[idx].FWHMx = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sx], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
+            StarsArray[idx].FWHMy = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sy], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
             
             //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
 
@@ -682,8 +688,8 @@ function StarSizeMask_engine()
             if (s.PSF_flux && s.PSF_b && s.PSF_a)
             {
                console.write( format(
-                  "%6.2f / %7.5f | %7.5f | %7.3f", 
-                  s.PSF_flux, s.PSF_b, s.PSF_a, s.PSF_theta
+                  "%6.2f / %7.5f | %7.5f | %7.3f %3.2f px %3.2f px", 
+                  s.PSF_flux, s.PSF_b, s.PSF_a, s.PSF_theta, s.FWHMx, s.FWHMy
                   ));
             }
             console.writeln();
@@ -830,6 +836,7 @@ function StarSizeMask_engine()
          //G.fillEllipse( s.rectEx.x0, s.rectEx.y0, s.rectEx.x1, s.rectEx.y1, new Brush(0xFFFFFFFF) );
          G.fillEllipse( rectEx.x0, rectEx.y0, rectEx.x1, rectEx.y1, new Brush(0xFFFFFFFF) );
 
+         /*
          if (s.PSF_rect)
             G.fillEllipse( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, new Brush(0xFFAAAAAA) );
          else
@@ -837,7 +844,7 @@ function StarSizeMask_engine()
 
          if (contourMask) 
             G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
-         
+         */
          //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
       }
       G.end();
@@ -859,12 +866,12 @@ function StarSizeMask_engine()
       return true;
    }
    
-      /*
-    * Create StarMask from image array
+  /*
+   * Create StarMask from image array
    */
-   this.createMaskAngle = function (StarsArray=undefined, maskGrowth = true, contourMask = true, maskName = "stars")
+   this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
    {
-      debug("Running [" + "createMask" + "]");
+      debug("Running [" + "createMaskAngle (StarsArray=" + StarsArray + ", softenMask = " + softenMask + ", maskGrowth = " + maskGrowth + ",  contourMask = " + contourMask + ", maskName = '" + maskName + "')" + "]");
 
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -879,15 +886,21 @@ function StarSizeMask_engine()
       G.antialiasing = true;
       G.pen = new Pen( 0xffffffff );
 
+      var AdjF = 2.5;
+
       for ( let i = 0; i < StarsArray.length; i++ )
       {
          let s = StarsArray[i];
 
          if (s.PSF_rect)
          {
-            G.translateTransformation( s.pos.x, s.pos.y );
+            G.translateTransformation( s.PSF_cx, s.PSF_cy );
             G.rotateTransformation( s.PSF_theta * Math.PI / 180 );            
-            G.fillEllipse( s.rect.x0 - s.PSF_cx, s.rect.y0 - s.PSF_cy, s.rect.x1 - s.PSF_cx, s.rect.y1 - s.PSF_cy, new Brush(0xFFFFFFFF) );
+            G.fillEllipse( - s.FWHMx  * AdjF / 2.0, - s.FWHMy * AdjF / 2.0,  s.FWHMx  * AdjF/ 2.0, s.FWHMy  * AdjF / 2.0, new Brush(0xFFFFFFFF) );
+            //G.fillEllipse( - s.FWHMx  , - s.FWHMy ,  s.FWHMx  , s.FWHMy  , new Brush(0xFFFFFFFF) );
+            //let w = s.PSF_rect.x1 - s.PSF_rect.x0;
+            //let h = s.PSF_rect.y1 - s.PSF_rect.y0;
+            //G.drawRect( - w/2, -h/2, w/2, h/2);
             G.resetTransformation();            
          }
          else
@@ -903,6 +916,7 @@ function StarSizeMask_engine()
       }
       G.end();
 
+
       let w = new ImageWindow( bmp.width, bmp.height,
             1,      // numberOfChannels
             8,      // bitsPerSample
@@ -914,11 +928,26 @@ function StarSizeMask_engine()
       w.mainView.endProcess();
       w.show();
       w.zoomToFit();
+
+      if (softenMask)
+      {
+         var P = new Convolution;
+         P.mode = Convolution.prototype.Parametric;
+         P.sigma = 2.00;
+         P.shape = 2.00;
+         P.aspectRatio = 1.00;
+         P.rotationAngle = 0.00;
+         
+         P.executeOn(w.mainView);
+      }
+
       
       console.writeln("StarMask [" + w.mainView.id + "] based on " + StarsArray.length + " stars was created" + (contourMask?" [contour mode]":""));
 
       return true;
    }
+
+
 
    /*
     * Create Image with detected stars marked
@@ -978,4 +1007,35 @@ function debug(st)
 {
    if (debugf)
       console.writeln("<i>" + st + "</i>");
+}
+
+/* 
+ * FHWH algorithm taken from StarUtils - A PixInsight Script that allow star fixing and easy mask creation
+ * Copyright (C) 2020  Giuseppe Fabio Nicotra <artix2 at gmail dot com>
+ */
+function FWHM(func, sigma, beta, varshape) {
+   if (beta === undefined || beta === null) beta = 2;
+   if (varshape === true)
+      return 2 * sigma * Math.pow(beta*0.6931471805599453, 1/beta);
+   switch (func) {
+       case DynamicPSF.prototype.Function_Gaussian:
+         return 2.3548200450309493 * sigma;
+       case DynamicPSF.prototype.Function_Moffat:
+         return 2 * sigma * Math.sqrt(Math.pow2(1/beta) - 1);
+       case DynamicPSF.prototype.Function_Moffat10:
+         return 0.5358113941912513 * sigma;
+       case DynamicPSF.prototype.Function_Moffat8:
+         return 0.6016900619596693 * sigma;
+       case DynamicPSF.prototype.Function_Moffat6:
+         return 0.6998915581984769 * sigma;
+       case DynamicPSF.prototype.Function_Moffat4:
+          return 0.8699588840921645 * sigma;
+       case DynamicPSF.prototype.Function_Moffat25:
+          return 1.1305006161394060 * sigma;
+       case DynamicPSF.prototype.Function_Moffat15:
+          return 1.5328418730817597 * sigma;
+       case DynamicPSF.prototype.Function_Lorentzian:
+          return 2 * sigma;
+       default: return 0; // ?!
+   }
 }

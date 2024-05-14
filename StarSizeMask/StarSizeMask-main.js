@@ -49,7 +49,9 @@ function main() {
    SSMObj.printGroupStat();
 
    //SSMObj.saveStars("d:/stars.csv");
-   SSMObj.createMaskAngle(undefined, false, false);
+   //SSMObj.createMask(undefined, false, false, "StarMask_ord");
+   SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
+
 
 
    //var Stars2 = SSMObj.filterStarsBySize(3.9,10);
