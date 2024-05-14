@@ -20,7 +20,7 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.5"
+#define __SCRIPT_VERSION "0.52"
 #define __SCRIPT_DATE "20240514"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
@@ -29,6 +29,10 @@
 /*
  * History
  *
+ 0.52 [2024 05 14]
+   - Log StarFlux correcrted
+   - code optimization
+
  0.51 [2024 05 14]
    - create mask using angle and FWHM from DynamicPSF
    - soften mask option (using convolve)

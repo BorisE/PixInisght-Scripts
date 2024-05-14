@@ -35,13 +35,11 @@ function main() {
 
    console.writeln ("Working on image: <b>" + refView.fullId + "</b>");
    if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
-   console.writeln ();
-
 
    var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
-   AllStars = SSMObj.getStars( refView );
+   var AllStars = SSMObj.getStars( refView );
    SSMObj.calculateStarStats();
    //SSMObj.printStars();
    SSMObj.fitStarPSF();
@@ -50,15 +48,16 @@ function main() {
 
    //SSMObj.saveStars("d:/stars.csv");
    //SSMObj.createMask(undefined, false, false, "StarMask_ord");
-   SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
+   //this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
+   //SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
 
 
 
    //var Stars2 = SSMObj.filterStarsBySize(3.9,10);
    //SSMObj.printStars(Stars2);
 
-   //var Stars3 = SSMObj.filterStarsByFlux(0.5,1000);
-   //SSMObj.printStars(Stars3);
+   var Stars3 = SSMObj.filterStarsByFlux(0.381,1000);
+   SSMObj.printStars(Stars3);
    //SSMObj.markStars(Stars3);
 
    //SSMObj.createMask(Stars3, "StarsLarge");
