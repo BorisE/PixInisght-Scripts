@@ -20,8 +20,8 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.52"
-#define __SCRIPT_DATE "20240514"
+#define __SCRIPT_VERSION "0.6"
+#define __SCRIPT_DATE "20240518"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
 
@@ -29,6 +29,11 @@
 /*
  * History
  *
+ 0.6 [2024 05 18]
+   - save stars updated to save also PSF data
+   - markStars use different colours for groups
+   - multiple bugs
+
  0.52 [2024 05 14]
    - Log StarFlux correcrted
    - code optimization
