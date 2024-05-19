@@ -41,6 +41,10 @@ function main() {
    var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
+   //SSMObj.sourceView = refView;
+   //SSMObj.addPiedestal();
+   //return;
+
    var AllStars = SSMObj.getStars( refView );
    SSMObj.calculateStarStats();
    //SSMObj.printStars();
@@ -64,6 +68,8 @@ function main() {
    //SSMObj.markStars(Stars3);
 
    //SSMObj.createMask(Stars3, "StarsLarge");
+
+   SSMObj.closeTempImages();
 
    console.writeln( "Runtime: " + T.text );
 

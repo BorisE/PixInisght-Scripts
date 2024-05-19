@@ -164,8 +164,13 @@ function StarSizeMask_engine()
     
    this.Stars = undefined,
 
-   this.sourceView = undefined;;
+   this.sourceView = undefined;
    this.sourceImage = undefined;
+
+   // Temp image used to detect and fit stars
+   this.workingView = undefined;
+   this.workingImage = undefined;
+
 
    this.__base__ = Object;
    this.__base__();
@@ -211,6 +216,8 @@ function StarSizeMask_engine()
       nmax_min: MaxInt,
    };
 
+   this.cntFittedStars = 0;
+
 
    /*
     * Proccess source image and get all stars from it
@@ -221,6 +228,11 @@ function StarSizeMask_engine()
 
       this.sourceView = sourceView;
       this.sourceImage = sourceView.image;
+      
+      this.workingView = this.sourceView;
+      this.workingImage = this.sourceImage;
+      
+      this.addPiedestal(); // add piedestal to image if needed
 
 	   this.lastProgressPc = 0;
       console.show();
@@ -249,7 +261,7 @@ function StarSizeMask_engine()
 	   this.SD.progressCallback = progressCallback;
 
 	   let T = new ElapsedTime;
-	   this.Stars = this.SD.stars( this.sourceImage );
+	   this.Stars = this.SD.stars( this.workingImage );
 	   console.writeln( format( "<end><cbr><br>* StarDetector: %d stars found ", this.Stars.length ) );
 	   console.writeln( T.text );
 
@@ -299,7 +311,7 @@ function StarSizeMask_engine()
       dynamicPSF.searchRadius = Math.max( this.Stat.w_max, this.Stat.h_max );
 
       var views = new Array;
-      views.push(new Array(this.sourceView.fullId));
+      views.push(new Array(this.workingView.fullId));
       dynamicPSF.views = views;
 
 
@@ -383,6 +395,7 @@ function StarSizeMask_engine()
       var starProfiles = new Array;
       var psfTable = dynamicPSF.psf;
       var starsTable = dynamicPSF.stars;
+      this.cntFittedStars = 0;
       for (var i = 0; i != psfTable.length; ++i) {
          let psfRow = psfTable[i];
          let idx = psfRow[DYNAMICPSF_PSF_StarIndex];
@@ -409,6 +422,7 @@ function StarSizeMask_engine()
             //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
 
             fitted[idx] = true;
+            this.cntFittedStars ++;
          }
       }
 
@@ -425,15 +439,87 @@ function StarSizeMask_engine()
          }
       )
 
-
-
       console.writeln(psfTable.length + " PSF fittings were gathered and added to stat");
       console.writeln(nonfitted + " stas couldn't be fitted");
       
-      
       return starProfiles;
-
    }
+
+
+   /*
+    * Add piedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
+    */
+   this.addPiedestal = function ()
+   {
+      debug("<br>Running [" + "addPiedestal()]");
+      
+      var median = this.sourceView.computeOrFetchProperty( "Median" );
+      var min = this.sourceView.computeOrFetchProperty( "Minimum" );
+      debug("Image median = " + median.at(0));
+      debug("Image min = " + min.at(0));
+      
+      if ( min.at(0) < 0.0001 && median.at(0) < 0.001 ) {
+         console.writeln("Creating temp image and adding piedestal to it");
+         
+         // Copy image
+         let w = new ImageWindow( this.sourceView.image.width, this.sourceView.image.height,
+                         this.sourceView.image.numberOfChannels,      // numberOfChannels
+                         this.sourceView.image.bitsPerSample,      // bitsPerSample
+                         this.sourceView.image.isReal,  // floatSample
+                         this.sourceView.image.isColor,  // color
+                         "TempImage" );
+         w.mainView.beginProcess( UndoFlag_NoSwapFile );
+         w.mainView.image.assign( this.sourceView.image );
+         w.mainView.endProcess();
+
+         debug ("Temp image created (" + w.mainView.fullId + ")");
+
+         this.workingView = w.mainView;
+         this.workingImage = this.workingView.image;
+         
+         //w.show();
+         //w.zoomToFit();
+
+         var P = new PixelMath;
+         P.expression = "$T + 0.002";
+         P.useSingleExpression = true;
+         P.createNewImage = false;
+         P.rescale = false;
+         P.truncate = true;
+         P.truncateLower = 0;
+         P.truncateUpper = 1;
+         P.generateOutput = true;
+         P.optimization = true;
+
+         P.executeOn(this.workingView);
+
+         debug ("Piedestal to temp image was added");
+         
+         return this.workingView;
+      }
+      
+      return true;
+   }
+
+   /*
+    * Close temp images if they were created
+    */
+   this.closeTempImages = function ()
+   {
+      debug("<br>Running [" + "closeTempImages()]");
+      
+      if (this.sourceView != this.workingView)
+      {
+         this.workingView.window.hide();
+         this.workingView.setPropertyValue("dispose", true);
+         this.workingView.window.forceClose();
+         debug("TempImage closed");
+      }      
+      
+      return true;
+   }
+
+
 
    /*
     * Calculate Stars statistics
@@ -811,7 +897,7 @@ function StarSizeMask_engine()
          else
             hi = lo + this.SizeGrouping.IntervalWidth;
             
-         console.writeln( format("(%d) [%3.1f, %3.1f]: %3d", i, lo, hi, (this.StarsSizeGoupCnt[i] ? this.StarsSizeGoupCnt[i] : 0) ) );
+         console.writeln( format("(%d) [%4.1f, %4.1f]: %4d", i, lo, hi, (this.StarsSizeGoupCnt[i] ? this.StarsSizeGoupCnt[i] : 0) ) );
       }
 
       // Print Flux Grouping
@@ -825,7 +911,7 @@ function StarSizeMask_engine()
          else
             hi = Math.pow( 10, this.FluxGrouping.IntervalWidth * (i+1)) *  this.Stat.flux_min ;;
             
-         console.writeln( format("(%d) [%3.2f, %3.2f]: %3d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+         console.writeln( format("(%d) [%5.2f, %5.2f]: %4d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
       }
       
       return true;
@@ -889,7 +975,6 @@ function StarSizeMask_engine()
       }      
       
       return true;
-
    }
 
    /*
@@ -1020,6 +1105,8 @@ function StarSizeMask_engine()
       w.show();
       w.zoomToFit();
 
+      this.addFITSData( w, StarsArray );
+
       if (softenMask)
       {
          var P = new Convolution;
@@ -1032,12 +1119,10 @@ function StarSizeMask_engine()
          P.executeOn(w.mainView);
       }
 
-      
       console.writeln("StarMask [" + w.mainView.id + "] based on " + StarsArray.length + " stars was created" + (contourMask?" [contour mode]":""));
 
       return true;
    }
-
 
 
    /*
@@ -1087,10 +1172,73 @@ function StarSizeMask_engine()
       w.mainView.image.blend( bmp );
       w.mainView.endProcess();
 
+      this.addFITSData( w, StarsArray );
+      
       w.show();
       w.zoomToFit();
 
       console.writeln("StarMap [" + imageName + "] based on " + StarsArray.length + " stars was created");
+
+      return true;
+   }
+
+   /*
+    * Create Image with detected stars marked
+   */
+   this.addFITSData = function (imageWindow, StarsArray=undefined)
+   {
+      debug("<br>Running [" + "addFITSData( imageWindow = '" + imageWindow.mainView.id + "', StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+ 
+      // Run calculate stats in case of wasn't done earlier
+      if (!this.StarsSizeGoupCnt || !this.StarsFluxGoupCnt)
+         this.CalculateStarStats(StarsArray);
+ 
+      // add keywords
+      imageWindow.mainView.beginProcess( UndoFlag_Keywords );
+      let keywords =imageWindow.keywords;
+
+      keywords.push( new FITSKeyword( "STARSDET", format( "%d", StarsArray.length ), "Number of stars beeing detected" ) );
+      keywords.push( new FITSKeyword( "STARSPSF", format( "%d", this.cntFittedStars ), "Number of stars beeing fitted" ) );
+      //keywords.push( new FITSKeyword( "STARSPSF", format( "%d", this.cntFittedStars ), "Number of stars beeing fitted" ) );
+
+      // Print Size Grouping
+      var lo=0, hi=0;
+      for(let i=0; i< this.StarsSizeGoupCnt.length; i++)
+      {
+         lo = this.Stat.r_min + i * this.SizeGrouping.IntervalWidth;
+         if (i == this.StarsSizeGoupCnt.length-1)
+            hi = this.Stat.r_max;
+         else
+            hi = lo + this.SizeGrouping.IntervalWidth;
+            
+         //console.writeln( format("(%d) [%3.1f, %3.1f]: %3d", i, lo, hi, (this.StarsSizeGoupCnt[i] ? this.StarsSizeGoupCnt[i] : 0) ) );
+         keywords.push( new FITSKeyword( "SG_" + i + "_INT", format( "[%3.1f, %3.1f]", lo, hi) , "Number of stars in group " ) );
+         keywords.push( new FITSKeyword( "SG_" + i + "_CNT", format( "%d", this.StarsSizeGoupCnt[i] ? this.StarsSizeGoupCnt[i] : 0 ), format("(%d) [%3.1f, %3.1f]", i, lo, hi) ) );
+      }
+
+      // Print Flux Grouping
+      var lo=0, hi=0;
+      for(let i=0; i< this.StarsFluxGoupCnt.length; i++)
+      {
+         lo = Math.pow( 10, this.FluxGrouping.IntervalWidth * i) *  this.Stat.flux_min ;
+         if (i == this.StarsFluxGoupCnt.length-1)
+            hi = this.Stat.flux_max ;
+         else
+            hi = Math.pow( 10, this.FluxGrouping.IntervalWidth * (i+1)) *  this.Stat.flux_min ;;
+            
+         //console.writeln( format("(%d) [%3.2f, %3.2f]: %3d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+         keywords.push( new FITSKeyword( "FG_" + i + "_INT", format( "[%3.1f, %3.1f]", lo, hi) , "Interval size" ) );
+         keywords.push( new FITSKeyword( "FG_" + i + "_CNT", format( "%d", this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0 ), format("[%3.1f, %3.1f] %d", lo, hi, this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+      }
+
+      imageWindow.keywords = keywords;
+      imageWindow.mainView.endProcess();    
 
       return true;
    }

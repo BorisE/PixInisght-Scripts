@@ -20,8 +20,8 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.6"
-#define __SCRIPT_DATE "20240518"
+#define __SCRIPT_VERSION "0.7"
+#define __SCRIPT_DATE "20240519"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
 
@@ -29,6 +29,10 @@
 /*
  * History
  *
+ 0.7 [2024 05 19]
+   - piedestal is auto added if image is starmask with zero bg level
+   - keywords with data in added to result images
+   
  0.6 [2024 05 18]
    - save stars updated to save also PSF data
    - markStars use different colours for groups
