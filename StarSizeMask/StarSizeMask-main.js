@@ -49,14 +49,15 @@ function main() {
    SSMObj.calculateStarStats();
    //SSMObj.printStars();
    SSMObj.fitStarPSF();
-   //SSMObj.printStars();
+   SSMObj.printStars();
    SSMObj.printGroupStat();
 
    //SSMObj.saveStars("d:/stars.csv");
    //SSMObj.createMask(undefined, false, false, "StarMask_ord");
    //  *this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
-   //SSMObj.createMaskAngle(undefined, false, true, false, "StarMask_ang");
+   var mask = SSMObj.createMaskAngle(undefined, false, false, false, "StarMask_ang");
    SSMObj.markStars();
+   SSMObj.makeResidual(mask);
 
 
 

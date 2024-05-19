@@ -32,6 +32,8 @@
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/MorphOp.jsh>
 
+#include "../lib/STFAutoStretch.js"
+
 #define MaxInt 1000000
 
 #define debugf true  /*or false*/
@@ -1065,8 +1067,10 @@ function StarSizeMask_engine()
       {
          let s = StarsArray[i];
 
-         if (maskGrowth)
+         if (maskGrowth) {
             AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
+            //let diagonal = Math.sqrt( s.w^2 + s.h^2);
+         }
 
          if (s.PSF_rect)
          {
@@ -1121,7 +1125,7 @@ function StarSizeMask_engine()
 
       console.writeln("StarMask [" + w.mainView.id + "] based on " + StarsArray.length + " stars was created" + (contourMask?" [contour mode]":""));
 
-      return true;
+      return w.mainView.fullId;
    }
 
 
@@ -1173,17 +1177,87 @@ function StarSizeMask_engine()
       w.mainView.endProcess();
 
       this.addFITSData( w, StarsArray );
+
+      w.mainView.stf = this.sourceView.stf;
       
       w.show();
       w.zoomToFit();
 
       console.writeln("StarMap [" + imageName + "] based on " + StarsArray.length + " stars was created");
 
-      return true;
+      return w.mainView.fullId;
    }
 
    /*
     * Create Image with detected stars marked
+   */
+   this.makeResidual = function( starMaskId, imageName = "StarsResidual" )
+   {
+      debug("<br>Running [" + "makeResidual( starMaskId = " + starMaskId + ", imageName = '" + imageName + "' )" + "]");
+
+      var images = ImageWindow.windows;
+      var starMask = undefined;
+      for ( var i = 0; i < images.length; i++ )
+      {
+         if ( images[i].mainView.fullId == starMaskId ) 
+            starMask = images[i];
+      }
+      
+      if (!starMask) 
+      {
+         console.errorln("Can't find starmask ['" + starMaskId + "']");
+         return false;
+      }
+
+
+      var median = this.sourceView.computeOrFetchProperty( "Median" );
+      debug("Image median = " + median.at(0));
+      
+      // Copy image
+      let w = new ImageWindow( this.sourceView.image.width, this.sourceView.image.height,
+                      this.sourceView.image.numberOfChannels,      // numberOfChannels
+                      this.sourceView.image.bitsPerSample,      // bitsPerSample
+                      this.sourceView.image.isReal,  // floatSample
+                      this.sourceView.image.isColor,  // color
+                      imageName );
+      w.mainView.beginProcess( UndoFlag_NoSwapFile );
+      w.mainView.image.assign( this.sourceView.image );
+      w.mainView.endProcess();
+
+      // Put created mask on
+      w.maskVisible = false;
+      w.maskInverted = false;
+      w.mask = starMask;
+
+      // Fill with median
+      var P = new PixelMath;
+      P.expression = median.at(0).toString();
+      P.useSingleExpression = true;
+      P.createNewImage = false;
+      P.rescale = false;
+      P.truncate = true;
+      P.truncateLower = 0;
+      P.truncateUpper = 1;
+      P.generateOutput = true;
+      P.optimization = true;
+      P.executeOn(w.mainView);
+
+      // Prepare image to view
+      w.maskInverted = true;
+      w.maskVisible = true;
+
+      w.mainView.stf = this.sourceView.stf;
+
+      w.show();
+      w.zoomToFit();
+
+      console.writeln("Residual image was created");
+      
+      return this.workingView;
+   }
+
+   /*
+    * Add data into image header (FITS or other format)
    */
    this.addFITSData = function (imageWindow, StarsArray=undefined)
    {
