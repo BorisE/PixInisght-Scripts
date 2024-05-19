@@ -47,28 +47,25 @@ function main() {
 
    var AllStars = SSMObj.getStars( refView );
    SSMObj.calculateStarStats();
-   //SSMObj.printStars();
    SSMObj.fitStarPSF();
-   SSMObj.printStars();
+   //SSMObj.printStars();
    SSMObj.printGroupStat();
 
    //SSMObj.saveStars("d:/stars.csv");
    //SSMObj.createMask(undefined, false, false, "StarMask_ord");
    //  *this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
-   var mask = SSMObj.createMaskAngle(undefined, false, false, false, "StarMask_ang");
+   /*
+   let mask = SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
    SSMObj.markStars();
    SSMObj.makeResidual(mask);
+   */
 
-
-
-   //var Stars2 = SSMObj.filterStarsBySize(3.8,10);
-   //SSMObj.printStars(Stars2);
-
-   //var Stars3 = SSMObj.filterStarsByFlux(0.52, 1000);
-   //SSMObj.printStars(Stars3);
-   //SSMObj.markStars(Stars3);
-
-   //SSMObj.createMask(Stars3, "StarsLarge");
+   var Stars3 = SSMObj.filterStarsByFlux(0, 0.64);
+   SSMObj.printStars(Stars3);
+   //SSMObj.printGroupStat(Stars3);
+   SSMObj.markStars(Stars3);
+   let mask = SSMObj.createMaskAngle(Stars3, true, true, false, "StarMask_small");
+   SSMObj.makeResidual(mask, Stars3);
 
    SSMObj.closeTempImages();
 

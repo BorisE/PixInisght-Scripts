@@ -34,7 +34,7 @@
 
 #include "../lib/STFAutoStretch.js"
 
-#define MaxInt 1000000
+#define MAX_INT 1000000
 
 #define debugf true  /*or false*/
 
@@ -202,21 +202,27 @@ function StarSizeMask_engine()
    };
    
    this.Stat = {
-      flux_min: MaxInt,
+      flux_min: MAX_INT,
       flux_max: 0,
       bg_min: 1,
       bg_max: 0,
-      w_min: MaxInt,
+      w_min: MAX_INT,
       w_max:   0,
-      h_min: MaxInt,
+      h_min: MAX_INT,
       h_max: 0,
       size_max: 0,
-      size_min: MaxInt,
+      size_min: MAX_INT,
       r_max: 0,
-      r_min: MaxInt,
+      r_min: MAX_INT,
       nmax_max: 0,
-      nmax_min: MaxInt,
+      nmax_min: MAX_INT,
    };
+   
+   this.curFilter = {
+      type : "",
+      min : 0,
+      max : MAX_INT,
+   }
 
    this.cntFittedStars = 0;
 
@@ -234,7 +240,7 @@ function StarSizeMask_engine()
       this.workingView = this.sourceView;
       this.workingImage = this.sourceImage;
       
-      this.addPiedestal(); // add piedestal to image if needed
+      this.addPedestal(); // add pedestal to image if needed
 
 	   this.lastProgressPc = 0;
       console.show();
@@ -424,7 +430,7 @@ function StarSizeMask_engine()
             //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
 
             fitted[idx] = true;
-            this.cntFittedStars ++;
+            this.cntFittedStars++;
          }
       }
 
@@ -449,11 +455,11 @@ function StarSizeMask_engine()
 
 
    /*
-    * Add piedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
+    * Add pedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
     */
-   this.addPiedestal = function ()
+   this.addPedestal = function ()
    {
-      debug("<br>Running [" + "addPiedestal()]");
+      debug("<br>Running [" + "addPedestal()]");
       
       var median = this.sourceView.computeOrFetchProperty( "Median" );
       var min = this.sourceView.computeOrFetchProperty( "Minimum" );
@@ -461,7 +467,7 @@ function StarSizeMask_engine()
       debug("Image min = " + min.at(0));
       
       if ( min.at(0) < 0.0001 && median.at(0) < 0.001 ) {
-         console.writeln("Creating temp image and adding piedestal to it");
+         console.writeln("Creating temp image and adding pedestal to it");
          
          // Copy image
          let w = new ImageWindow( this.sourceView.image.width, this.sourceView.image.height,
@@ -495,7 +501,7 @@ function StarSizeMask_engine()
 
          P.executeOn(this.workingView);
 
-         debug ("Piedestal to temp image was added");
+         debug ("Pedestal to temp image was added");
          
          return this.workingView;
       }
@@ -537,18 +543,18 @@ function StarSizeMask_engine()
          return false;
 
 
-      this.Stat.flux_min = MaxInt;
+      this.Stat.flux_min = MAX_INT;
       this.Stat.flux_max = 0;
       this.Stat.bg_min = 1;
       this.Stat.bg_max = 0;
-      this.Stat.w_min = MaxInt;
+      this.Stat.w_min = MAX_INT;
       this.Stat.w_max= 0;
-      this.Stat.h_min = MaxInt;
+      this.Stat.h_min = MAX_INT;
       this.Stat.h_max = 0;
       this.Stat.size_max = 0;
-      this.Stat.size_min = MaxInt;
+      this.Stat.size_min = MAX_INT;
       this.Stat.r_max = 0;
-      this.Stat.r_min = MaxInt;
+      this.Stat.r_min = MAX_INT;
 
       for( let i=0; i < StarsArray.length; i++)
       {
@@ -760,7 +766,7 @@ function StarSizeMask_engine()
    /*
     * Filter out some Stars based on their radius
    */
-   this.filterStarsBySize = function (minRadius = 0, maxRadius = MaxInt, StarsArray = undefined)
+   this.filterStarsBySize = function (minRadius = 0, maxRadius = MAX_INT, StarsArray = undefined)
    {
       debug("Running [" + "filterStarsBySize" + "]");
       
@@ -771,15 +777,25 @@ function StarSizeMask_engine()
 
       if (!StarsArray)
          return false;
+
+      this.curFilter.type = "Size";
+      this.curFilter.min = minRadius;
+      this.curFilter.max = maxRadius;
+
+      this.cntFittedStars = 0;
       
       var FilteredStars=[];
-      StarsArray.forEach(
-         function (s)
+      for ( let i=0; i < StarsArray.length; i++ )
+      {
+         let s = StarsArray[i];
+         if ( s.sizeRadius >= minRadius && s.sizeRadius < maxRadius  ) 
          {
-            if ( s.sizeRadius >= minRadius && s.sizeRadius < maxRadius  )
-              FilteredStars.push(s); 
+            FilteredStars.push( s ); 
+            if ( s.PSF_flux ) {
+               this.cntFittedStars++;
+            }
          }
-      )
+      }
 
       return FilteredStars;
    }
@@ -787,7 +803,7 @@ function StarSizeMask_engine()
    /*
     * Filter out some stars based on their flux
    */
-   this.filterStarsByFlux = function (minFlux = 0, maxFlux = MaxInt, StarsArray = undefined)
+   this.filterStarsByFlux = function (minFlux = 0, maxFlux = MAX_INT, StarsArray = undefined)
    {
       debug("<br>Running [" + "filterStarsByFlux( minFlux = " + minFlux + ", maxFlux = " + maxFlux + " , StarsArray = "  + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
       
@@ -799,14 +815,24 @@ function StarSizeMask_engine()
       if (!StarsArray)
          return false;
       
+      this.curFilter.type = "Flux";
+      this.curFilter.min = minFlux;
+      this.curFilter.max = maxFlux;
+
+      this.cntFittedStars = 0;
+
       var FilteredStars=[];
-      StarsArray.forEach(
-         function (s)
+      for ( let i=0; i < StarsArray.length; i++ )
+      {
+         let s = StarsArray[i];
+         if ( s.flux >= minFlux && s.flux < maxFlux  ) 
          {
-            if ( s.flux >= minFlux && s.flux < maxFlux  )
-              FilteredStars.push(s); 
+            FilteredStars.push( s ); 
+            if ( s.PSF_flux ) {
+               this.cntFittedStars++;
+            }
          }
-      )
+      }
 
       return FilteredStars;
    }
@@ -832,10 +858,10 @@ function StarSizeMask_engine()
       // Header
       console.noteln( "-".repeat(100) );
       console.noteln( format(
-         "(%6s, %6s): %6s / %7s [%2s, %2s]: %2s %3s  | %3s |%3s|%3s" + 
-         "|%6s / %7s | %7s | %7s |%4s",
+         "(%6s, %6s): %6s / %7s [%2s, %2s]: %3s %3s  | %3s |%3s|%3s" + 
+         "|%6s / %7s | %7s | %7s |%4s|[%2s, %2s]",
          "x", "y", "flux", "bckgrnd", "w", "h", "Sz", "R", "nmx", "SzG", "FlG",
-         "psf_F", "psf_B", "psf_A", "FHWHx FHWHy", "Angle"
+         "psf_F", "psf_B", "psf_A", "FHWHx FHWHy", "Angle", "Pw", "Ph"
       ));
       console.noteln( "-".repeat(100) );
       
@@ -844,14 +870,14 @@ function StarSizeMask_engine()
          function (s)
          {
             console.write( format(
-               "(%6.1f, %6.1f): %6.3f / %7.5f [%2d, %2d]: %2d %4.1f | (%1d) | %1d | %1d |",
+               "(%6.1f, %6.1f): %6.3f / %7.5f [%2d, %2d]: %3d %4.1f | (%1d) | %1d | %1d |",
                s.pos.x, s.pos.y, s.flux, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
                ));
             if (s.PSF_flux && s.PSF_b && s.PSF_a)
             {
                console.write( format(
-                  "%6.2f / %7.5f | %7.5f | %3.2f x %3.2f | %3.0f", 
-                  s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta
+                  "%6.2f / %7.5f | %7.5f | %3.2f x %3.2f | %3.0f|[%2d, %2d]", 
+                  s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta, (s.PSF_rect.x1 - s.PSF_rect.x0), (s.PSF_rect.x1 - s.PSF_rect.x0)
                   ));
             }
             console.writeln();
@@ -860,8 +886,8 @@ function StarSizeMask_engine()
 
       // Total
       console.noteln( "=".repeat(100) );
-      console.noteln( format("Stars %5d %4s: %6.3f / %7.5f [%2d, %2d]: %2d %4.1f | (%1d) |   |   |", StarsArray.length, "min", this.Stat.flux_min, this.Stat.bg_min, this.Stat.w_min, this.Stat.h_min, this.Stat.size_min, this.Stat.r_min, this.Stat.nmax_min));
-      console.noteln( format(         "%16s: %6.3f / %7.5f [%2d, %2d]: %2d %4.1f | (%1d) |   |   |", "max", this.Stat.flux_max, this.Stat.bg_max, this.Stat.w_max, this.Stat.h_max, this.Stat.size_max, this.Stat.r_max, this.Stat.nmax_max));
+      console.noteln( format("Stars %5d %4s: %6.3f / %7.5f [%2d, %2d]: %3d %4.1f | (%1d) |   |   |", StarsArray.length, "min", this.Stat.flux_min, this.Stat.bg_min, this.Stat.w_min, this.Stat.h_min, this.Stat.size_min, this.Stat.r_min, this.Stat.nmax_min));
+      console.noteln( format(         "%16s: %6.3f / %7.5f [%2d, %2d]: %3d %4.1f | (%1d) |   |   |", "max", this.Stat.flux_max, this.Stat.bg_max, this.Stat.w_max, this.Stat.h_max, this.Stat.size_max, this.Stat.r_max, this.Stat.nmax_max));
       console.noteln( "=".repeat(100) );
 
       // Legend
@@ -979,68 +1005,7 @@ function StarSizeMask_engine()
       return true;
    }
 
-   /*
-    * Create StarMask from image array
-   */
-   this.createMask = function (StarsArray=undefined, maskGrowth = true, contourMask = true, maskName = "stars")
-   {
-      debug("<br>Running [" + "createMask" + "]");
-
-      if (!StarsArray)
-         StarsArray = this.Stars;
-
-      if (!StarsArray)
-         return false;
-
-      let bmp = new Bitmap( this.sourceImage.width, this.sourceImage.height );
-      bmp.fill( 0x0 );
-      //bmp.fill( 0xffffffff );
-
-      let G = new VectorGraphics( bmp );
-      G.antialiasing = true;
-      G.pen = new Pen( 0xffffffff );
-      //G.pen = new Pen( 0xff000000 );
-
-      for ( let i = 0, n = StarsArray.length ; i < n; ++i )
-      {
-         let s = StarsArray[i];
-         let AdjFact = 1;
-         if (maskGrowth)
-            AdjFact = ( (s.fluxGroup?s.fluxGroup:0) + 1) * 1.5;
-         let rectEx = new Rect (s.pos.x - s.w * AdjFact * 0.5, s.pos.y - s.h * AdjFact * 0.5, s.pos.x + s.w * AdjFact * 0.5, s.pos.y + s.h * AdjFact * 0.5);
-         //G.fillEllipse( s.rectEx.x0, s.rectEx.y0, s.rectEx.x1, s.rectEx.y1, new Brush(0xFFFFFFFF) );
-         G.fillEllipse( rectEx.x0, rectEx.y0, rectEx.x1, rectEx.y1, new Brush(0xFFFFFFFF) );
-
-         /*
-         if (s.PSF_rect)
-            G.fillEllipse( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, new Brush(0xFFAAAAAA) );
-         else
-             debug("No PSF Rect for " + i);
-
-         if (contourMask) 
-            G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
-         */
-         //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
-      }
-      G.end();
-
-      let w = new ImageWindow( bmp.width, bmp.height,
-            1,      // numberOfChannels
-            8,      // bitsPerSample
-            false,  // floatSample
-            false,  // color
-            maskName );
-      w.mainView.beginProcess( UndoFlag_NoSwapFile );
-      w.mainView.image.blend( bmp );
-      w.mainView.endProcess();
-      w.show();
-      w.zoomToFit();
-      
-      console.writeln("StarMask [" + maskName + "] based on " + StarsArray.length + " stars was created" + (contourMask?" [contour mode]":""));
-
-      return true;
-   }
-   
+    
   /*
    * Create StarMask from image array
    */
@@ -1067,13 +1032,14 @@ function StarSizeMask_engine()
       {
          let s = StarsArray[i];
 
-         if (maskGrowth) {
-            AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
-            //let diagonal = Math.sqrt( s.w^2 + s.h^2);
-         }
-
          if (s.PSF_rect)
          {
+            if (maskGrowth) {
+               //AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
+               let diagonal = Math.sqrt( (s.PSF_rect.x1 - s.PSF_rect.x0)*(s.PSF_rect.x1 - s.PSF_rect.x0) + (s.PSF_rect.y1 - s.PSF_rect.y0)*(s.PSF_rect.y1 - s.PSF_rect.y0));
+               AdjF = diagonal / Math.max(s.FWHMx, s.FWHMy) ;
+               //debug("AdjF="+AdjF+", diagonal="+diagonal+", Math.max(s.FWHMx, s.FWHMy)="+Math.max(s.FWHMx, s.FWHMy));
+            }
             G.translateTransformation( s.PSF_cx, s.PSF_cy );
             G.rotateTransformation( s.PSF_theta * Math.PI / 180 );            
             G.fillEllipse( - s.FWHMx  * AdjF / 2.0, - s.FWHMy * AdjF / 2.0,  s.FWHMx  * AdjF/ 2.0, s.FWHMy  * AdjF / 2.0, new Brush(0xFFFFFFFF) );
@@ -1085,7 +1051,7 @@ function StarSizeMask_engine()
          }
          else
          {
-            debug("No PSF Rect for " + i);
+            //debug("No PSF Rect for " + i);
             G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( debugf?0xFFAAAAAA:0xFFFFFFFF ) );
          }
 
@@ -1115,7 +1081,7 @@ function StarSizeMask_engine()
       {
          var P = new Convolution;
          P.mode = Convolution.prototype.Parametric;
-         P.sigma = 2.00;
+         P.sigma = 4.00;
          P.shape = 2.00;
          P.aspectRatio = 1.00;
          P.rotationAngle = 0.00;
@@ -1132,7 +1098,7 @@ function StarSizeMask_engine()
    /*
     * Create Image with detected stars marked
    */
-   this.markStars = function (StarsArray=undefined, imageName = "DetectedStars")
+   this.markStars = function( StarsArray = undefined, imageName = "DetectedStars" )
    {
       debug("<br>Running [" + "markStars( StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + ", imageName = '" + imageName + "' )" + "]");
 
@@ -1188,12 +1154,23 @@ function StarSizeMask_engine()
       return w.mainView.fullId;
    }
 
+
+
    /*
     * Create Image with detected stars marked
+    *    starMaskId  - starmask image id created through this.createAngleMask() method
+    *    StarArray   - stars array, used only to insert keywords
+    *    imageName   - new image id
    */
-   this.makeResidual = function( starMaskId, imageName = "StarsResidual" )
+   this.makeResidual = function( starMaskId, StarsArray = undefined, imageName = "StarsResidual" )
    {
-      debug("<br>Running [" + "makeResidual( starMaskId = " + starMaskId + ", imageName = '" + imageName + "' )" + "]");
+      debug("<br>Running [" + "makeResidual( starMaskId = " + starMaskId + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ", imageName = '" + imageName + "' )" + "]");
+
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
 
       var images = ImageWindow.windows;
       var starMask = undefined;
@@ -1223,6 +1200,8 @@ function StarSizeMask_engine()
       w.mainView.beginProcess( UndoFlag_NoSwapFile );
       w.mainView.image.assign( this.sourceView.image );
       w.mainView.endProcess();
+      
+      this.addFITSData( w, StarsArray );
 
       // Put created mask on
       w.maskVisible = false;
@@ -1256,12 +1235,14 @@ function StarSizeMask_engine()
       return this.workingView;
    }
 
+
+
    /*
     * Add data into image header (FITS or other format)
    */
-   this.addFITSData = function (imageWindow, StarsArray=undefined)
+   this.addFITSData = function (imageWindow, StarsArray = undefined, additionalKeywords = undefined)
    {
-      debug("<br>Running [" + "addFITSData( imageWindow = '" + imageWindow.mainView.id + "', StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+      debug("<br>Running [" + "addFITSData( imageWindow = '" + imageWindow.mainView.id + "', StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ", additionalKeywords = " + (additionalKeywords?additionalKeywords.length:additionalKeywords) + " )" + "]");
 
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -1280,6 +1261,14 @@ function StarSizeMask_engine()
       keywords.push( new FITSKeyword( "STARSDET", format( "%d", StarsArray.length ), "Number of stars beeing detected" ) );
       keywords.push( new FITSKeyword( "STARSPSF", format( "%d", this.cntFittedStars ), "Number of stars beeing fitted" ) );
       //keywords.push( new FITSKeyword( "STARSPSF", format( "%d", this.cntFittedStars ), "Number of stars beeing fitted" ) );
+
+      keywords.push( new FITSKeyword( "FILTTYPE", format( "%s", this.curFilter.type ), "Applied filters (last one)" ) );
+      if (this.curFilter.type != "")
+      {  
+         keywords.push( new FITSKeyword( "FILTMIN",  format( "%.3f", this.curFilter.min ),  "Filter minimum value" ) );
+         keywords.push( new FITSKeyword( "FILTMAX",  format( "%.3f", this.curFilter.max ),  "Filter maximum value" ) );
+      } 
+      else
 
       // Print Size Grouping
       var lo=0, hi=0;
@@ -1307,10 +1296,19 @@ function StarSizeMask_engine()
             hi = Math.pow( 10, this.FluxGrouping.IntervalWidth * (i+1)) *  this.Stat.flux_min ;;
             
          //console.writeln( format("(%d) [%3.2f, %3.2f]: %3d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
-         keywords.push( new FITSKeyword( "FG_" + i + "_INT", format( "[%3.1f, %3.1f]", lo, hi) , "Interval size" ) );
-         keywords.push( new FITSKeyword( "FG_" + i + "_CNT", format( "%d", this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0 ), format("[%3.1f, %3.1f] %d", lo, hi, this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+         keywords.push( new FITSKeyword( "FG_" + i + "_INT", format( "[%3.3f, %3.3f]", lo, hi) , "Interval size" ) );
+         keywords.push( new FITSKeyword( "FG_" + i + "_CNT", format( "%d", this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0 ), format("[%3.3f, %3.3f] %3d", lo, hi, this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
       }
 
+      // add additional keywords if specified
+      if (additionalKeywords)
+      {
+         for(let i=0; i< additionalKeywords.length; i++)
+         {
+            keywords.push( additionalKeywords[i] );
+         }
+      }
+      
       imageWindow.keywords = keywords;
       imageWindow.mainView.endProcess();    
 

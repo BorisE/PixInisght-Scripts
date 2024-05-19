@@ -20,7 +20,7 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "0.8"
+#define __SCRIPT_VERSION "1.0"
 #define __SCRIPT_DATE "20240519"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
@@ -29,6 +29,13 @@
 /*
  * History
  *
+ 
+ 1.0 [2024 05 19]
+   - first prod release
+   - new MaskGrowth algorithm (based on PSF fittings)
+   - keywords for filtered arrays corrected
+   - code improvements and clean up
+ 
  0.8 [2024 05 19]
    - make residual image after subracting star mask
    - copying stf from source image to created
