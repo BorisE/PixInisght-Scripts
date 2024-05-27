@@ -39,6 +39,8 @@
 #define debugf true  /*or false*/
 
 #define csvSeparator ","
+#define TEMP_PEDESTAL 0.002
+
 
 function Star( pos, flux, bkg, rect, size, nmax )
 {
@@ -93,7 +95,8 @@ function Star( pos, flux, bkg, rect, size, nmax )
    this.PSF_residual = undefined;
    this.PSF_flux = undefined;
    
-   this.PSF_rect = undefined;
+   this.PSF_rect = undefined;    // new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
+   this.PSF_diag = undefined;    // Math.sqrt( (PSF_rect.x1 - .PSF_rect.x0)*(PSF_rect.x1 - PSF_rect.x0) + (PSF_rect.y1 - PSF_rect.y0)*(PSF_rect.y1 - PSF_rect.y0));
    
    this.FWHMx = undefined;
    this.FWHMy = undefined;
@@ -288,6 +291,9 @@ function StarSizeMask_engine()
       
       if (!StarsArray)
          return false;
+      
+      if (!this.Stat.w_max || !this.Stat.h_max)
+         this.calculateStarStats( StarsArray );
 
       var dynamicPSF = new DynamicPSF;
 
@@ -304,7 +310,7 @@ function StarSizeMask_engine()
       dynamicPSF.moffat15PSF = parameters.modelFunctionIndex == 6;
       dynamicPSF.lorentzianPSF = parameters.modelFunctionIndex == 7;
       */
-      dynamicPSF.circularPSF  = false;
+      dynamicPSF.circularPSF  = true;
       dynamicPSF.gaussianPSF  = true;  //parameters.modelFunctionIndex == 0;
       dynamicPSF.moffatPSF    = true;
       dynamicPSF.moffat10PSF  = true;  //parameters.modelFunctionIndex == 1;
@@ -317,13 +323,15 @@ function StarSizeMask_engine()
       dynamicPSF.regenerate   = true;
       
       dynamicPSF.searchRadius = Math.max( this.Stat.w_max, this.Stat.h_max );
+      dynamicPSF.searchRadius = dynamicPSF.searchRadius >= 20 ? 120 : dynamicPSF.searchRadius;
+      dynamicPSF.searchRadius = 120;
+      
 
       var views = new Array;
       views.push(new Array(this.workingView.fullId));
       dynamicPSF.views = views;
 
 
-      var radius = Math.round(0.75 * dynamicPSF.searchRadius);
       var stars = new Array;
       for (var i = 0; i < StarsArray.length; i++) {
          let s = StarsArray[i];
@@ -423,6 +431,7 @@ function StarSizeMask_engine()
             StarsArray[idx].PSF_flux = psfRow[DYNAMICPSF_PSF_flux];
             
             StarsArray[idx].PSF_rect = new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
+            StarsArray[idx].PSF_diag = Math.sqrt( (StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0)*(StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0) + (StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0)*(StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0));
             
             StarsArray[idx].FWHMx = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sx], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
             StarsArray[idx].FWHMy = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sy], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
@@ -485,11 +494,13 @@ function StarSizeMask_engine()
          this.workingView = w.mainView;
          this.workingImage = this.workingView.image;
          
-         //w.show();
-         //w.zoomToFit();
+         if (debug) {
+            w.show();
+            w.zoomToFit();
+         }
 
          var P = new PixelMath;
-         P.expression = "$T + 0.002";
+         P.expression = "$T + " + TEMP_PEDESTAL;
          P.useSingleExpression = true;
          P.createNewImage = false;
          P.rescale = false;
@@ -501,7 +512,7 @@ function StarSizeMask_engine()
 
          P.executeOn(this.workingView);
 
-         debug ("Pedestal to temp image was added");
+         debug ("Pedestal [" + TEMP_PEDESTAL + "] to temp image [" +  w.mainView.id + "] was added");
          
          return this.workingView;
       }
@@ -641,7 +652,7 @@ function StarSizeMask_engine()
       debug("<b>SizeIntervalWidth=" + this.SizeGrouping.IntervalWidth + ", numSizeIntervals=" + this.SizeGrouping.numIntervals + "</b>");
       
       var StarsSizeGoupCnt_arr = [];
-      for( i=0; i < StarsArray.length; i++)
+      for( let i=0; i < StarsArray.length; i++)
       {
          var s = StarsArray[i];
          var GroupInterval = Math.trunc( (s.sizeRadius - this.Stat.r_min) / this.SizeGrouping.IntervalWidth );
@@ -693,7 +704,7 @@ function StarSizeMask_engine()
       debug("<b>FluxIntervalWidth=" + this.FluxGrouping.IntervalWidth + ", numFluxIntervals=" + this.FluxGrouping.numIntervals + "</b>");
       
       let StarsFluxGoupCnt_arr = [];
-      for( i=0; i < StarsArray.length; i++)
+      for( let i=0; i < StarsArray.length; i++)
       {
          let s = StarsArray[i];
          let GroupInterval = Math.trunc( (s.flux - this.Stat.flux_min) / this.FluxGrouping.IntervalWidth );
@@ -745,7 +756,7 @@ function StarSizeMask_engine()
       debug("<b>FluxLogIntervalWidth=" + this.FluxGrouping.IntervalWidth + ", numFluxIntervals=" + this.FluxGrouping.numIntervals + "</b>");
       
       let StarsFluxGoupCnt_arr = [];
-      for( i=0; i < StarsArray.length; i++)
+      for( let i=0; i < StarsArray.length; i++)
       {
          let s = StarsArray[i];
          let GroupInterval = Math.trunc( Math.log10(s.flux / this.Stat.flux_min) / this.FluxGrouping.IntervalWidth );
@@ -841,9 +852,9 @@ function StarSizeMask_engine()
    /*
     * Print Stars array to console
    */
-   this.printStars = function (StarsArray = undefined)
+   this.printStars = function (StarsArray = undefined, topRecords = 0)
    {
-      debug("<br>Running [" + "printStars( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
+      debug("<br>Running [" + "printStars( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ", topRecords = " + topRecords + " )]");
 
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -866,23 +877,25 @@ function StarSizeMask_engine()
       console.noteln( "-".repeat(100) );
       
       // Rows
-      StarsArray.forEach(
-         function (s)
+      if ( topRecords == 0 )
+         topRecords = StarsArray.length;
+      
+      for (let i=0; i < topRecords; i++)
+      {
+         let s = StarsArray[i];
+         console.write( format(
+            "(%6.1f, %6.1f): %6.3f / %7.5f [%2d, %2d]: %3d %4.1f | (%1d) | %1d | %1d |",
+            s.pos.x, s.pos.y, s.flux, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
+            ));
+         if (s.PSF_flux && s.PSF_b && s.PSF_a)
          {
             console.write( format(
-               "(%6.1f, %6.1f): %6.3f / %7.5f [%2d, %2d]: %3d %4.1f | (%1d) | %1d | %1d |",
-               s.pos.x, s.pos.y, s.flux, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
+               "%6.2f / %7.5f | %7.5f | %3.2f x %3.2f | %3.0f|[%2d, %2d]", 
+               s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta, (s.PSF_rect.x1 - s.PSF_rect.x0), (s.PSF_rect.x1 - s.PSF_rect.x0)
                ));
-            if (s.PSF_flux && s.PSF_b && s.PSF_a)
-            {
-               console.write( format(
-                  "%6.2f / %7.5f | %7.5f | %3.2f x %3.2f | %3.0f|[%2d, %2d]", 
-                  s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta, (s.PSF_rect.x1 - s.PSF_rect.x0), (s.PSF_rect.x1 - s.PSF_rect.x0)
-                  ));
-            }
-            console.writeln();
          }
-      )
+         console.writeln();
+      }
 
       // Total
       console.noteln( "=".repeat(100) );
@@ -917,7 +930,7 @@ function StarSizeMask_engine()
       // Print Size Grouping
       var lo=0, hi=0;
       console.noteln("<cbr><br>StarSize grouping " + "[" + this.StarsSizeGoupCnt.length + "]:");
-      for(i=0; i< this.StarsSizeGoupCnt.length; i++)
+      for( let i=0; i< this.StarsSizeGoupCnt.length; i++)
       {
          lo = this.Stat.r_min + i * this.SizeGrouping.IntervalWidth;
          if (i == this.StarsSizeGoupCnt.length-1)
@@ -931,7 +944,7 @@ function StarSizeMask_engine()
       // Print Flux Grouping
       var lo=hi=0;
       console.noteln("<cbr><br>Flux grouping " + "[" + this.StarsFluxGoupCnt.length + "]:");
-      for(i=0; i< this.StarsFluxGoupCnt.length; i++)
+      for( let i=0; i< this.StarsFluxGoupCnt.length; i++)
       {
          lo = Math.pow( 10, this.FluxGrouping.IntervalWidth * i) *  this.Stat.flux_min ;
          if (i == this.StarsFluxGoupCnt.length-1)
@@ -1032,12 +1045,13 @@ function StarSizeMask_engine()
       {
          let s = StarsArray[i];
 
+         // PSF fitting
          if (s.PSF_rect)
          {
             if (maskGrowth) {
                //AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
-               let diagonal = Math.sqrt( (s.PSF_rect.x1 - s.PSF_rect.x0)*(s.PSF_rect.x1 - s.PSF_rect.x0) + (s.PSF_rect.y1 - s.PSF_rect.y0)*(s.PSF_rect.y1 - s.PSF_rect.y0));
-               AdjF = diagonal / Math.max(s.FWHMx, s.FWHMy) ;
+               let diagonal = s.PSF_diag;
+               AdjF = diagonal / Math.max( s.FWHMx, s.FWHMy );
                //debug("AdjF="+AdjF+", diagonal="+diagonal+", Math.max(s.FWHMx, s.FWHMy)="+Math.max(s.FWHMx, s.FWHMy));
             }
             G.translateTransformation( s.PSF_cx, s.PSF_cy );
@@ -1051,6 +1065,24 @@ function StarSizeMask_engine()
          }
          else
          {
+            // NO PSF fitting for largest stars
+            if ( s.fluxGroup == this.FluxGrouping.numIntervals-1 )
+            {
+               this.prevPSFfitted(i)
+               var prev = this.prevPSFfitted(i);
+               var next = this.nextPSFfitted(i);
+               debug("idx = " + i + ", prev = " + prev.PSF_flux + ", next = " + next.PSF_flux);
+               let diagonal = next.PSF_diag;
+               let k = diagonal / next.flux;
+               let newDiag = s.flux * k;
+               StarsArray[i].PSF_diag = newDiag;
+               debug("s.flux = " + s.flux + ", next.psfRect_w = " + next.psfRect_w + ", s.PSF_diag = " + s.PSF_diag);
+               // G.fillEllipse( - s.FWHMx  * AdjF / 2.0, - s.FWHMy * AdjF / 2.0,  s.FWHMx  * AdjF/ 2.0, s.FWHMy  * AdjF / 2.0, new Brush(0xFFFFFFFF) );
+               
+               let w = newDiag / Math.sqrt( 2 );
+               G.fillEllipse( s.pos.x - w/2, s.pos.y - w/2, s.pos.x + w/2, s.pos.y + w/2, new Brush( debugf?0xFFAAAAAA:0xFFFFFFFF ) );
+            }
+            
             //debug("No PSF Rect for " + i);
             G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( debugf?0xFFAAAAAA:0xFFFFFFFF ) );
          }
@@ -1061,7 +1093,6 @@ function StarSizeMask_engine()
          //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
       }
       G.end();
-
 
       let w = new ImageWindow( bmp.width, bmp.height,
             1,      // numberOfChannels
@@ -1159,7 +1190,7 @@ function StarSizeMask_engine()
    /*
     * Create Image with detected stars marked
     *    starMaskId  - starmask image id created through this.createAngleMask() method
-    *    StarArray   - stars array, used only to insert keywords
+    *    StarsArray   - stars array, used only to insert keywords
     *    imageName   - new image id
    */
    this.makeResidual = function( starMaskId, StarsArray = undefined, imageName = "StarsResidual" )
@@ -1272,7 +1303,7 @@ function StarSizeMask_engine()
 
       // Print Size Grouping
       var lo=0, hi=0;
-      for(let i=0; i< this.StarsSizeGoupCnt.length; i++)
+      for( let i=0; i< this.StarsSizeGoupCnt.length; i++)
       {
          lo = this.Stat.r_min + i * this.SizeGrouping.IntervalWidth;
          if (i == this.StarsSizeGoupCnt.length-1)
@@ -1287,7 +1318,7 @@ function StarSizeMask_engine()
 
       // Print Flux Grouping
       var lo=0, hi=0;
-      for(let i=0; i< this.StarsFluxGoupCnt.length; i++)
+      for( let i=0; i< this.StarsFluxGoupCnt.length; i++)
       {
          lo = Math.pow( 10, this.FluxGrouping.IntervalWidth * i) *  this.Stat.flux_min ;
          if (i == this.StarsFluxGoupCnt.length-1)
@@ -1303,7 +1334,7 @@ function StarSizeMask_engine()
       // add additional keywords if specified
       if (additionalKeywords)
       {
-         for(let i=0; i< additionalKeywords.length; i++)
+         for( let i=0; i< additionalKeywords.length; i++)
          {
             keywords.push( additionalKeywords[i] );
          }
@@ -1314,7 +1345,58 @@ function StarSizeMask_engine()
 
       return true;
    }
+   
+   this.prevPSFfitted = function( idx, StarsArray = undefined )
+   {
+      debug("<br>Running [" + "prevPSFfitted( idx = '" + idx + "', StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+      
+      if (!StarsArray)
+         StarsArray = this.Stars;
 
+      if (!StarsArray)
+         return false;
+      
+      var fndidx = -1;
+      for( let i=idx; i>=0; i--)
+      {
+         if (StarsArray[i].PSF_rect)
+         {
+            fndidx = i;
+            break;
+         }
+      }
+      
+      if ( fndidx >= 0 )
+         return StarsArray[fndidx];
+      else
+         return false;
+   }
+   
+   this.nextPSFfitted = function( idx, StarsArray = undefined )
+   {
+      debug("<br>Running [" + "nextPSFfitted( idx = '" + idx + "', StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+      
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+      
+      var fndidx = -1;
+      for( let i=idx; i<StarsArray.length; i++)
+      {
+         if (StarsArray[i].PSF_rect)
+         {
+            fndidx = i;
+            break;
+         }
+      }
+      
+      if ( fndidx >= 0 )
+         return StarsArray[fndidx];
+      else
+         return false;
+   } 
 };
 
 

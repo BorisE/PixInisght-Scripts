@@ -27,6 +27,12 @@
 
 
 /*
+ToDo
+   - recalculate mask for non fitted stars (espesially Large Ones)
+*/
+
+
+/*
  * History
  *
  
