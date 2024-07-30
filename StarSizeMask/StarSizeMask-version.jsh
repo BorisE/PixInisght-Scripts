@@ -20,8 +20,8 @@
 #define __STARSIZEMASK_VERSION_JSH__
 
 #define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "1.0"
-#define __SCRIPT_DATE "20240519"
+#define __SCRIPT_VERSION "1.0c"
+#define __SCRIPT_DATE "20240730"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
 
@@ -29,6 +29,8 @@
 /*
 ToDo
    - recalculate mask for non fitted stars (espesially Large Ones)
+   - function TopN Stars
+   - filter by Gaia color
 */
 
 

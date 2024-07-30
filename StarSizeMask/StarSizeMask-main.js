@@ -46,6 +46,7 @@ function main() {
    //return;
 
    var AllStars = SSMObj.getStars( refView );
+
    SSMObj.calculateStarStats();
    SSMObj.fitStarPSF();
    //SSMObj.printStars();
@@ -55,16 +56,19 @@ function main() {
    //SSMObj.createMask(undefined, false, false, "StarMask_ord");
    //  *this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
 
-   let mask = SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
+   //let mask = SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
    //SSMObj.markStars();
    //SSMObj.makeResidual(mask);
 
 
-
-   var Stars3 = SSMObj.filterStarsByFlux(10, 1000);
+   var Stars3 = SSMObj.filterStarsByFlux(295, 1000);
    SSMObj.printStars(Stars3);
-   //SSMObj.printGroupStat(Stars3);
-   //SSMObj.markStars(Stars3);
+   SSMObj.printGroupStat(Stars3);
+   let mask = SSMObj.createMaskAngle(Stars3, false, true, false, "StarMask_ang_295");
+   SSMObj.makeResidual(mask);
+   SSMObj.markStars(Stars3);
+
+   //SSMObj.getGaia(Stars3);
    //let mask = SSMObj.createMaskAngle(Stars3, true, false, false, "StarMask_small");
    //SSMObj.makeResidual(mask, Stars3);
 

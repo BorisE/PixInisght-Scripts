@@ -39,8 +39,10 @@
 #define debugf true  /*or false*/
 
 #define csvSeparator ","
-#define TEMP_PEDESTAL 0.002
 
+#define ADDPEDESTAL_MEDIAN_THRESHOLD 0.00100
+#define ADDPEDESTAL_MIN_THRESHOLD 0.00010
+#define TEMP_PEDESTAL 0.002
 
 function Star( pos, flux, bkg, rect, size, nmax )
 {
@@ -475,7 +477,8 @@ function StarSizeMask_engine()
       debug("Image median = " + median.at(0));
       debug("Image min = " + min.at(0));
       
-      if ( min.at(0) < 0.0001 && median.at(0) < 0.001 ) {
+      if ( min.at(0) < ADDPEDESTAL_MIN_THRESHOLD && median.at(0) < ADDPEDESTAL_MEDIAN_THRESHOLD  ) {
+         console.warningln("Image median = " + format( "%5.5f", median.at(0) ) + " is less then MEDIAN_THRESHOLD = " + ADDPEDESTAL_MEDIAN_THRESHOLD +  " AND Image min = " + + format( "%5.5f", min.at(0) ) + " is less then MIN_THRESHOLD " + ADDPEDESTAL_MIN_THRESHOLD + ""  );
          console.writeln("Creating temp image and adding pedestal to it");
          
          // Copy image
@@ -1397,6 +1400,136 @@ function StarSizeMask_engine()
       else
          return false;
    } 
+   
+   
+   this.getGaia = function(StarsArray = undefined)
+   {
+      debug("<br>Running [" + "getGaia( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+
+		cat = new Gaia();
+		cat.command = "search";
+		cat.dataRelease = Gaia.prototype.DataRelease_3;
+		cat.centerRA = 308.087500000;
+		cat.centerDec = 59.863611111;
+		cat.radius = 0.166694;
+		cat.magnitudeLow = -1.500;
+		cat.magnitudeHigh = 17.000;		// Some other config to the process
+		
+		cat.generateTextOutput = true;
+		cat.generateBinaryOutput = false;
+		cat.textFormat = Gaia.prototype.TextFormat_TabularCompound;
+		cat.textHeaders = Gaia.prototype.TextHeaders_SearchParametersAndTableColumns;
+		
+		cat.executeGlobal();
+		
+		/*
+		Форматированный вывод:
+			   α               δ             ϖ         μα*        μδ       G     G_BP   G_RP   Flags
+		--------------- --------------- ---------- ---------- ---------- ------ ------ ------ --------
+		  h  m  s          °  ′  ″           mas       mas/yr     mas/yr   mag    mag    mag
+		=============== =============== ========== ========== ========== ====== ====== ====== ========
+		20 31 02.041684 +59 52 33.68059     8.3361   +25.4153   +10.8035  8.495  8.705  8.038 000800f0
+		
+		В скрипте:
+		307.75850701675705,59.87602238665325,8.336106300354004,25.415267944335938,10.803519248962402,8.494999885559082,8.704999923706055,8.038000106811523,524528,,
+		*/
+		let cat_stars = cat.sources;
+		
+		console.writeln("Count=" + cat_stars.length);
+		
+		 for ( let i = 0; i < StarsArray.length; ++i )
+		 {
+			let StarFnd = false;
+			let s = StarsArray[i];
+
+			// if astrometric solution is present save it also
+			let q = undefined;
+			if (this.sourceView.window.astrometricSolutionSummary().length > 0)
+			   q = this.sourceView.window.imageToCelestial( s.pos.x, s.pos.y );
+			if (q){
+				console.writeln("Searching for star: " + q.x + " " + q.y);
+				let a_rnd = parseFloat(q.x.toFixed(3));
+				let d_rnd = parseFloat(q.y.toFixed(3));
+				console.writeln( a_rnd + " " + d_rnd );
+
+				for ( let j = 0; j < cat_stars.length; ++j )
+				{
+					 let cat_a_rnd = parseFloat(cat_stars[j][0].toFixed(3));
+					 let cat_d_rnd = parseFloat(cat_stars[j][1].toFixed(3));
+				 
+					 if (a_rnd == cat_a_rnd && d_rnd == cat_d_rnd)
+					 {
+						console.writeln( cat_stars[j][0].toFixed(5) + " " + cat_stars[j][1].toFixed(5) + ", magG = " + cat_stars[j][5].toFixed(3) + ", magR = " + cat_stars[j][6].toFixed(3) + ", magB = " + cat_stars[j][7].toFixed(3) );
+						StarFnd = true;
+						break;
+					 }
+				}
+				
+				if ( !StarFnd )
+				{
+					console.writeln( "Not found, lets try truncation" );
+					let a_trn = Math.trunc(q.x * 1000)/1000;
+					let d_trn = Math.trunc(q.y * 1000)/1000;
+					console.writeln( a_trn + " " + d_trn );
+
+					for ( let j = 0; j < cat_stars.length; ++j )
+					{
+
+						 let cat_a_trn = Math.trunc(cat_stars[j][0] * 1000)/1000;
+						 let cat_d_trn = Math.trunc(cat_stars[j][1] * 1000)/1000;
+						 
+						 if (a_trn == cat_a_trn && d_trn == cat_d_trn)
+						 {
+							console.writeln( cat_stars[j][0].toFixed(5) + " " + cat_stars[j][1].toFixed(5) + ", magG = " + cat_stars[j][5].toFixed(3) + ", magR = " + cat_stars[j][6].toFixed(3) + ", magB = " + cat_stars[j][7].toFixed(3) );
+							StarFnd = true;
+							break;
+						 }
+					}
+				}
+
+				if ( !StarFnd )
+				{
+					console.writeln( "Not found, lets try 2 digits" );
+					let a_rnd2 = parseFloat(q.x.toFixed(2));
+					let d_rnd2 = parseFloat(q.y.toFixed(2));
+					console.writeln( a_rnd2 + " " + d_rnd2 );
+
+					for ( let j = 0; j < cat_stars.length; ++j )
+					{
+						 let cat_a_rnd2 = parseFloat(cat_stars[j][0].toFixed(2));
+						 let cat_d_rnd2 = parseFloat(cat_stars[j][1].toFixed(2));
+					 
+						 if (a_rnd2 == cat_a_rnd2 && d_rnd2 == cat_d_rnd2)
+						 {
+							console.writeln( cat_stars[j][0].toFixed(5) + " " + cat_stars[j][1].toFixed(5) + ", magG = " + cat_stars[j][5].toFixed(3) + ", magR = " + cat_stars[j][6].toFixed(3) + ", magB = " + cat_stars[j][7].toFixed(3) );
+							StarFnd = true;
+							break;
+						 }
+					}
+				}
+
+
+				if ( !StarFnd )
+				{
+					console.warningln( "Star was not found" );
+				}
+
+
+				
+			}
+
+		 }
+
+		
+   }
+
+   
 };
 
 
