@@ -27,7 +27,7 @@ Copyright &copy; 2019-2022 John Murphy.<br/> \
 StarDetector.jsh: Copyright &copy; 2003-2020 Pleiades Astrophoto S.L. All Rights Reserved.<br/>
 
 #define TITLE "NormalizeScaleGradient+"
-#define VERSION "3.0.3b"
+#define VERSION "3.0.3c"
 #define TEST false
 #define ABORT 1
 #define ASK_USER 2
@@ -84,6 +84,9 @@ StarDetector.jsh: Copyright &copy; 2003-2020 Pleiades Astrophoto S.L. All Rights
 // Apply the same STF to all nominal channels (true), or treat each channel
 // separately (false).
 #define DEFAULT_AUTOSTRETCH_CLINK   true
+
+#define DEFAULT_AUTOSTRETCH_BOOSTED_SCLIP    -0.2 
+#define DEFAULT_AUTOSTRETCH_BOOSTED_TBGND    0.650
 
 // Used in Sample grid dialog
 #define MAX_CIRCLE_RADIUS 800
@@ -171,7 +174,7 @@ function main() {
     targetTableEntriesMap = new Map();      // Map: filename -> TargetTableEntries
     NSG_FILENAME_HEADERS_MAP = new Map();   // Map: filename -> HeaderEntries
 	
-	defaultExtension = ".fit"
+	defaultExtension = ".xisf"
     defaultOutputFileFormat = new FileFormat( defaultExtension, false/*toRead*/, true/*toWrite*/ );    
     
 	

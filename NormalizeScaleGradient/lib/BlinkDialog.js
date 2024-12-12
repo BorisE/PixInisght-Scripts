@@ -399,8 +399,8 @@ function BlinkDialog(title, data, blinkDataArray){
     }
     
     let useSTF = true;
-    let stfShadows = DEFAULT_AUTOSTRETCH_SCLIP;
-    let stfStretch = DEFAULT_AUTOSTRETCH_TBGND;
+    let stfShadows = DEFAULT_AUTOSTRETCH_BOOSTED_SCLIP;
+    let stfStretch = DEFAULT_AUTOSTRETCH_BOOSTED_TBGND;
     let samples = new Samples(data);
     let self = this;
     let zoomText = "1:1";
@@ -923,6 +923,18 @@ function BlinkDialog(title, data, blinkDataArray){
         stfStretch_Control.setValue(stfStretch);
         finalUpdateFunction();
     };
+
+    
+    let stfBoosted_Button = new ToolButton(this);
+    stfBoosted_Button.icon = this.scaledResource(":/icons/burn.png");
+    stfBoosted_Button.toolTip = "<p>Calculate boosted auto STF for the first image, then apply the same stretch to all images.</p>";
+    stfBoosted_Button.onClick = function(){
+        stfShadows = DEFAULT_AUTOSTRETCH_BOOSTED_SCLIP;
+        stfStretch = DEFAULT_AUTOSTRETCH_BOOSTED_TBGND;
+        stfShadows_Control.setValue(stfShadows);
+        stfStretch_Control.setValue(stfStretch);
+        finalUpdateFunction();
+    };
     
     
     let buttonSizer = new HorizontalSizer(this);
@@ -975,6 +987,8 @@ function BlinkDialog(title, data, blinkDataArray){
     stfSection.sizer.add(stfShadows_Control, 50);
     stfSection.sizer.add(stfStretch_Control, 50);
     stfSection.sizer.add(stf_Button);
+    stfSection.sizer.add(stfBoosted_Button);
+    
     let stfBar = new SectionBar(this, "Apply STF");
     stfBar.enableCheckBox();
     stfBar.checkBox.checked = useSTF;
