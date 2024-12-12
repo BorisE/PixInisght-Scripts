@@ -15,9 +15,9 @@ Config.NeedNormalization = true;                        	// НОРМАЛИЗОВ
 Config.NeedApproving = true;                            	// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ? Пока не работает (глюк PI?)
 
 // Библиотеки калибровки/референосов
-Config.CalibratationMastersPath 	= 'd:/DSlrRemote/_MasterCalibration/Vedrus'; 		// без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
-Config.RegistrationReferencesPath 	= 'd:/DSlrRemote/_RegistrationReferences'; 			// без финального "/"  //Папка с библиотекой референсов для выравнивания по звездам
-Config.NormalizationReferencesPath 	= 'd:/DSlrRemote/_NormalizationReferences'; 		// без финального "/"  //Папка с библиотекой референсов для выравнивания фона
+Config.CalibratationMastersPath 	= 'e:/DSlrRemote/_MasterCalibration/Vedrus'; 		// без финального "/" (@todo убрать. если есть) //Папка с библиотекой мастеров
+Config.RegistrationReferencesPath 	= 'e:/DSlrRemote/_RegistrationReferences'; 			// без финального "/"  //Папка с библиотекой референсов для выравнивания по звездам
+Config.NormalizationReferencesPath 	= 'e:/DSlrRemote/_NormalizationReferences'; 		// без финального "/"  //Папка с библиотекой референсов для выравнивания фона
 
 //Переделывать ли найденные файлы
 Config.SkipExistingFiles = true; //Перед запуском процесса проверять, существует ли файл и пропускать если да

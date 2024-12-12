@@ -208,7 +208,7 @@ function AutoCalibrateEngine() {
                   // if File
                   else {
                      // if this is FIT
-                     if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
+                     if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits' || fileExtension(objFileFind.name).toLowerCase() == 'xisf') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
                         this.FilesToProcessNum++;
                      }
                   }
@@ -228,7 +228,7 @@ function AutoCalibrateEngine() {
         var FileCount = 0;
         console.noteln("<end><cbr><br>",
             "************************************************************");
-        Console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits');
+        Console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits/xisf');
         console.noteln("************************************************************");
 
         if (!busy && !this.abortRequested) {
@@ -263,7 +263,7 @@ function AutoCalibrateEngine() {
 							debug('File found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
                             debug('Extension: ' + fileExtension(objFileFind.name), dbgNotice);
                             // if this is FIT
-							if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
+							if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits' || fileExtension(objFileFind.name).toLowerCase() == 'xisf') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
 
                                 // Set output folders (depends on config)
                                 if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
@@ -392,7 +392,7 @@ function AutoCalibrateEngine() {
 
                         // Установим директорию для вывода недостающего файла
                         var fn = "";
-                        if ((fn = filename.match(/(.+)\/(.+)\/(.+).fit(s){0,1}$/i)) != null) {
+                        if ((fn = filename.match(/(.+)\/(.+)\/(.+)\.(fit|fits|xisf)$/i)) != null) {
                             debug("pathtodir: " + fn[1], dbgNotice);
                             debug("filedir: " + fn[2], dbgNotice);
                             debug("file: " + fn[3], dbgNotice);
@@ -585,58 +585,58 @@ function AutoCalibrateEngine() {
 
         // Проверим, на входе файл на какой стадии? (оригинальный, калиброванный, косметизированный, .... )
         var fn = "";
-        if ((fn = file.match(/(.+)\/(.+)_c.fit(s){0,1}$/i)) != null) {
+        if ((fn = file.match(/(.+)\/(.+)_c((\.fit|\.fits|\.xisf){1})$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is calibrated of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.CALIBRATED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc((\.fit|\.fits|\.xisf){1})$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is cosmetized of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.COSMETIZED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b.fit(s){0,1}$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b((\.fit|\.fits|\.xisf){1})$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is abed of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.ABED, file, fn[2], fn[1]); //type, full name, signature, path
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r((\.fit|\.fits|\.xisf){1})$/i)) != null || 
+                (fn = file.match(/(.+)\/(.+)_c_cc_r((\.fit|\.fits|\.xisf){1})$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is registered of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.REGISTERED, file, fn[2], fn[1]); //type, full name, signature, path
-
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n.fit(s){0,1}$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n((\.fit|\.fits|\.xisf){1})$/i)) != null || 
+                (fn = file.match(/(.+)\/(.+)_c_cc_r_n((\.fit|\.fits|\.xisf){1})$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is normalized of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.NORMALIZED, file, fn[2], fn[1]); //type, full name, signature, path
-
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a.fit(s){0,1}$/i)) != null || (fn = file.match(/(.+)\/(.+)_c_cc_r_a.fit(s){0,1}$/i)) != null) {
+        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a((\.fit|\.fits|\.xisf){1})$/i)) != null || 
+                (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a((\.fit|\.fits|\.xisf){1})$/i)) != null || 
+                (fn = file.match(/(.+)\/(.+)_c_cc_r_a((\.fit|\.fits|\.xisf){1})$/i)) != null) {
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
             debug("file is approved of " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.APPROVED, file, fn[2], fn[1]); //type, full name, signature, path
-
             return false;
         } else {
-            fn = file.match(/(.+)\/(.+).fit(s){0,1}$/i);
+            fn = file.match(/(.+)\/(.+)((\.fit|\.fits|\.xisf){1})$/i);
             debug("path: " + fn[1], dbgNotice);
             debug("matched: " + fn[2], dbgNotice);
 
             AddFileToArray(FITS.ORIGINAL, file, fn[2], fn[1]); //type, full name, signature, path
-
             return true;
         }
 
@@ -693,14 +693,15 @@ function AutoCalibrateEngine() {
         }
         CalibratedOutputPath = CalibratedOutputPath + "/" + Config.CalibratedFolderName;
 
-        // make new file name
-        var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-        var newFileName = FileName.replace(/\.fit(s){0,1}$/i, '_c.fit')
-        newFileName = CalibratedOutputPath + '/' + newFileName
+        // Extract the file name without the extension
+        var FileNameOnly = File.extractName(fileName);
+        var correctExtension = getCorrectExtension(fileName);
+        var newFileName = CalibratedOutputPath + '/' + FileNameOnly + '_c.xisf';        // current Pix version, after Huan have started ignoring .ouputExtension option
+        var newFileName_old = CalibratedOutputPath + '/' + FileNameOnly + '_c.fit';     // for compatability, before Huan decided to ignore .ouputExtension option
 
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
-        if (Config.SkipExistingFiles && File.exists(newFileName)) {
-            Console.warningln('File ' + newFileName + ' already exists, skipping calibration');
+        if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
+            Console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping calibration');
         } else {
 
             if (!fileData)
@@ -838,7 +839,7 @@ function AutoCalibrateEngine() {
         if (File.exists(newFileName)) {
             // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFileName.match(/(.+)\/(.+)_c.fit(s){0,1}$/i)) != null) {
+            if ((fn = newFileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) != null) {                
                 debug("path: " + fn[1], dbgNotice);
                 debug("matched: " + fn[2], dbgNotice);
                 debug("file is calibrated of " + fn[2], dbgNotice);
@@ -861,8 +862,9 @@ function AutoCalibrateEngine() {
      * @return string          Полное имя файла_c_cc.fit включая путь
      */
     this.cosmeticFit = function (fileName) {
-        if (fileName == false || !fileName.match(/_c.fit(s){0,1}$/)) {
-            debug("Skipping Cosmetic Correction", dbgNormal);
+        
+        if (fileName == false || !fileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) {
+            debug("Skipping Cosmetic Correction for input file: " + fileName, dbgNormal);
             return fileName;
         }
         if (!Config.NeedCosmeticCorrection) {
@@ -893,13 +895,16 @@ function AutoCalibrateEngine() {
         CosmetizedOutputPath = CosmetizedOutputPath + "/" + Config.CosmetizedFolderName;
 
         // return new file name
-        var FileName = File.extractName(fileName) + '.' + fileExtension(fileName)
-        var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_cc.fit');
-        newFileName = CosmetizedOutputPath + '/' + newFileName;
+        var FileNameOnly = File.extractName(fileName);
+        var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_cc');        
+        var newFileName = CosmetizedOutputPath + '/' + newFileNameOnly + '.xisf'         // current Pix version, after Huan have started ignoring .ouputExtension option
+        var newFileName_old = CosmetizedOutputPath + '/' + newFileNameOnly + '.fit';     // for compatability, before Huan decided to ignore .ouputExtension option
+
+        //debug("Config.SkipExistingFiles: " + + Config.SkipExistingFiles + ", newFileName: " + newFileName + ", newFileName_old: " + newFileName_old );
 
         //Проверить - существует ли файл и стоит ли перезаписывать его
-        if (Config.SkipExistingFiles && File.exists(newFileName)) {
-            Console.warningln('File ' + newFileName + ' already exists, skipping cosmetic correction');
+        if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
+            Console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping cosmetic correction');
         } else {
             if (!fileData)
                 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
@@ -962,7 +967,8 @@ function AutoCalibrateEngine() {
         if (File.exists(newFileName)) {
             // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i)) != null) {
+            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc\.(fit|fits|xisf)$/i)) != null) {                
+
                 //debug("path: " + fn[1], dbgNotice);
                 //debug("matched: " + fn[2], dbgNotice);
                 //ebug("file is cosmetized of " + fn[2], dbgNotice);
@@ -1027,17 +1033,16 @@ function AutoCalibrateEngine() {
         // Start ABE for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
-
             // return new file name
-            var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-                var newFileName = FileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_b.fit');
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c\.fit(s){0,1}$/, '_c_b.fit'); //if СС was not run before
-            newFiles[i] = ABEOutputPath + '/' + newFileName;
+            var FileNameOnly = File.extractName(files[i]);
+            var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_b');
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_b'); //if СС was not run before
+            newFiles[i] = ABEOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileName + ' already exists, skipping ABE');
+                Console.warningln('File ' + newFileNameOnly + ' already exists, skipping ABE');
             } else {
 
                 // Check if folder exists
@@ -1127,7 +1132,7 @@ function AutoCalibrateEngine() {
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, чтобы второй раз не делать
                 var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b.fit(s){0,1}$/i)) != null || (fn = newFiles[i].match(/(.+)\/(.+)_c_b.fit(s){0,1}$/i)) != null) {
+                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b\.(fit|fits|xisf)$/i)) != null || (fn = newFiles[i].match(/(.+)\/(.+)_c_b\.(fit|fits|xisf)$/i)) != null) {
                     debug("path: " + fn[1], dbgNotice);
                     debug("matched: " + fn[2], dbgNotice);
                     debug("file is abed of " + fn[2], dbgNotice);
@@ -1200,21 +1205,22 @@ function AutoCalibrateEngine() {
         // Start registration for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
-
             // return new file name
-            var fileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
-            var newFileName = fileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_r.fit');
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_r.fit'); //if ABE was run before
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c\.fit(s){0,1}$/, '_c_r.fit'); //if no CC and no ABE was run before
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c_b\.fit(s){0,1}$/, '_c_b_r.fit'); //if no CC and ABE was run before
-            newFiles[i] = RegisteredOutputPath + '/' + newFileName;
+            var FileNameOnly = File.extractName(files[i]);
+            var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_r');
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_cc_b$/, '_c_cc_b_r'); //if ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_r'); //if no CC and no ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_b$/, '_c_b_r'); //if no CC and ABE was run before
+            newFiles[i] = RegisteredOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
+
+            
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileName + ' already exists, skipping Registration');
+                Console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
             } else {
                 // Search for reference file
                 if (!fileData)
@@ -1364,7 +1370,7 @@ function AutoCalibrateEngine() {
 					this.RegisteredCount++;
 					
 				} else {
-					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", fileName); }
+					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", files[i]); }
 				}
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
@@ -1377,10 +1383,10 @@ function AutoCalibrateEngine() {
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
                 var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_r.fit(s){0,1}$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_b_r.fit(s){0,1}$/i)) != null
+                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r\.(fit|fits|xisf)$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b_r\.(fit|fits|xisf)$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_r\.(fit|fits|xisf)$/i)) != null
+                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_b_r\.(fit|fits|xisf)$/i)) != null
                    ) {
                     debug("path: " + fn[1], dbgNotice);
                     debug("matched: " + fn[2], dbgNotice);
@@ -1454,16 +1460,19 @@ function AutoCalibrateEngine() {
         for (var i = 0; i < files.length; i++) {
 
             // return new file name
-            var FileName = File.extractName(files[i]) + '.' + fileExtension(files[i])
-                var newFileName = FileName.replace(/_c_cc_r\.fit(s){0,1}$/, '_c_cc_r_n.fit');
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_cc_b_r\.fit(s){0,1}$/, '_c_cc_b_r_n.fit'); //if ABE was run before
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_r\.fit(s){0,1}$/, '_c_r_n.fit'); //if no CC no ABE was run before
-            if (FileName === newFileName)
-                var newFileName = FileName.replace(/_c_b_r\.fit(s){0,1}$/, '_c_b_r_n.fit'); //if no CC  was run before
-
-            newFiles[i] = NormalizedOutputPath + '/' + newFileName;
+            var FileNameOnly = File.extractName(files[i]);
+            var newFileNameOnly = FileNameOnly.replace(/_c_cc_r$/, '_c_cc_r_n');
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_cc_b_r$/, '_c_cc_b_r_n'); //if ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_r$/, '_c_r_n'); //if no CC and no ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_b_r$/, '_c_b_r_n'); //if no CC and ABE was run before
+            if (FileNameOnly === newFileNameOnly) {
+                console.criticalln("files seems not to be registered, skipping Normalization");
+                return false;
+            }
+            newFiles[i] = NormalizedOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
@@ -1573,7 +1582,7 @@ function AutoCalibrateEngine() {
 
             // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r_n.fit(s){0,1}$/i)) != null) {
+            if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r_n\.(fit|fits|xisf)$/i)) != null) {
                 debug("path: " + fn[1], dbgNotice);
                 debug("matched: " + fn[2], dbgNotice);
                 debug("file is normalized of " + fn[2], dbgNotice);
@@ -1670,7 +1679,7 @@ function AutoCalibrateEngine() {
 		// Assuming that all files are homogeous (i.e. have the same characteristics - same Object, same Scale, etc)
 		// So we will calculate all data based on first in the list file header
 		// @todo check that assumption is right
-		file = this.approveFileList[1];
+		var file = this.approveFileList[1];
 		var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
 
         // Create normalization folder
@@ -1762,9 +1771,9 @@ function AutoCalibrateEngine() {
 
 		// Get Icon Name based on received file
 		let iconName = "";
-        if (file.match(/(.+)\/(.+)_c.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/i) != null) {
+        if (file.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i) != null || file.match(/(.+)\/(.+)_c_cc\.(fit|fits|xisf)$/i) != null) {
 			iconName = Config.SF_IconName_beforeRegistration;
-		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r.fit(s){0,1}$/i) != null || file.match(/(.+)\/(.+)_c_cc_r.fit(s){0,1}$/i) != null) {
+		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r\.(fit|fits|xisf)$/i) != null || file.match(/(.+)\/(.+)_c_cc_r\.(fit|fits|xisf)$/i) != null) {
 			iconName = Config.SF_IconName_afterRegistration;
         }
 
@@ -2089,22 +2098,22 @@ function AutoCalibrateEngine() {
         for (var i = 0; i < files.length; i++) {
 
             // return new file name
-            var fileName = File.extractName(files[i]) + '.' + fileExtension(files[i]);
-            var newFileName = fileName.replace(/_c_cc_r\.fit(s){0,1}$/, '_c_cc_r_x.fit');
-            if (fileName === newFileName)
-				var newFileName = fileName.replace(/_c_cc\.fit(s){0,1}$/, '_c_cc_x.fit');			// if no Reg
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c_cc_b\.fit(s){0,1}$/, '_c_cc_b_x.fit'); 		//if no Reg, but ABE was run before
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c_cc_b_r\.fit(s){0,1}$/, '_c_cc_b_r_x.fit'); 	//if all was run before
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c\.fit(s){0,1}$/, '_c_x.fit'); 				//if only C was run before
-            if (fileName === newFileName)	
-                var newFileName = fileName.replace(/_c_b\.fit(s){0,1}$/, '_c_b_x.fit'); 			//if no CC and ABE was run before
-            if (fileName === newFileName)
-                var newFileName = fileName.replace(/_c_b_r\.fit(s){0,1}$/, '_c_b_r_x.fit'); 		//if no CC and ABE was run before
-            
-			newFiles[i] = BinnedOutputPath + '/' + newFileName;
+            var FileNameOnly = File.extractName(files[i]);
+            var newFileNameOnly = FileNameOnly.replace(/_c_cc_r$/, '_c_cc_r_x');
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_x'); //if ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_cc_b$/, '_c_cc_b_x'); //if ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_cc_b_r$/, '_c_cc_b_r_x'); //if ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_x'); //if no CC and no ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_b$/, '_c_b_x'); //if no CC and no ABE was run before
+            if (FileNameOnly === newFileNameOnly)
+                var newFileNameOnly = FileNameOnly.replace(/_c_b_r$/, '_c_b_r_x'); //if no CC and ABE was run before
+            newFiles[i] = BinnedOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
+
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
@@ -2168,7 +2177,7 @@ function AutoCalibrateEngine() {
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
                 var fn = "";
-                if (	   (fn = newFiles[i].match(/(.+)\/(.+)_c_(.*)x.fit(s){0,1}$/i)) != null
+                if (	   (fn = newFiles[i].match(/(.+)\/(.+)_c_(.*)x\.(fit|fits|xisf)$/i)) != null
                    ) {
                     debug("path: " + fn[1], dbgNotice);
                     debug("matched: " + fn[2], dbgNotice);

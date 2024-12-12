@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.3.1"
- #define COMPILE_DATE "2024/04/14"
+ #define VERSION "6.4.0"
+ #define COMPILE_DATE "2024/12/12"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2024 Boris Emchenko<br/>"
@@ -25,6 +25,10 @@ TODO:
 - Добавить автозапуск NSG
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.4.0 [2024/12/10]
+- pipelines updated to .xisf  extension (after Huan have started ignoring .ouputExtension option). .fit left for compatability
+- option to choose output file size (i16 or f32)
 
 v 6.3.1 [2024/04/14]
 - Light bugfix
@@ -452,6 +456,20 @@ function fileExtension(file) {
     var ext = file.match(/\.([^.]+)$/);
 
     return ext && ext.length ? ext[1] : false
+}
+
+
+// Function to determine the appropriate file extension
+function getCorrectExtension(fileName) {
+    // Extract the original extension
+    var match = fileName.match(/\.(fit|fits|xisf)$/i);
+    if (match) {
+        var ext = match[1].toLowerCase();
+        // Convert `.fits` to `.fit`
+        return ext === 'fits' ? 'fit' : ext;
+    }
+    // Default fallback (unlikely to occur if input is valid)
+    return fileExtension(fileName);
 }
 
 /**

@@ -484,7 +484,6 @@ function AutocalibrationDialog() {
 
 
     // 4.5. Subframe selector
-
     this.ProcessSF_CheckBox = new CheckBox(this);
     with (this.ProcessSF_CheckBox) {
         text = "Run SubframeSelector";
@@ -507,6 +506,53 @@ function AutocalibrationDialog() {
         addStretch();
     }
 
+   // 4.6. Output size
+    this.outputSize_Label = new Label(this);
+    with (this.outputSize_Label) {
+      text = "Output size:";
+      textAlignment = TextAlign_Right | TextAlign_VertCenter;
+      minWidth = labelWidth1;
+      toolTip = "Sample data format for output images";
+    }
+
+   this.outputSize_ComboBox = new ComboBox(this);
+   with (this.outputSize_ComboBox) {
+      addItem("16-bit integer");
+      addItem("32-bit integer");
+      addItem("32-bit floating point");
+      addItem("64-bit floating point");
+      currentItem = Config.OutputFormatIC //Default choice
+      toolTip = "Sample data format for output images";
+      onItemSelected = function (index) {
+         switch (index) {
+         case 0:
+            Config.OutputFormatIC = ImageCalibration.prototype.i16;
+            break;
+         case 1:
+            Config.OutputFormatIC = ImageCalibration.prototype.i32;
+            break;
+         case 2:
+            Config.OutputFormatIC = ImageCalibration.prototype.f32;
+            break;
+         case 3:
+            Config.OutputFormatIC = ImageCalibration.prototype.f64;
+            break;
+         default: // ?
+            Config.OutputFormatIC = ImageCalibration.prototype.f32;
+            break;
+        }
+      };
+    };
+
+    this.outputSize_Sizer = new HorizontalSizer;
+    with (this.outputSize_Sizer) {
+        spacing = 4;
+        addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+        add(this.outputSize_Label);
+        add(this.outputSize_ComboBox);
+        addStretch();
+    }
+
 
     // == ProcessGroupBox total build ==
 
@@ -524,6 +570,7 @@ function AutocalibrationDialog() {
         sizer.add(this.normScale_Sizer);
         sizer.add(this.normNoScaleFlag_Sizer);
         sizer.add(this.ProcessSF_Sizer);
+        sizer.add(this.outputSize_Sizer);
 
     }
 
