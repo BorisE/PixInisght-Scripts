@@ -4,6 +4,22 @@
     #include <pjsr/DataType.jsh>
  #endif
 
+/*
+ When adding new component to UI, we need to:
+ UI prt:
+    Create object, Horiz spacer for it, add it to Vert spacer.
+ Settings part:
+    1) loadSettings() with Config.name (but instead of "Config." use "this.") - (watch for data type!)
+    2) saveSettings() with Config.name  (watch for data type!)
+    3) importSettings() with Config.name (watch for data type!)
+    4) exportSettings() with Config.name 
+    5) printParameters() with Config.name 
+
+
+
+*/
+
+
 function ConfigData() {
     //temp
     this.outputExtension = "fits";
@@ -64,6 +80,9 @@ function ConfigData() {
         if ((o = load("NormalizationNoScaleFlag", DataType_Boolean)) != null)
             this.NormalizationNoScaleFlag = o;
 
+        if ((o = load("OutputFileSize", DataType_Int16)) != null)
+            this.OutputFormatIC = o;
+
     }
 
     this.saveSettings = function () {
@@ -85,6 +104,8 @@ function ConfigData() {
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
+
+        save("OutputFileSize", DataType_Int16, this.OutputFormatIC);
 
         if (DEBUG) {
             console.writeln("\n<b>Settings saved:</b>");
@@ -110,12 +131,14 @@ function ConfigData() {
         Parameters.set("NeedNormalization", 		this.NeedNormalization);
         Parameters.set("NeedApproving", 			this.NeedApproving);
 
-        Parameters.set("CalibratationMastersPath", this.CalibratationMastersPath);
-        Parameters.set("RegistrationReferencesPath", this.RegistrationReferencesPath);
-        Parameters.set("NormalizationReferencesPath", this.NormalizationReferencesPath);
+        Parameters.set("CalibratationMastersPath",      this.CalibratationMastersPath);
+        Parameters.set("RegistrationReferencesPath",    this.RegistrationReferencesPath);
+        Parameters.set("NormalizationReferencesPath",   this.NormalizationReferencesPath);
 
-        Parameters.set("NormalizationScale", this.NormalizationScale);
-        Parameters.set("NormalizationNoScaleFlag", this.NormalizationNoScaleFlag);
+        Parameters.set("NormalizationScale",            this.NormalizationScale);
+        Parameters.set("NormalizationNoScaleFlag",      this.NormalizationNoScaleFlag);
+
+        Parameters.set("OutputFileSize",                this.OutputFormatIC);
 
         if (DEBUG) {
             console.writeln("\n<b>Loaded Parameters:</b>");
@@ -160,6 +183,9 @@ function ConfigData() {
         if (Parameters.has("NormalizationNoScaleFlag"))
             this.NormalizationNoScaleFlag = Parameters.getBoolean("NormalizationNoScaleFlag");
 
+        if (Parameters.has("OutputFileSize"))
+            this.OutputFormatIC = Parameters.getInteger("OutputFileSize");
+
         if (DEBUG) {
             console.writeln("<b>Loaded Parameters:</b>");
             this.printParameters();
@@ -185,6 +211,9 @@ function ConfigData() {
 
         console.writeln("NormalizationScale:             " + this.NormalizationScale);
         console.writeln("NormalizationNoScaleFlag:       " + this.NormalizationNoScaleFlag);
+
+        console.writeln("OutputFileSize:                 " + this.OutputFormatIC);
+        
     }
 
     this.checkPathValidity = function () {

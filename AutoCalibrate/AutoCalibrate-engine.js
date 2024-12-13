@@ -425,7 +425,7 @@ function AutoCalibrateEngine() {
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
                         }
                         // if missing ABED
-                        if (property == getFILEARRPropertyName(FITS.ABED) && FILEARRAY[i][preceding] != null) {
+                        if (property == getFILEARRPropertyName(FITS.ABED) && FILEARRAY[i][preceding] != null && Config.NeedABE) {
                             this.FileTotalCount++;
                             // Process
                             var res = this.ABEprocess([FILEARRAY[i][preceding]]);

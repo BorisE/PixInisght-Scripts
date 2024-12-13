@@ -26,6 +26,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+v 6.4.1 [2024/12/13]
+- bugfixes for saving outputsize settings
+- old bug for SecondPass (can't register without ABE)
+
 v 6.4.0 [2024/12/10]
 - pipelines updated to .xisf  extension (after Huan have started ignoring .ouputExtension option). .fit left for compatability
 - option to choose output file size (i16 or f32)
@@ -334,6 +338,7 @@ function getFILEARRPropertyName(type) {
  * @return string
  */
 function getFILEARRPrecedingName(property) {
+
     if (property == getFILEARRPropertyName(FITS.ORIGINAL))
         return getFILEARRPropertyName(FITS.ORIGINAL)
     else if (property == getFILEARRPropertyName(FITS.CALIBRATED))
@@ -342,8 +347,13 @@ function getFILEARRPrecedingName(property) {
         return getFILEARRPropertyName(FITS.CALIBRATED)
     else if (property == getFILEARRPropertyName(FITS.ABED))
         return getFILEARRPropertyName(FITS.COSMETIZED)
-    else if (property == getFILEARRPropertyName(FITS.REGISTERED))
-        return getFILEARRPropertyName(FITS.ABED)
+    else if (property == getFILEARRPropertyName(FITS.REGISTERED)) {
+        if (Config.NeedABE) {
+            return getFILEARRPropertyName(FITS.ABED)
+        } else {
+            return getFILEARRPropertyName(FITS.COSMETIZED)
+        }
+    }
     else if (property == getFILEARRPropertyName(FITS.NORMALIZED))
         return getFILEARRPropertyName(FITS.REGISTERED)
     else if (property == getFILEARRPropertyName(FITS.APPROVED))
