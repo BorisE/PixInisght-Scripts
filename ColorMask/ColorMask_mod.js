@@ -103,7 +103,7 @@
 #include <pjsr/Color.jsh>
 #include <pjsr/ColorSpace.jsh>
 
-#define VERSION   "1.0 mod 5"
+#define VERSION   "1.0 mod 5c"
 #define TITLE     "ColorMask"
 
 #define DEBUG     false
@@ -206,8 +206,8 @@ function ColorMask() {
 
    //Luminance filter
    var lumFilter = "*iif(CIEL($T)>=" + Math.min(data.minLum,data.maxLum) + " && CIEL($T)<= " + Math.max(data.minLum,data.maxLum) + " ,1 ,0)";
-   //Chrominance filter
-   var chromFilter = "*iif(CIEc($T)>=" + Math.min(data.minChrom,data.maxChrom) + " && CIEc($T)<= " + Math.max(data.minChrom,data.maxChrom) + " ,1 ,0)";
+   //Saturation filter
+   var chromFilter = "*iif(Si($T)>=" + Math.min(data.minChrom,data.maxChrom) + " && Si($T)<= " + Math.max(data.minChrom,data.maxChrom) + " ,1 ,0)";
 
 
    if (min < max) {
