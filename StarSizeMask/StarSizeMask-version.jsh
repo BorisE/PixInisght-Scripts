@@ -1,6 +1,6 @@
 /*
  *  StarSizeMask - A PixInsight Script to create StarMasks based on their sizes
- *  Copyright (C) 2024  Boris Emchenko http://astromania.info
+ *  Copyright (C) 2024-2025  Boris Emchenko http://astromania.info
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,11 +17,17 @@
 */
 
 #ifndef __STARSIZEMASK_VERSION_JSH__
-#define __STARSIZEMASK_VERSION_JSH__
+	#define __STARSIZEMASK_VERSION_JSH__
 
-#define __SCRIPT_NAME "StarSizeMask"
-#define __SCRIPT_VERSION "1.0c"
-#define __SCRIPT_DATE "20240730"
+	#define __SCRIPT_NAME "StarSizeMask"
+	#define __SCRIPT_VERSION "2.0alpha1"
+	#define __SCRIPT_DATE "20250531"
+
+	#define __INFO_STRING__ "A script to create StarMask bases on starfitting with ability to filter star by sizes"
+	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko<br/>"
+
+	#define SETTINGS_KEY_BASE "StarSizeMask/"
+
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
 
@@ -37,6 +43,9 @@ ToDo
 /*
  * History
  *
+ 
+ 2.0alpha1 [2025 05 31]
+   - adding GUI
  
  1.0 [2024 05 19]
    - first prod release

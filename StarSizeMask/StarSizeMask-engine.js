@@ -1,6 +1,6 @@
 /*
  *  StarSizeMask - A PixInsight Script to create StarMasks based on their sizes
- *  Copyright (C) 2024  Boris Emchenko http://astromania.info
+ *  Copyright (C) 2024-2025  Boris Emchenko http://astromania.info
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #ifndef __STARSIZEMASK_ENGINE__
-#define __STARSIZEMASK_ENGINE__
+	#define __STARSIZEMASK_ENGINE__
 
-#define __PJSR_USE_STAR_DETECTOR_V2
-#define __PJSR_STAR_OBJECT_DEFINED  1
-#define __PJSR_NO_STAR_DETECTOR_TEST_ROUTINES
+	#define __PJSR_USE_STAR_DETECTOR_V2
+	#define __PJSR_STAR_OBJECT_DEFINED  1
+	#define __PJSR_NO_STAR_DETECTOR_TEST_ROUTINES
 
 #endif /* __STARSIZEMASK_ENGINE__ */
 
@@ -36,7 +36,9 @@
 
 #define MAX_INT 1000000
 
-#define debugf true  /*or false*/
+#ifndef __DEBUGF__
+	#define __DEBUGF__ true  /*or false*/
+#endif
 
 #define csvSeparator ","
 
@@ -44,6 +46,10 @@
 #define ADDPEDESTAL_MIN_THRESHOLD 0.00010
 #define TEMP_PEDESTAL 0.002
 
+
+/*
+ * Star data object
+ */
 function Star( pos, flux, bkg, rect, size, nmax )
 {
    // Centroid position in pixels, image coordinates. This property is an
@@ -104,36 +110,39 @@ function Star( pos, flux, bkg, rect, size, nmax )
    this.FWHMy = undefined;
 }
 
-
 /*
  * Star detection engine
  *
-   getStars (sourceView)            
+   -- process image --
+   
+   *getStars (sourceView)*
       Detect stars; you need it to run before any further manipulation
  
-   fitStarPSF (StarsArray = undefined) 
+   *fitStarPSF (StarsArray = undefined)*
       Fit stars profiles using DynamicPSF process
         
-   calculateStarStats (StarsArray = undefined)        
+   *calculateStarStats (StarsArray = undefined)*
       Calculate stars statistics. Needed to use grouping and some other methods. Generally recommended to run after GetStars
       Auto runs CalculateStarStats_SizeGrouping and CalculateStarStats_FluxGroupingLog
 
 
-   calculateStarStats_SizeGrouping  (StarsArray = undefined, numIntervals = undefined)
-      Calculate star grouping based on StarSize
-      Optionaly you can specify number of intervals to split the set or use auto splitting
-   
-   calculateStarStats_FluxGrouping (StarsArray = undefined, numIntervals = undefined)
-      Calculate stars grouping based on StarFlux. 
-      Obsolete, recommended to use CalculateStarStats_FluxGroupingLog instead
+       private _calculateStarStats_SizeGrouping  (StarsArray = undefined, numIntervals = undefined)
+          Calculate star grouping based on StarSize
+          Optionaly you can specify number of intervals to split the set or use auto splitting
+       
+       private __calculateStarStats_FluxGrouping (StarsArray = undefined, numIntervals = undefined)
+          Calculate stars grouping based on StarFlux. 
+          Obsolete, recommended to use CalculateStarStats_FluxGroupingLog instead
 
-   calculateStarStats_FluxGroupingLog (StarsArray = undefined, numIntervals = undefined)
-      Calculate stars grouping based on Log10 of StarFlux
+       private _calculateStarStats_FluxGroupingLog (StarsArray = undefined, numIntervals = undefined)
+          Calculate stars grouping based on Log10 of StarFlux
 
-   filterStarsBySize (minRadius = 0, maxRadius = 65535, StarsArray = undefined)
+   *filterStarsBySize (minRadius = 0, maxRadius = 65535, StarsArray = undefined)*
       Filter out some stars based on their radius
 
-   printStars (StarsArray = undefined)
+   -- output stat --
+   
+   *printStars (StarsArray = undefined)*
       output to console stars array
       
    printGroupStat (StarsArray = undefined)   
@@ -142,15 +151,23 @@ function Star( pos, flux, bkg, rect, size, nmax )
    saveStars (fileName, StarsArray = undefined)
       output Stars array to file
 
-
-   createMask (StarsArray=undefined, maskGrowth = true, contourMask = true, maskName = "stars")
-      create StarMask from image array
+   -- create masks --
+   
+   createMask (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
+      /create StarMask from image array/
+      softenMask - 
       maskGrowth - use to increase stars ellipses
       contourMask - use to make contour mask (donut)
       maskName - image id for StarMask
 
    markStars (StarsArray=undefined, imageName = "DetectedStars")      
-      create Image with detected stars marked
+      /create Image with detected stars marked/
+      
+   makeResidual ( starMaskId, StarsArray = undefined, imageName = "StarsResidual" )
+      /Create Image with removed detected stars + mask on/
+      starMaskId  - starmask image id created through this.createAngleMask() method
+      StarsArray   - stars array, used only to insert keywords
+      imageName   - new image id
       
  *
  */
@@ -166,47 +183,47 @@ function StarSizeMask_engine()
              signals that detection of local maxima has been disabled, either globally
              or for this particular structure.
     */
-   this.debug = debugf;
-    
-    
-   this.Stars = undefined,
-
-   this.sourceView = undefined;
-   this.sourceImage = undefined;
-
-   // Temp image used to detect and fit stars
-   this.workingView = undefined;
-   this.workingImage = undefined;
+    this.debug = __DEBUGF__;
 
 
-   this.__base__ = Object;
-   this.__base__();
+    this.Stars = undefined,
 
-   this.SD = new StarDetector;
+    this.sourceView = undefined;
+    this.sourceImage = undefined;
 
-   // StarDetector settings
-   this.SD.hotPixelFilterRadius = 1;
-   this.SD.applyHotPixelFilterToDetectionImage = false;
-   this.SD.noiseReductionFilterRadius = 0;
-   this.SD.structureLayers = 5;
-   //this.SD.sensitivity = parameters.starDetectionSensitivity;
-   //this.SD.upperLimit = parameters.upperLimit;
+    // Temp image used to detect and fit stars
+    this.workingView = undefined;
+    this.workingImage = undefined;
 
-   this.SizeGrouping = {
+
+    this.__base__ = Object;
+    this.__base__();
+
+    this.StarDetectorObj = new StarDetector;
+
+    // StarDetector settings
+    this.StarDetectorObj.hotPixelFilterRadius = 1;
+    this.StarDetectorObj.applyHotPixelFilterToDetectionImage = false;
+    this.StarDetectorObj.noiseReductionFilterRadius = 0;
+    this.StarDetectorObj.structureLayers = 5;
+    //this.StarDetectorObj.sensitivity = parameters.starDetectionSensitivity;
+    //this.StarDetectorObj.upperLimit = parameters.upperLimit;
+
+    this.SizeGrouping = {
       minIntervalWidth: 1.0,          // minimum interval width for Size Grouping, in pixels
       maxIntervalsNumber: 5,           // maximum number of result intervals fro Size Grouping
       numIntervals: undefined,         // Calculated number of intervals
       IntervalWidth: undefined         // Calculated interval width
-   };
+    };
 
-   this.FluxGrouping = {
+    this.FluxGrouping = {
       minIntervalWidth: 1.0,          // minimum interval width for Size Grouping, in pixels
       maxIntervalsNumber: 5,           // maximum number of result intervals fro Size Grouping
       numIntervals: undefined,         // Calculated number of intervals
       IntervalWidth: undefined         // Calculated interval width
-   };
-   
-   this.Stat = {
+    };
+
+    this.Stat = {
       flux_min: MAX_INT,
       flux_max: 0,
       bg_min: 1,
@@ -221,69 +238,69 @@ function StarSizeMask_engine()
       r_min: MAX_INT,
       nmax_max: 0,
       nmax_min: MAX_INT,
-   };
-   
-   this.curFilter = {
+    };
+
+    this.curFilter = {
       type : "",
       min : 0,
       max : MAX_INT,
-   }
+    }
 
-   this.cntFittedStars = 0;
+    this.cntFittedStars = 0;
 
 
-   /*
-    * Proccess source image and get all stars from it
-   */
-   this.getStars = function ( sourceView )
+/*
+ * Proccess source image and get all stars from it
+ */
+    this.getStars = function ( sourceView )
 	{
-      debug("<br>Running [" + "GetStars(sourceView = '" + sourceView.fullId +  "')]");
+        debug("<br>Running [" + "GetStars(sourceView = '" + sourceView.fullId +  "')]");
 
-      this.sourceView = sourceView;
-      this.sourceImage = sourceView.image;
-      
-      this.workingView = this.sourceView;
-      this.workingImage = this.sourceImage;
-      
-      this.addPedestal(); // add pedestal to image if needed
+        this.sourceView = sourceView;
+        this.sourceImage = sourceView.image;
 
-	   this.lastProgressPc = 0;
-      console.show();
+        this.workingView = this.sourceView;
+        this.workingImage = this.sourceImage;
 
-      function progressCallback ( count, total )
-      {
-         if ( count == 0 )
-         {
+        this.addPedestal(); // add pedestal to image if needed
+
+        this.lastProgressPc = 0;
+        console.show();
+
+        function progressCallback ( count, total )
+        {
+            if ( count == 0 )
+            {
             console.write( "<end><cbr>Detecting stars:   0%" );
             this.lastProgressPc = 0;
             processEvents();
-         }
-         else if (count == total || count % 500 == 0)
-         {
-            let pc = Math.round( 100*count/total );
-            if ( pc > this.lastProgressPc )
-            {
-               console.write( format( "<end>\b\b\b\b%3d%%", pc ) );
-               this.lastProgressPc = pc;
-               processEvents();
             }
-         }
-         return true;
-      }
+            else if (count == total || count % 500 == 0)
+            {
+                let pc = Math.round( 100*count/total );
+                if ( pc > this.lastProgressPc )
+                {
+                   console.write( format( "<end>\b\b\b\b%3d%%", pc ) );
+                   this.lastProgressPc = pc;
+                   processEvents();
+                }
+            }
+            return true;
+        }
 
-	   this.SD.progressCallback = progressCallback;
+        this.StarDetectorObj.progressCallback = progressCallback;
 
-	   let T = new ElapsedTime;
-	   this.Stars = this.SD.stars( this.workingImage );
-	   console.writeln( format( "<end><cbr><br>* StarDetector: %d stars found ", this.Stars.length ) );
-	   console.writeln( T.text );
+        let T = new ElapsedTime;
+        this.Stars = this.StarDetectorObj.stars( this.workingImage ); // run StarDetector
+        console.writeln( format( "<end><cbr><br>* StarDetector: %d stars found ", this.Stars.length ) );
+        console.writeln( T.text );
 
-      return this.Stars;
-	}
+        return this.Stars;
+    }
    
-  /*
-   * Fit stars profiles using DynamicPSF process
-   */
+/*
+ * Fit stars profiles using DynamicPSF process
+ */
    this.fitStarPSF = function (StarsArray = undefined)
    {      
       debug("<br>Running [" + "fitStarPSF(StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ")]");
@@ -349,7 +366,7 @@ function StarSizeMask_engine()
       }
       dynamicPSF.stars = stars;
       
-      if (debugf)
+      if (__DEBUGF__)
       {
          dynamicPSF.setDescription("Test");
          let sProcIcon = "PSFSave1";
@@ -373,7 +390,7 @@ function StarSizeMask_engine()
       
       dynamicPSF.executeGlobal();
       
-      if (debugf)
+      if (__DEBUGF__)
       {
          dynamicPSF.setDescription("Test");
          let sProcIcon = "PSFSave2";
@@ -465,9 +482,9 @@ function StarSizeMask_engine()
    }
 
 
-   /*
-    * Add pedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
-    */
+/*
+ * Add pedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
+ */
    this.addPedestal = function ()
    {
       debug("<br>Running [" + "addPedestal()]");
@@ -543,9 +560,9 @@ function StarSizeMask_engine()
 
 
 
-   /*
-    * Calculate Stars statistics
-   */
+/*
+ * Calculate Stars statistics
+ */
    this.calculateStarStats = function (StarsArray = undefined)
    {
       debug("<br>Running [" + "calculateStarStats( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
@@ -611,17 +628,17 @@ function StarSizeMask_engine()
       }
    
       // run calculate Size grouping
-      this.calculateStarStats_SizeGrouping(StarsArray);
+      this._calculateStarStats_SizeGrouping(StarsArray);
       // run calculate Flux grouping
-      this.calculateStarStats_FluxGroupingLog(StarsArray);
+      this._calculateStarStats_FluxGroupingLog(StarsArray);
       
       return true;
    }
 
    /*
     * Calculate Stars statistics  - grouping by StarSize
-   */
-   this.calculateStarStats_SizeGrouping = function (StarsArray = undefined, numIntervals = undefined)
+    */
+   this._calculateStarStats_SizeGrouping = function (StarsArray = undefined, numIntervals = undefined)
    {
       //debug("Running [" + "CalculateStarStats_SizeGrouping" + "]");
       debug("<br>Running [" + "calculateStarStats_SizeGrouping( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ", numIntervals = " + numIntervals + " )]");
@@ -673,8 +690,9 @@ function StarSizeMask_engine()
 
    /*
     * Calculate Stars statistics  - grouping by StarSize
-   */
-   this.calculateStarStats_FluxGrouping = function (StarsArray = undefined, numIntervals = undefined)
+    * obsolete
+    */
+   this.__calculateStarStats_FluxGrouping = function (StarsArray = undefined, numIntervals = undefined)
    {
       debug("Running [" + "CalculateStarStats_FluxGrouping" + "]");
       
@@ -725,8 +743,8 @@ function StarSizeMask_engine()
 
    /*
     * Calculate Stars statistics  - grouping by Log10 of StarFlux
-   */
-   this.calculateStarStats_FluxGroupingLog = function (StarsArray = undefined, numIntervals = undefined)
+    */
+   this._calculateStarStats_FluxGroupingLog = function (StarsArray = undefined, numIntervals = undefined)
    {
       debug("<br>Running [" + "calculateStarStats_FluxGroupingLog( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ", numIntervals = " + numIntervals + " )]");
       
@@ -779,7 +797,7 @@ function StarSizeMask_engine()
 
    /*
     * Filter out some Stars based on their radius
-   */
+    */
    this.filterStarsBySize = function (minRadius = 0, maxRadius = MAX_INT, StarsArray = undefined)
    {
       debug("Running [" + "filterStarsBySize" + "]");
@@ -1022,9 +1040,19 @@ function StarSizeMask_engine()
    }
 
     
-  /*
+  /*****************************************************************************************************************************************
    * Create StarMask from image array
-   */
+   *
+   * Parameters:
+   *    - StarsArray: array of (filtered if needed) stars
+   *    - softenMask = true: convolve mask after Creating
+   *    - maskGrowth = true: increase mask over detected and fitted PSF
+   *    - contourMask = false: fills the center of the star with black
+   *    - maskName = "stars": mask name
+   *    
+   * Returns:
+   *    w.mainView.fullId - mask image id
+   *****************************************************************************************************************************************/
    this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
    {
       debug("<br>Running [" + "createMaskAngle( StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + ", softenMask = " + softenMask + ", maskGrowth = " + maskGrowth + ",  contourMask = " + contourMask + ", maskName = '" + maskName + "' )" + "]");
@@ -1083,11 +1111,11 @@ function StarSizeMask_engine()
                // G.fillEllipse( - s.FWHMx  * AdjF / 2.0, - s.FWHMy * AdjF / 2.0,  s.FWHMx  * AdjF/ 2.0, s.FWHMy  * AdjF / 2.0, new Brush(0xFFFFFFFF) );
                
                let w = newDiag / Math.sqrt( 2 );
-               G.fillEllipse( s.pos.x - w/2, s.pos.y - w/2, s.pos.x + w/2, s.pos.y + w/2, new Brush( debugf?0xFFAAAAAA:0xFFFFFFFF ) );
+               G.fillEllipse( s.pos.x - w/2, s.pos.y - w/2, s.pos.x + w/2, s.pos.y + w/2, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
             }
             
             //debug("No PSF Rect for " + i);
-            G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( debugf?0xFFAAAAAA:0xFFFFFFFF ) );
+            G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
          }
 
          if (contourMask) 
@@ -1129,9 +1157,11 @@ function StarSizeMask_engine()
    }
 
 
-   /*
+   /******************************************************************************************************************************************
     * Create Image with detected stars marked
-   */
+    *
+    *
+    ******************************************************************************************************************************************/
    this.markStars = function( StarsArray = undefined, imageName = "DetectedStars" )
    {
       debug("<br>Running [" + "markStars( StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + ", imageName = '" + imageName + "' )" + "]");
@@ -1190,12 +1220,13 @@ function StarSizeMask_engine()
 
 
 
-   /*
-    * Create Image with detected stars marked
+   /******************************************************************************************************************************************
+    * Create Image with removed detected stars + mask on
+    *
     *    starMaskId  - starmask image id created through this.createAngleMask() method
     *    StarsArray   - stars array, used only to insert keywords
     *    imageName   - new image id
-   */
+    ******************************************************************************************************************************************/
    this.makeResidual = function( starMaskId, StarsArray = undefined, imageName = "StarsResidual" )
    {
       debug("<br>Running [" + "makeResidual( starMaskId = " + starMaskId + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ", imageName = '" + imageName + "' )" + "]");
@@ -1401,7 +1432,9 @@ function StarSizeMask_engine()
          return false;
    } 
    
-   
+   /*
+    * Expremimental, not finished
+    */
    this.getGaia = function(StarsArray = undefined)
    {
       debug("<br>Running [" + "getGaia( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
@@ -1535,7 +1568,7 @@ function StarSizeMask_engine()
 
 function debug(st)
 {
-   if (debugf)
+   if (__DEBUGF__)
       console.writeln("<i>" + st + "</i>");
 }
 

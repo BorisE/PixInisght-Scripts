@@ -16,18 +16,46 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "StarSizeMask-version.jsh"
-#include "StarSizeMask-engine.js"
-
 #feature-id Utilities2 > StarSizeMask
 #feature-info StarSizeMask - is a PixInsight Script to create StarMasks \
     based on their sizes \
     stars, create masks from them and, finally, to fix them. \
     \
-    Copyright &copy; 2024 Boris Emchenko http://astromania.info
+    Copyright &copy; 2024-2025 Boris Emchenko http://astromania.info
+
+//File id
+#define __STARSIZEMASK_MAIN__
+
+// Run Debug mode
+#define __DEBUGF__ true  /*or false*/
+
+// Need to be in front of other declarations
+#ifndef __STARSIZEMASK_VERSION_JSH__
+	#include "StarSizeMask-version.jsh"	// Version
+#endif
+// Need to be a second
+#ifndef __STARMASKSIZE_SETTINGS__
+	#include "StarSizeMask-settings.js" // Settings object
+#endif
+// Variable for global access to script data
+var Config = new ConfigData();
+
+#ifndef __STARSIZEMASK_GUI__
+	#include "StarSizeMask-GUI.js" // GUI
+#endif
+#ifndef __STARSIZEMASK_ENGINE__
+	#include "StarSizeMask-engine.js" // Engine
+#endif
+
+
+
+
 
 function main() {
+    if (!__DEBUGF__)
+        console.hide();
    console.abortEnabled = true;
+
    var refView = ImageWindow.activeWindow.currentView;
 
    console.noteln("<cbr><b>" + __SCRIPT_NAME + "</b> by Boris Emchenko");
@@ -41,16 +69,33 @@ function main() {
    var SSMObj = new StarSizeMask_engine();
    SSMObj.debug = true;
 
+   var minFlux=0;
+   var maxFlux=0.79;
+   MaskName = "StarMask_ang_" + minFlux.toString().replace(".","_") + "__" + maxFlux.toString().replace(".","_");
+
    //SSMObj.sourceView = refView;
    //SSMObj.addPiedestal();
    //return;
 
    var AllStars = SSMObj.getStars( refView );
 
-   SSMObj.calculateStarStats();
+   //SSMObj.calculateStarStats();
+   SSMObj.printStars();
+
    SSMObj.fitStarPSF();
-   //SSMObj.printStars();
+   //SSMObj.calculateStarStats();
+   SSMObj.printStars();
+
+   SSMObj.calculateStarStats();
+   SSMObj.printStars();
+
    SSMObj.printGroupStat();
+
+   let mask = SSMObj.createMaskAngle(AllStars, false, true, false, MaskName);
+   SSMObj.makeResidual(mask);
+   SSMObj.markStars(AllStars);
+
+   return false;
 
    //SSMObj.saveStars("d:/M63stars.csv");
    //SSMObj.createMask(undefined, false, false, "StarMask_ord");
@@ -61,10 +106,11 @@ function main() {
    //SSMObj.makeResidual(mask);
 
 
-   var Stars3 = SSMObj.filterStarsByFlux(295, 1000);
-   SSMObj.printStars(Stars3);
+
+   var Stars3 = SSMObj.filterStarsByFlux(minFlux, maxFlux);
+   //SSMObj.printStars(Stars3);
    SSMObj.printGroupStat(Stars3);
-   let mask = SSMObj.createMaskAngle(Stars3, false, true, false, "StarMask_ang_295");
+   let mask = SSMObj.createMaskAngle(Stars3, false, true, false, MaskName);
    SSMObj.makeResidual(mask);
    SSMObj.markStars(Stars3);
 
