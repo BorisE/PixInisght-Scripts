@@ -1247,7 +1247,7 @@ function StarSizeMask_engine()
       
       if (!starMask) 
       {
-         console.errorln("Can't find starmask ['" + starMaskId + "']");
+         console.criticalln("Can't find starmask ['" + starMaskId + "']");
          return false;
       }
 

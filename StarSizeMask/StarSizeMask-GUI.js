@@ -32,25 +32,176 @@
 #include <pjsr/TextAlign.jsh>
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/FontFamily.jsh>
+#include <pjsr/Color.jsh>
 
 
 /*
  * dialog
  */
-#define MIN_DIALOG_WIDTH 1000 
- 
+#define MIN_DIALOG_WIDTH 1000
+
 function StarSizeMask_Dialog(refView) {
     this.__base__ = Dialog;
     this.__base__();
 
-    var reportHeaderNames = ["X", "Y", "flux", "bckgrnd", "w", "h", "Sz", "R", "nmx", "SzG", "FlG",
-        "psf_F", "psf_B", "psf_A", "FHWHx FHWHy", "Angle", "Pw", "Ph"];
-    
-    
-    var reportHeaderLengths = [100, 100, 150, 150, 100, 100, 100, 100, 100, 100, 100,
-        100, 100, 100, 300, 200, 100, 100
+    //s.pos.x, s.pos.y, s.flux, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
+    //s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta, (s.PSF_rect.x1 - s.PSF_rect.x0), (s.PSF_rect.x1 - s.PSF_rect.x0)
+
+
+    this.starsGroupsColumnKeys = [
+        {
+            header:    "Group Id",
+            width:     100,
+            precision: 0,
+        },
+        {
+            header:    "Flux Min",
+            width:     200,
+            precision: 0,
+        },
+        {
+            header:    "Flux Max",
+            width:     200,
+            precision: 0,
+        },
+        {
+            header:    "Number of stars",
+            width:     200,
+            precision: 0,
+        }
     ];
 
+    this.starsListColumnKeys = [
+        // — Geometric / detection properties —
+        {
+            header:    "X",
+            width:     60,
+            precision: 0,
+            extractor: s => s.pos != null ? s.pos.x : NaN
+        },
+        {
+            header:    "Y",
+            width:     60,
+            precision: 0,
+            extractor: s => s.pos != null ? s.pos.y : NaN
+        },
+        {
+            header:    "Flux",
+            width:     120,
+            precision: 3,
+            extractor: s => s.flux
+        },
+        {
+            header:    "Bkg",
+            width:     100,
+            precision: 5,
+            extractor: s => s.bkg
+        },
+        {
+            header:    "W",
+            width:     40,
+            precision: 0,
+            extractor: s => s.w
+        },
+        {
+            header:    "H",
+            width:     40,
+            precision: 0,
+            extractor: s => s.h
+        },
+        {
+            header:    "Size",
+            width:     60,
+            precision: 0,
+            extractor: s => s.size
+        },
+        {
+            header:    "SizeRad",
+            width:     80,
+            precision: 1,
+            extractor: s => s.sizeRadius
+        },
+        {
+            header:    "NMax",
+            width:     50,
+            precision: 0,
+            extractor: s => (s.nmax != null ? "(" + s.nmax + ")" : "")
+        },
+
+
+        // — DynamicPSF parameters —
+        {
+            header:    "PSF_flux",
+            width:     120,
+            precision: 3,
+            extractor: s => s.PSF_flux
+        },
+        {
+            header:    "PSF_A",
+            width:     70,
+            precision: 3,
+            extractor: s => s.PSF_a
+        },
+
+
+        // — Grouping / logs (may be undefined until you assign them) —
+
+        {
+            header:    "SizeGrp",
+            width:     100,
+            precision: 0,
+            color:     Color.RED,
+            extractor: s => (s.sizeGroup != null ? s.sizeGroup : "")
+        },
+        {
+            header:    "FluxGrp",
+            width:     100,
+            precision: 0,
+            color:     Color.RED,
+            extractor: s => (s.fluxGroup != null ? s.fluxGroup : "")
+        },
+        {
+            header:    "FluxLog",
+            width:     80,
+            precision: 2,
+            color:     Color.BLUE,
+            extractor: s => (s.fluxLog != null ? s.fluxLog : NaN)
+        },
+
+        // — Final FWHM values —
+        {
+            header:    "FWHMx",
+            width:     100,
+            precision: 2,
+            extractor: s => s.FWHMx
+        },
+        {
+            header:    "FWHMy",
+            width:     100,
+            precision: 2,
+            extractor: s => s.FWHMy
+        },
+
+        {
+            header:    "PSF_theta",
+            width:     100,
+            precision: 2,
+            extractor: s => s.PSF_theta
+        },
+        {
+            header:    "Pw",
+            width:     70,
+            precision: 0,
+            extractor: s => (s.PSF_rect != null ? s.PSF_rect.x1 - s.PSF_rect.x0 : NaN)
+        },
+        {
+            header:    "Pg",
+            width:     70,
+            precision: 0,
+            extractor: s => (s.PSF_rect != null ? s.PSF_rect.y1 - s.PSF_rect.y0 : NaN)
+        }
+
+    ];
 
     var labelWidth1 = this.font.width("Output format hints :" + 'T');
     var ttStr = ""; //temp str var
@@ -86,21 +237,108 @@ function StarSizeMask_Dialog(refView) {
         //setScaledMinWidth(MIN_DIALOG_WIDTH); //min width
     }
 
-	// -- result report Table --
-	this.reportControl = new TreeBox( this );
-	with ( this.reportControl ) {
-		toolTip = "<p>Output of computed characteristics for your CCD. Press Report button to generate it it.</p>";
+
+    // -- Filter ---
+
+    // Min filter
+    this.minFluxFilter_Label = new Label(this);
+    with (this.minFluxFilter_Label) {
+        margin = 4;
+        text = "Min flux";
+        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    }
+
+    this.minFluxFilter_Edit = new Edit( this );
+    with (this.minFluxFilter_Edit) {
+        text = (Config.minFluxFilter ? Config.minFluxFilter : 0).toString();
+        minWidth = labelWidth1;
+        toolTip = "Minimum star flux to be included in filtered subset";
+    }
+
+    this.minFluxFilter_Sizer = new HorizontalSizer;
+    with (this.minFluxFilter_Sizer) {
+        spacing = 4;
+        addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
+        add(this.minFluxFilter_Label);
+        add(this.minFluxFilter_Edit);
+        addStretch();
+    }
+
+    // Max filter
+    this.maxFluxFilter_Label = new Label(this);
+    with (this.maxFluxFilter_Label) {
+        margin = 4;
+        text = "Max flux";
+        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    }
+
+    this.maxFluxFilter_Edit = new Edit( this );
+    with (this.maxFluxFilter_Edit) {
+        text = (Config.maxFluxFilter ? Config.maxFluxFilter : 1000).toString();
+        minWidth = labelWidth1;
+        toolTip = "Maximum star flux to be included in filtered subset";
+    }
+    
+    this.maxFluxFilter_Sizer = new HorizontalSizer;
+    with (this.maxFluxFilter_Sizer) {
+        spacing = 4;
+        addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
+        add(this.maxFluxFilter_Label);
+        add(this.maxFluxFilter_Edit);
+        addStretch();
+    }
+
+    this.FilterGroupBox = new GroupBox(this);
+    with (this.FilterGroupBox) {
+        //title = "Processing";
+        sizer = new VerticalSizer;
+        sizer.margin = 6;
+        sizer.spacing = 4;
+        sizer.add(this.minFluxFilter_Sizer);
+        sizer.add(this.maxFluxFilter_Sizer);
+    }
+
+    
+	
+    // -- StarGroups Table --
+	this.starsGroupsTreeBox = new TreeBox( this );
+	with ( this.starsGroupsTreeBox ) {
+		toolTip = "<p>Output of stars grouping.</p>";
         alternateRowColor = true;
 		font = new Font( FontFamily_Monospace, 8 );
+        headerVisible = true;
+        indentSize = 0;
 
-		for ( var i = 0; i < reportHeaderNames.length; ++i ) {
-			setColumnWidth( i, reportHeaderLengths[i] );
-            console.write(i + ": " + reportHeaderLengths[i] + ", ");
-			setHeaderText( i, reportHeaderNames[i] );
-		}
-		headerVisible = true;
+        for ( let i = 0; i < this.starsGroupsColumnKeys.length; ++i ) {
+            setHeaderText ( i, this.starsGroupsColumnKeys[i].header );
+            //adjustColumnWidthToContents( i );
+            setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
+            setColumnWidth( i,  this.starsGroupsColumnKeys[i].width ); 
+        }
 
 		setScaledMinSize( 680, 270 );
+    }
+
+
+    
+    // -- StarsList Table --
+	this.starsListTreeBox = new TreeBox( this );
+	with ( this.starsListTreeBox ) {
+		toolTip = "<p>Output of computed Star statistics.</p>";
+        alternateRowColor = true;
+		font = new Font( FontFamily_Monospace, 8 );
+        headerVisible = true;
+        indentSize = 0;
+
+        for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
+            setHeaderText ( i, this.starsListColumnKeys[i].header );
+            //adjustColumnWidthToContents( i );
+            setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
+            setColumnWidth( i,  this.starsListColumnKeys[i].width ); //this.starsListColumnKeys[i].width
+        }
+
+		setScaledMinSize( 680, 270 );
+
     }
 
 
@@ -131,8 +369,12 @@ function StarSizeMask_Dialog(refView) {
         Engine.fitStarPSF();
         // now we can calc statistics
         Engine.calculateStarStats();
-        
+        Engine.printStars();
+        Engine.printGroupStat();
+
         this.parent.displayStarsStat(Engine.Stars);
+        this.parent.displayGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat );
+        
     }
 
 	// Filter stars button
@@ -140,9 +382,9 @@ function StarSizeMask_Dialog(refView) {
 	this.filter_Button.text = "(2) Filter";
 	this.filter_Button.toolTip = "Filter stars by flux";
     this.filter_Button.onClick = function () {
-        console.writeln("Filtering stars...");
+        // console.writeln("Filtering stars...");
         // now we can calc statistics
-        Engine.filterStarsByFlux(Config.minFlux, Config.maxFlux);
+        Engine.filterStarsByFlux(minFluxFilter_Edit.text, maxFluxFilter_Edit.text);
     }
 
 	// Create Mask button
@@ -206,9 +448,15 @@ function StarSizeMask_Dialog(refView) {
         addSpacing(4);
         add(this.imageInfoLabel);
         addSpacing(4);
+
+
+        add(this.FilterGroupBox);
+        addSpacing(4);
         
-        
-        add(this.reportControl);
+        add(this.starsGroupsTreeBox);
+        addSpacing(10);
+
+        add(this.starsListTreeBox);
 
         //add(this.clearConsoleCheckBox_Sizer);
         addSpacing(10);
@@ -221,10 +469,10 @@ function StarSizeMask_Dialog(refView) {
     this.adjustToContents();
 
 
- 	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0) 
+ 	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
     {
  		console.writeln("<i>displayStarStat: output stars data to TreeBox. StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + "</i>");
-        this.reportControl.clear();
+        this.starsListTreeBox.clear();
 
         // Rows
         if ( topRecords == 0 )
@@ -234,28 +482,68 @@ function StarSizeMask_Dialog(refView) {
 
  			var treeNode = new TreeBoxNode();
  			let s = StarsArray[i];
-            
-            //s.pos.x, s.pos.y, s.flux, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
 
-            let col = 0;
-            for (var prop in s) {
-                if (Object.prototype.hasOwnProperty.call(s, prop)) {
-                    col++;
-                    // do stuff
-                    var text = s[prop].toString();
-                    treeNode.setText( col, text );
+            for ( let col = 0; col < this.starsListColumnKeys.length; ++col ) {
+                let { extractor, precision } = this.starsListColumnKeys[col];
 
-                    // right align numbers, left align text:
-                    if ( text.match( /^[-0-9\. ]+/ ) ) {
-                        treeNode.setAlignment( col, Align_Right );
-                    }
-                    else {
-                        treeNode.setAlignment( col, Align_Left );
-                    }
+                // Convert `rawValue` to string, with formatting for numbers:
+                let rawValue = extractor(s);
+                let text;
+                if (typeof rawValue === "number" && !isNaN(rawValue)) {
+                    // Format number with the column's precision
+                    text = rawValue.toFixed( precision );
+                    treeNode.setAlignment( col, Align_Right );
+                } else {
+                    text = rawValue != null ? rawValue.toString() : "";
+                    treeNode.setAlignment( col, Align_Left );
                 }
- 			}
- 			this.reportControl.add( treeNode );
+                
+                if (this.starsListColumnKeys[col].color) {
+                    treeNode.setTextColor( col, this.starsListColumnKeys[col].color );
+                    //treeNode.setBackgroundColor( 2, Color.GRAY );
+                }
+                treeNode.setText( col, text );
+            }
+            this.starsListTreeBox.add( treeNode );
  		}
+ 	}
+
+ 	this.displayGroupsStat = function( StarsFluxGoupArr, FluxGrouping, Stat )
+    {
+ 		console.writeln("<i>starsGroupsTreeBox: output stars grouping data to TreeBox. StarsArray = " + (StarsFluxGoupArr ? StarsFluxGoupArr.length : StarsFluxGoupArr) + "</i>");
+        this.starsGroupsTreeBox.clear();
+
+
+ 		for ( var i = 0; i < StarsFluxGoupArr.length; ++i ) {
+
+ 			var treeNode = new TreeBoxNode();
+
+            lo = Math.pow( 10, FluxGrouping.IntervalWidth * i) *  Stat.flux_min ;
+            if (i == StarsFluxGoupArr.length-1)
+                hi = Stat.flux_max ;
+            else
+                hi = Math.pow( 10, FluxGrouping.IntervalWidth * (i+1)) *  Stat.flux_min ;;
+
+            treeNode.setText( 0, i.toFixed(0) );
+            treeNode.setAlignment( 0, Align_Right );
+            treeNode.setTextColor( 0, Color.RED );
+
+            treeNode.setText( 1, lo.toFixed( 3 ) );
+            treeNode.setAlignment( 1, Align_Right );
+            //treeNode.setTextColor( 1, Color.RED );
+
+            treeNode.setText( 2, hi.toFixed( 3 ) );
+            treeNode.setAlignment( 2, Align_Right );
+            //treeNode.setTextColor( 2, Color.RED );
+
+            treeNode.setText( 3, (StarsFluxGoupArr[i] ? StarsFluxGoupArr[i] : 0).toFixed(0) );
+            treeNode.setAlignment( 3, Align_Right );
+            treeNode.setTextColor( 3, Color.BLUE );
+
+            this.starsGroupsTreeBox.add( treeNode );
+                
+            //console.writeln( format("(%d) [%5.2f, %5.2f]: %4d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+        }
  	}
 
 

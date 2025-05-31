@@ -20,7 +20,7 @@
 	#define __STARSIZEMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME "StarSizeMask"
-	#define __SCRIPT_VERSION "2.0alpha1"
+	#define __SCRIPT_VERSION "2.0beta1"
 	#define __SCRIPT_DATE "20250531"
 
 	#define __INFO_STRING__ "A script to create StarMask bases on starfitting with ability to filter star by sizes"
@@ -43,6 +43,9 @@ ToDo
 /*
  * History
  *
+ 
+ 2.0beta1 [2025 05 31]
+   - first almost working GUI (need to be improved)
  
  2.0alpha1 [2025 05 31]
    - adding GUI
