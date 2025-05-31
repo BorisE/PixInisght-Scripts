@@ -4,11 +4,11 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.4.0"
- #define COMPILE_DATE "2024/12/12"
+ #define VERSION "6.4.2"
+ #define COMPILE_DATE "2025/05/31"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
- #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2024 Boris Emchenko<br/>"
+ #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2025 Boris Emchenko<br/>"
 
  #define SETTINGS_KEY_BASE "AutoCalibrate/"
 
@@ -25,6 +25,9 @@ TODO:
 - Добавить автозапуск NSG
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 6.4.2 [2025/05/31]
+- new presets for QHY added
 
 v 6.4.1 [2024/12/13]
 - bugfixes for saving outputsize settings

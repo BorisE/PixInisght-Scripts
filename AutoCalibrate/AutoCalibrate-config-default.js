@@ -182,6 +182,12 @@ var CAMERA_PRESETS = {
 			P4: {
 				ReadOutMode: 1, Gain: 56, Offset: 10, USBLimit: 50
 			},
+			P7: {
+				ReadOutMode: 9, Gain: 0, Offset: 10, USBLimit: 50
+			},
+			P8: {
+				ReadOutMode: 9, Gain: 56, Offset: 10, USBLimit: 50
+			},
 		},
 		QSI683ws: {
 			IQAG: {
