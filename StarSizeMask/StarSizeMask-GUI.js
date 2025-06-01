@@ -48,28 +48,46 @@ function StarSizeMask_Dialog(refView) {
     //s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta, (s.PSF_rect.x1 - s.PSF_rect.x0), (s.PSF_rect.x1 - s.PSF_rect.x0)
 
 
-    this.starsGroupsColumnKeys = [
+    this.starsFluxGroupsColumnKeys = [
         {
             header:    "Group Id",
             width:     100,
-            precision: 0,
         },
         {
             header:    "Flux Min",
             width:     200,
-            precision: 0,
         },
         {
             header:    "Flux Max",
             width:     200,
-            precision: 0,
         },
         {
             header:    "Number of stars",
             width:     200,
-            precision: 0,
         }
     ];
+
+    this.starsSizeGroupsColumnKeys = [
+        {
+            header:    "Group Id",
+            width:     100,
+        },
+        {
+            header:    "Size Min",
+            width:     200,
+        },
+        {
+            header:    "Size Max",
+            width:     200,
+        },
+        {
+            header:    "Number of stars",
+            width:     200,
+        }
+    ];
+
+
+
 
     this.starsListColumnKeys = [
         // — Geometric / detection properties —
@@ -203,7 +221,7 @@ function StarSizeMask_Dialog(refView) {
 
     ];
 
-    var labelWidth1 = this.font.width("Output format hints :" + 'T');
+    var labelWidth1 = this.font.width("Minimum star flux: " + '100.103');
     var ttStr = ""; //temp str var
 
 
@@ -223,74 +241,188 @@ function StarSizeMask_Dialog(refView) {
             ".</p><p>" +
             __COPYRIGHT_STRING__ +
             "</p>"
-        setScaledMinWidth(MIN_DIALOG_WIDTH); //min width
+        setScaledMinWidth(MIN_DIALOG_WIDTH); //min width //45*this.font.width( 'M' );
     }
 
-    this.imageInfoLabel = new Label(this);
-    with (this.imageInfoLabel) {
-        frameStyle = FrameStyle_Box;
+
+	// -- Image Information --
+    this.ImageText_Label = new Label(this);
+    with (this.ImageText_Label) {
         margin = 4;
-        wordWrapping = true;
-        useRichText = true;
-        text = "<p>Image: <b>" + refView.fullId + "</b><br/>" +
-            "</p>"
-        //setScaledMinWidth(MIN_DIALOG_WIDTH); //min width
+        text = "Image: ";
+		setScaledMinWidth(7*this.font.width( 'M' ));
     }
+    this.ImageName_Label = new Label(this);
+    with (this.ImageName_Label) {
+        margin = 4;
+        useRichText = true;
+        text = "<b>" + refView.fullId + "</b>";
+    }
+    this.ImageInfo_Sizer = new HorizontalSizer;
+    with (this.ImageInfo_Sizer) {
+        spacing = 4;
+        add(this.ImageText_Label);
+        add(this.ImageName_Label);
+        addStretch();
+    }
+
+	// -- Stars Information --
+    this.StarsText_Label = new Label(this);
+    with (this.StarsText_Label) {
+        margin = 4;
+        text = "Stars: ";
+		setScaledMinWidth(7*this.font.width( 'M' ));
+    }
+    this.StarsDetected_Label = new Label(this);
+    with (this.StarsDetected_Label) {
+        margin = 4;
+        text = "10000";
+    }
+    this.StarsInfo_Sizer = new HorizontalSizer;
+    with (this.StarsInfo_Sizer) {
+        spacing = 4;
+        add(this.StarsText_Label);
+        add(this.StarsDetected_Label);
+        addStretch();
+    }
+
+    // Information groupbox
+    this.InformationGroupBox = new GroupBox(this);
+    with (this.InformationGroupBox) {
+        title = "Info";
+        sizer = new VerticalSizer;
+        sizer.margin = 6;
+        sizer.spacing = 4;
+        sizer.add(this.ImageInfo_Sizer);
+        sizer.add(this.StarsInfo_Sizer);
+    }
+
 
 
     // -- Filter ---
 
-    // Min filter
+
+	// -- Size filter --
+    // Min size filter
+    this.minSizeFilter_Label = new Label(this);
+    with (this.minSizeFilter_Label) {
+        margin = 4;
+        text = "Min star size";
+        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+		setScaledMinWidth(7*this.font.width( 'M' ));
+    }
+
+    this.minSizeFilter_Edit = new Edit( this );
+    with (this.minSizeFilter_Edit) {
+        text = (Config.minSizeFilter ? Config.minSizeFilter : 0).toString();
+        toolTip = "Minimum star Size to be included in filtered subset";
+    }
+
+    this.minSizeFilter_Sizer = new HorizontalSizer;
+    with (this.minSizeFilter_Sizer) {
+        spacing = 4;
+        add(this.minSizeFilter_Label);
+        add(this.minSizeFilter_Edit);
+        addStretch();
+    }
+
+    // Max size filter
+    this.maxSizeFilter_Label = new Label(this);
+    with (this.maxSizeFilter_Label) {
+        margin = 4;
+        text = "Max star size";
+        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+		setScaledMinWidth(7*this.font.width( 'M' ));
+    }
+
+    this.maxSizeFilter_Edit = new Edit( this );
+    with (this.maxSizeFilter_Edit) {
+        text = (Config.maxSizeFilter ? Config.maxSizeFilter : 1000).toString();
+        //minWidth = labelWidth1;
+        //minWidth = 5*this.font.width( 'M' );
+        toolTip = "Maximum star Size to be included in filtered subset";
+    }
+
+    this.maxSizeFilter_Sizer = new HorizontalSizer;
+    with (this.maxSizeFilter_Sizer) {
+        spacing = 4;
+        //addUnscaledSpacing( MIN_DIALOG_WIDTH / 4);
+		//setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
+		
+        add(this.maxSizeFilter_Label);
+        add(this.maxSizeFilter_Edit);
+        addStretch();
+    }
+
+    // Size filter groupbox
+	this.SizeFilterGroupBox = new GroupBox(this);
+    with (this.SizeFilterGroupBox) {
+        title = "Size filtering";
+        sizer = new VerticalSizer;
+        sizer.margin = 6;
+        sizer.spacing = 4;
+        sizer.add(this.minSizeFilter_Sizer);
+        sizer.add(this.maxSizeFilter_Sizer);
+    }
+
+
+	// -- flux filter --
+    // Min flux filter
     this.minFluxFilter_Label = new Label(this);
     with (this.minFluxFilter_Label) {
         margin = 4;
-        text = "Min flux";
+        text = "Min star flux";
         textAlignment = TextAlign_Right | TextAlign_VertCenter;
+		setScaledMinWidth(7*this.font.width( 'M' ));
+
     }
 
     this.minFluxFilter_Edit = new Edit( this );
     with (this.minFluxFilter_Edit) {
         text = (Config.minFluxFilter ? Config.minFluxFilter : 0).toString();
-        minWidth = labelWidth1;
+        //minWidth = labelWidth1;
         toolTip = "Minimum star flux to be included in filtered subset";
     }
 
     this.minFluxFilter_Sizer = new HorizontalSizer;
     with (this.minFluxFilter_Sizer) {
         spacing = 4;
-        addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
+        //addUnscaledSpacing( MIN_DIALOG_WIDTH / 3);
+		
         add(this.minFluxFilter_Label);
         add(this.minFluxFilter_Edit);
         addStretch();
     }
 
-    // Max filter
+    // Max flux filter
     this.maxFluxFilter_Label = new Label(this);
     with (this.maxFluxFilter_Label) {
         margin = 4;
-        text = "Max flux";
+        text = "Max star flux";
         textAlignment = TextAlign_Right | TextAlign_VertCenter;
+		setScaledMinWidth(7*this.font.width( 'M' ));
     }
 
     this.maxFluxFilter_Edit = new Edit( this );
     with (this.maxFluxFilter_Edit) {
         text = (Config.maxFluxFilter ? Config.maxFluxFilter : 1000).toString();
-        minWidth = labelWidth1;
+        //minWidth = labelWidth1;
         toolTip = "Maximum star flux to be included in filtered subset";
     }
-    
+
     this.maxFluxFilter_Sizer = new HorizontalSizer;
     with (this.maxFluxFilter_Sizer) {
         spacing = 4;
-        addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
+        //addUnscaledSpacing(labelWidth1);
         add(this.maxFluxFilter_Label);
         add(this.maxFluxFilter_Edit);
         addStretch();
     }
 
-    this.FilterGroupBox = new GroupBox(this);
-    with (this.FilterGroupBox) {
-        //title = "Processing";
+    // Flux filter groupbox
+    this.FluxFilterGroupBox = new GroupBox(this);
+    with (this.FluxFilterGroupBox) {
+        title = "Flux filtering";
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
@@ -298,29 +430,75 @@ function StarSizeMask_Dialog(refView) {
         sizer.add(this.maxFluxFilter_Sizer);
     }
 
-    
-	
-    // -- StarGroups Table --
-	this.starsGroupsTreeBox = new TreeBox( this );
-	with ( this.starsGroupsTreeBox ) {
+    // Sizer for both Size and Flux filters
+    this.Filter_Sizer = new HorizontalSizer;
+    with (this.Filter_Sizer) {
+        spacing = 4;
+        //addUnscaledSpacing(labelWidth1);
+        add(this.SizeFilterGroupBox);
+        add(this.FluxFilterGroupBox);
+        addStretch();
+    }
+
+
+
+    // -- StarSize Groups Table --
+
+	this.starsSizeGroupsTreeBox = new TreeBox( this );
+	with ( this.starsSizeGroupsTreeBox ) {
+		toolTip = "<p>Output of stars grouping by Size.</p>";
+        alternateRowColor = true;
+		font = new Font( FontFamily_Monospace, 8 );
+        headerVisible = true;
+        indentSize = 0;
+
+        for ( let i = 0; i < this.starsSizeGroupsColumnKeys.length; ++i ) {
+            setHeaderText ( i, this.starsSizeGroupsColumnKeys[i].header );
+            //adjustColumnWidthToContents( i );
+            setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
+            setColumnWidth( i,  this.starsSizeGroupsColumnKeys[i].width );
+        }
+
+		//setScaledMinSize( 400, 270 );
+		setScaledMinHeight( 100 );
+		setScaledMinWidth( MIN_DIALOG_WIDTH / 2 );
+
+
+    }
+
+    // -- StarFlux Groups Table --
+
+	this.starsFluxGroupsTreeBox = new TreeBox( this );
+	with ( this.starsFluxGroupsTreeBox ) {
 		toolTip = "<p>Output of stars grouping.</p>";
         alternateRowColor = true;
 		font = new Font( FontFamily_Monospace, 8 );
         headerVisible = true;
         indentSize = 0;
 
-        for ( let i = 0; i < this.starsGroupsColumnKeys.length; ++i ) {
-            setHeaderText ( i, this.starsGroupsColumnKeys[i].header );
+        for ( let i = 0; i < this.starsFluxGroupsColumnKeys.length; ++i ) {
+            setHeaderText ( i, this.starsFluxGroupsColumnKeys[i].header );
             //adjustColumnWidthToContents( i );
             setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsGroupsColumnKeys[i].width ); 
+            setColumnWidth( i,  this.starsFluxGroupsColumnKeys[i].width );
         }
 
-		setScaledMinSize( 680, 270 );
+		setScaledMinHeight( 100 );
+		setScaledMinWidth( MIN_DIALOG_WIDTH / 2  );
+    }
+
+	// -- sizer for Groups Table
+
+    this.GroupingReports_Sizer = new HorizontalSizer;
+    with (this.GroupingReports_Sizer) {
+        spacing = 4;
+        add(this.starsSizeGroupsTreeBox);
+        add(this.starsFluxGroupsTreeBox);
+        addStretch();
     }
 
 
-    
+
     // -- StarsList Table --
 	this.starsListTreeBox = new TreeBox( this );
 	with ( this.starsListTreeBox ) {
@@ -337,12 +515,33 @@ function StarSizeMask_Dialog(refView) {
             setColumnWidth( i,  this.starsListColumnKeys[i].width ); //this.starsListColumnKeys[i].width
         }
 
-		setScaledMinSize( 680, 270 );
+		setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
 
     }
+    this.StarList_Control = new Control( this )
+    this.StarList_Control.sizer = new VerticalSizer;
+    this.StarList_Control.sizer.margin = 6;
+    this.StarList_Control.sizer.add( this.starsListTreeBox );
+
+    this.StarList_Section = new SectionBar( this, "Star list" );
+    this.StarList_Section.setSection( this.StarList_Control );
+    this.StarList_Section.onToggleSection = function (section, beginToggle)
+	{
+		if ( !beginToggle )
+		{
+			section.dialog.setVariableHeight();
+			section.dialog.adjustToContents();
+			//section.dialog.setFixedHeight();
+		}
+        else
+		{
+			section.dialog.setMinHeight();
+		};
+	};
 
 
-    // == DIALOG total build ==
+
+    // == BUTTONS ==
 
     //Instance button
     this.newInstance_Button = new ToolButton(this);
@@ -372,15 +571,21 @@ function StarSizeMask_Dialog(refView) {
         Engine.printStars();
         Engine.printGroupStat();
 
-        this.parent.displayStarsStat(Engine.Stars);
-        this.parent.displayGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat );
-        
+        this.parent.updateStarsData(Engine);
+		this.parent.displayStarsStat(Engine.Stars);
+		this.parent.displaySizeGroupsStat(Engine.StarsSizeGoupCnt, Engine.SizeGrouping, Engine.Stat );
+        this.parent.displayFluxGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat );
+		this.parent.filter_Button.enabled = true;
+		this.parent.mask_Button.enabled = true;
+		this.parent.showDetected_Button.enabled = true;
+
     }
 
 	// Filter stars button
     this.filter_Button = new PushButton( this );
 	this.filter_Button.text = "(2) Filter";
 	this.filter_Button.toolTip = "Filter stars by flux";
+	this.filter_Button.enabled = false;
     this.filter_Button.onClick = function () {
         // console.writeln("Filtering stars...");
         // now we can calc statistics
@@ -391,6 +596,7 @@ function StarSizeMask_Dialog(refView) {
     this.mask_Button = new PushButton( this );
 	this.mask_Button.text = "(3) Mask";
 	this.mask_Button.toolTip = "Create mask";
+	this.mask_Button.enabled = false;
     this.mask_Button.onClick = function () {
         console.writeln("Filtering stars...");
         // now we can calc statistics
@@ -401,6 +607,7 @@ function StarSizeMask_Dialog(refView) {
     this.showDetected_Button = new PushButton( this );
 	this.showDetected_Button.text = "Show Detected";
 	this.showDetected_Button.toolTip = "Output detected stars and stars residial";
+	this.showDetected_Button.enabled = false;
     this.showDetected_Button.onClick = function () {
         console.writeln("Filtering stars...");
         // now we can calc statistics
@@ -439,24 +646,26 @@ function StarSizeMask_Dialog(refView) {
         add(this.cancel_Button);
     }
 
-    //main dialog sizers
+    // == DIALOG total build ==
+
     this.sizer = new VerticalSizer;
     with (this.sizer) {
-        margin = 6;
+        margin = 8;
         spacing = 6;
         add(this.helpLabel);
         addSpacing(4);
-        add(this.imageInfoLabel);
+		add(this.InformationGroupBox);
         addSpacing(4);
 
-
-        add(this.FilterGroupBox);
+        add(this.Filter_Sizer);
         addSpacing(4);
-        
-        add(this.starsGroupsTreeBox);
+
+        add(this.GroupingReports_Sizer);
         addSpacing(10);
 
-        add(this.starsListTreeBox);
+        add(this.StarList_Section);
+        add(this.StarList_Control);
+		//add(this.starsListTreeBox);
 
         //add(this.clearConsoleCheckBox_Sizer);
         addSpacing(10);
@@ -468,6 +677,8 @@ function StarSizeMask_Dialog(refView) {
     this.windowTitle = __SCRIPT_NAME + " Script";
     this.adjustToContents();
 
+
+	// -- Handlers --
 
  	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
     {
@@ -497,7 +708,7 @@ function StarSizeMask_Dialog(refView) {
                     text = rawValue != null ? rawValue.toString() : "";
                     treeNode.setAlignment( col, Align_Left );
                 }
-                
+
                 if (this.starsListColumnKeys[col].color) {
                     treeNode.setTextColor( col, this.starsListColumnKeys[col].color );
                     //treeNode.setBackgroundColor( 2, Color.GRAY );
@@ -508,10 +719,49 @@ function StarSizeMask_Dialog(refView) {
  		}
  	}
 
- 	this.displayGroupsStat = function( StarsFluxGoupArr, FluxGrouping, Stat )
+
+ 	this.displaySizeGroupsStat = function( StarsSizeGoupArr, SizeGrouping, Stat )
     {
- 		console.writeln("<i>starsGroupsTreeBox: output stars grouping data to TreeBox. StarsArray = " + (StarsFluxGoupArr ? StarsFluxGoupArr.length : StarsFluxGoupArr) + "</i>");
-        this.starsGroupsTreeBox.clear();
+ 		console.writeln("<i>displaySizeGroupsStat: output stars size grouping data to TreeBox. StarsArray = " + (StarsSizeGoupArr ? StarsSizeGoupArr.length : StarsSizeGoupArr) + "</i>");
+        this.starsSizeGroupsTreeBox.clear();
+
+
+ 		for ( var i = 0; i < StarsSizeGoupArr.length; ++i ) {
+
+ 			var treeNode = new TreeBoxNode();
+
+			lo = Stat.r_min + i * SizeGrouping.IntervalWidth;
+			if (i == StarsSizeGoupArr.length-1)
+				hi = Stat.r_max;
+			else
+				hi = lo + SizeGrouping.IntervalWidth;
+
+            treeNode.setText( 0, i.toFixed(0) );
+            treeNode.setAlignment( 0, Align_Right );
+            treeNode.setTextColor( 0, Color.RED );
+
+            treeNode.setText( 1, lo.toFixed( 3 ) );
+            treeNode.setAlignment( 1, Align_Right );
+            //treeNode.setTextColor( 1, Color.RED );
+
+            treeNode.setText( 2, hi.toFixed( 3 ) );
+            treeNode.setAlignment( 2, Align_Right );
+            //treeNode.setTextColor( 2, Color.RED );
+
+            treeNode.setText( 3, (StarsSizeGoupArr[i] ? StarsSizeGoupArr[i] : 0).toFixed(0) );
+            treeNode.setAlignment( 3, Align_Right );
+            treeNode.setTextColor( 3, Color.BLUE );
+
+            this.starsSizeGroupsTreeBox.add( treeNode );
+
+            //console.writeln( format("(%d) [%5.2f, %5.2f]: %4d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
+        }
+ 	}
+
+ 	this.displayFluxGroupsStat = function( StarsFluxGoupArr, FluxGrouping, Stat )
+    {
+ 		console.writeln("<i>displayFluxGroupsStat: output stars flux grouping data to TreeBox. StarsArray = " + (StarsFluxGoupArr ? StarsFluxGoupArr.length : StarsFluxGoupArr) + "</i>");
+        this.starsFluxGroupsTreeBox.clear();
 
 
  		for ( var i = 0; i < StarsFluxGoupArr.length; ++i ) {
@@ -540,11 +790,25 @@ function StarSizeMask_Dialog(refView) {
             treeNode.setAlignment( 3, Align_Right );
             treeNode.setTextColor( 3, Color.BLUE );
 
-            this.starsGroupsTreeBox.add( treeNode );
-                
+            this.starsFluxGroupsTreeBox.add( treeNode );
+
             //console.writeln( format("(%d) [%5.2f, %5.2f]: %4d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
         }
  	}
+	
+	this.updateStarsData = function ( EngineObj )
+	{
+ 		console.writeln("<i>updateStarsData: put stats into fields</i>");
+
+		console.noteln("Stars: " + EngineObj.cntFittedStars);
+		this.StarsDetected_Label.text = EngineObj.cntFittedStars.toString();
+		this.minSizeFilter_Edit.text = EngineObj.Stat.size_min.toFixed(0);
+		this.maxSizeFilter_Edit.text = EngineObj.Stat.size_max.toFixed(0);
+		
+		this.minFluxFilter_Edit.text = EngineObj.Stat.flux_min.toFixed(3);
+		this.maxFluxFilter_Edit.text = EngineObj.Stat.flux_max.toFixed(3);
+			
+	}
 
 
 }

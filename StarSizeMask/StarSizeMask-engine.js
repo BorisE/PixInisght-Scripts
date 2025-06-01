@@ -137,8 +137,15 @@ function Star( pos, flux, bkg, rect, size, nmax )
        private _calculateStarStats_FluxGroupingLog (StarsArray = undefined, numIntervals = undefined)
           Calculate stars grouping based on Log10 of StarFlux
 
+
+   -- filter out stars --
+
    *filterStarsBySize (minRadius = 0, maxRadius = 65535, StarsArray = undefined)*
       Filter out some stars based on their radius
+
+   *filterStarsByFlux (minFlux = 0, maxFlux = MAX_INT, StarsArray = undefined)*
+      Filter out some stars based on their flux
+
 
    -- output stat --
    
@@ -150,6 +157,7 @@ function Star( pos, flux, bkg, rect, size, nmax )
 
    saveStars (fileName, StarsArray = undefined)
       output Stars array to file
+
 
    -- create masks --
    
