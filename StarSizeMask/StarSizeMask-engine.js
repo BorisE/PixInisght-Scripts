@@ -42,9 +42,10 @@
 
 #define csvSeparator ","
 
-#define ADDPEDESTAL_MEDIAN_THRESHOLD 0.00100
-#define ADDPEDESTAL_MIN_THRESHOLD 0.00010
-#define TEMP_PEDESTAL 0.002
+#define ADDPEDESTAL_MIN_THRESHOLD 0.0001
+#define ADDPEDESTAL_MEDIAN_THRESHOLD 0.001
+#define TEMP_PEDESTAL 0.0002
+#define TEMP_NOISE_PROBABILITY 0.01
 
 
 /*
@@ -194,7 +195,10 @@ function StarSizeMask_engine()
     this.debug = __DEBUGF__;
 
 
-    this.Stars = undefined,
+    this.Stars = undefined;
+    this.FilteredStars = undefined;
+
+    this.filterApplied = false;
 
     this.sourceView = undefined;
     this.sourceImage = undefined;
@@ -493,60 +497,69 @@ function StarSizeMask_engine()
 /*
  * Add pedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
  */
-   this.addPedestal = function ()
-   {
-      debug("<br>Running [" + "addPedestal()]");
-      
-      var median = this.sourceView.computeOrFetchProperty( "Median" );
-      var min = this.sourceView.computeOrFetchProperty( "Minimum" );
-      debug("Image median = " + median.at(0));
-      debug("Image min = " + min.at(0));
-      
-      if ( min.at(0) < ADDPEDESTAL_MIN_THRESHOLD && median.at(0) < ADDPEDESTAL_MEDIAN_THRESHOLD  ) {
-         console.warningln("Image median = " + format( "%5.5f", median.at(0) ) + " is less then MEDIAN_THRESHOLD = " + ADDPEDESTAL_MEDIAN_THRESHOLD +  " AND Image min = " + + format( "%5.5f", min.at(0) ) + " is less then MIN_THRESHOLD " + ADDPEDESTAL_MIN_THRESHOLD + ""  );
-         console.writeln("Creating temp image and adding pedestal to it");
-         
-         // Copy image
-         let w = new ImageWindow( this.sourceView.image.width, this.sourceView.image.height,
-                         this.sourceView.image.numberOfChannels,      // numberOfChannels
-                         this.sourceView.image.bitsPerSample,      // bitsPerSample
-                         this.sourceView.image.isReal,  // floatSample
-                         this.sourceView.image.isColor,  // color
-                         "TempImage" );
-         w.mainView.beginProcess( UndoFlag_NoSwapFile );
-         w.mainView.image.assign( this.sourceView.image );
-         w.mainView.endProcess();
+    this.addPedestal = function ()
+    {
+        debug("<br>Running [" + "addPedestal()]");
+          
+        var median = this.sourceView.computeOrFetchProperty( "Median" );
+        var min = this.sourceView.computeOrFetchProperty( "Minimum" );
+        debug("Image median = " + median.at(0));
+        debug("Image min = " + min.at(0));
+          
+        if ( min.at(0) <= ADDPEDESTAL_MIN_THRESHOLD && median.at(0) <= ADDPEDESTAL_MEDIAN_THRESHOLD  ) {
+            console.warningln("Image median = " + format( "%5.5f", median.at(0) ) + " is less then MEDIAN_THRESHOLD = " + ADDPEDESTAL_MEDIAN_THRESHOLD +  " AND Image min = " + + format( "%5.5f", min.at(0) ) + " is less then MIN_THRESHOLD " + ADDPEDESTAL_MIN_THRESHOLD + ""  );
+            console.writeln("Creating temp image and adding pedestal to it");
+             
+            // Copy image
+            let w = new ImageWindow( this.sourceView.image.width, this.sourceView.image.height,
+                             this.sourceView.image.numberOfChannels,      // numberOfChannels
+                             this.sourceView.image.bitsPerSample,      // bitsPerSample
+                             this.sourceView.image.isReal,  // floatSample
+                             this.sourceView.image.isColor,  // color
+                             "TempImage" );
+            w.mainView.beginProcess( UndoFlag_NoSwapFile );
+            w.mainView.image.assign( this.sourceView.image );
+            w.mainView.endProcess();
 
-         debug ("Temp image created (" + w.mainView.fullId + ")");
+            debug ("Temp image created (" + w.mainView.fullId + ")");
 
-         this.workingView = w.mainView;
-         this.workingImage = this.workingView.image;
-         
-         if (debug) {
-            w.show();
-            w.zoomToFit();
-         }
+            this.workingView = w.mainView;
+            this.workingImage = this.workingView.image;
+             
+            if (debug) {
+                w.show();
+                w.zoomToFit();
+            }
 
-         var P = new PixelMath;
-         P.expression = "$T + " + TEMP_PEDESTAL;
-         P.useSingleExpression = true;
-         P.createNewImage = false;
-         P.rescale = false;
-         P.truncate = true;
-         P.truncateLower = 0;
-         P.truncateUpper = 1;
-         P.generateOutput = true;
-         P.optimization = true;
+            var P = new PixelMath;
+            P.expression = "$T + " + TEMP_PEDESTAL;
+            P.useSingleExpression = true;
+            P.createNewImage = false;
+            P.rescale = false;
+            P.truncate = true;
+            P.truncateLower = 0;
+            P.truncateUpper = 1;
+            P.generateOutput = true;
+            P.optimization = true;
 
-         P.executeOn(this.workingView);
+            P.executeOn(this.workingView);
 
-         debug ("Pedestal [" + TEMP_PEDESTAL + "] to temp image [" +  w.mainView.id + "] was added");
-         
-         return this.workingView;
-      }
-      
-      return true;
-   }
+            debug ("Pedestal [" + TEMP_PEDESTAL + "] to temp image [" +  w.mainView.id + "] was added");
+             
+             
+            var P = new NoiseGenerator;
+            P.amount = TEMP_NOISE_PROBABILITY;
+            P.distribution = NoiseGenerator.prototype.Poisson;
+
+            P.executeOn(this.workingView);
+
+            debug ("Noise [" + TEMP_PEDESTAL + "] to temp image [" +  w.mainView.id + "] was added");
+             
+            return this.workingView;
+        }
+          
+        return true;
+    }
 
    /*
     * Close temp images if they were created
@@ -808,7 +821,7 @@ function StarSizeMask_engine()
     */
    this.filterStarsBySize = function (minRadius = 0, maxRadius = MAX_INT, StarsArray = undefined)
    {
-      debug("Running [" + "filterStarsBySize" + "]");
+      debug("Running [" + "filterStarsBySize( minRadius = " + minRadius + ", maxRadius = " + maxRadius + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
       
       console.writeln(format("Filtering StarSizes to [%d, %d)", minRadius, maxRadius));
       
@@ -836,6 +849,10 @@ function StarSizeMask_engine()
             }
          }
       }
+      
+      // save array to object
+      this.FilteredStars = FilteredStars;
+      this.filterApplied = true;
 
       return FilteredStars;
    }
@@ -873,6 +890,10 @@ function StarSizeMask_engine()
             }
          }
       }
+
+      // save array to object
+      this.FilteredStars = FilteredStars;
+      this.filterApplied = true;
 
       return FilteredStars;
    }
@@ -1061,7 +1082,7 @@ function StarSizeMask_engine()
    * Returns:
    *    w.mainView.fullId - mask image id
    *****************************************************************************************************************************************/
-   this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
+   this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "StarsMask")
    {
       debug("<br>Running [" + "createMaskAngle( StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + ", softenMask = " + softenMask + ", maskGrowth = " + maskGrowth + ",  contourMask = " + contourMask + ", maskName = '" + maskName + "' )" + "]");
 
@@ -1255,7 +1276,7 @@ function StarSizeMask_engine()
       
       if (!starMask) 
       {
-         console.criticalln("Can't find starmask ['" + starMaskId + "']");
+         console.criticalln("Was unable to make StarResidiual image bacuase starmask ['" + starMaskId + "'] wasn't found");
          return false;
       }
 

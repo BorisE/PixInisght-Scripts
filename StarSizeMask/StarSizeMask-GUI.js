@@ -47,6 +47,7 @@ function StarSizeMask_Dialog(refView) {
     //s.pos.x, s.pos.y, s.flux, s.bkg, s.w, s.h, s.size, s.sizeRadius, s.nmax, s.sizeGroup, s.fluxGroup
     //s.PSF_flux, s.PSF_b, s.PSF_a, s.FWHMx, s.FWHMy, s.PSF_theta, (s.PSF_rect.x1 - s.PSF_rect.x0), (s.PSF_rect.x1 - s.PSF_rect.x0)
 
+    this.StarMaskId = undefined; // save created mask image id
 
     this.starsFluxGroupsColumnKeys = [
         {
@@ -105,7 +106,7 @@ function StarSizeMask_Dialog(refView) {
         },
         {
             header:    "Flux",
-            width:     120,
+            width:     105,
             precision: 3,
             extractor: s => s.flux
         },
@@ -137,11 +138,12 @@ function StarSizeMask_Dialog(refView) {
             header:    "SizeRad",
             width:     80,
             precision: 1,
+			color:     Color.BLUE,
             extractor: s => s.sizeRadius
         },
         {
             header:    "NMax",
-            width:     50,
+            width:     60,
             precision: 0,
             extractor: s => (s.nmax != null ? "(" + s.nmax + ")" : "")
         },
@@ -150,7 +152,7 @@ function StarSizeMask_Dialog(refView) {
         // — DynamicPSF parameters —
         {
             header:    "PSF_flux",
-            width:     120,
+            width:     105,
             precision: 3,
             extractor: s => s.PSF_flux
         },
@@ -166,14 +168,14 @@ function StarSizeMask_Dialog(refView) {
 
         {
             header:    "SizeGrp",
-            width:     100,
+            width:     85,
             precision: 0,
             color:     Color.RED,
             extractor: s => (s.sizeGroup != null ? s.sizeGroup : "")
         },
         {
             header:    "FluxGrp",
-            width:     100,
+            width:     85,
             precision: 0,
             color:     Color.RED,
             extractor: s => (s.fluxGroup != null ? s.fluxGroup : "")
@@ -189,13 +191,13 @@ function StarSizeMask_Dialog(refView) {
         // — Final FWHM values —
         {
             header:    "FWHMx",
-            width:     100,
+            width:     90,
             precision: 2,
             extractor: s => s.FWHMx
         },
         {
             header:    "FWHMy",
-            width:     100,
+            width:     90,
             precision: 2,
             extractor: s => s.FWHMy
         },
@@ -236,6 +238,7 @@ function StarSizeMask_Dialog(refView) {
         margin = 4;
         wordWrapping = true;
         useRichText = true;
+        backgroundColor = Color.rgbaColor(150,200,255,0xff);
         text = "<p><b>" + __SCRIPT_NAME + " v" + __SCRIPT_VERSION + "</b><br/>" +
             __INFO_STRING__ +
             ".</p><p>" +
@@ -256,7 +259,7 @@ function StarSizeMask_Dialog(refView) {
     with (this.ImageName_Label) {
         margin = 4;
         useRichText = true;
-        text = "<b>" + refView.fullId + "</b>";
+        text = "<b>" + ( refView.fullId != "" ? refView.fullId : "unspecified" ) + "</b>";
     }
     this.ImageInfo_Sizer = new HorizontalSizer;
     with (this.ImageInfo_Sizer) {
@@ -276,7 +279,7 @@ function StarSizeMask_Dialog(refView) {
     this.StarsDetected_Label = new Label(this);
     with (this.StarsDetected_Label) {
         margin = 4;
-        text = "10000";
+        text = "";
     }
     this.StarsInfo_Sizer = new HorizontalSizer;
     with (this.StarsInfo_Sizer) {
@@ -348,7 +351,7 @@ function StarSizeMask_Dialog(refView) {
         spacing = 4;
         //addUnscaledSpacing( MIN_DIALOG_WIDTH / 4);
 		//setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
-		
+
         add(this.maxSizeFilter_Label);
         add(this.maxSizeFilter_Edit);
         addStretch();
@@ -357,7 +360,7 @@ function StarSizeMask_Dialog(refView) {
     // Size filter groupbox
 	this.SizeFilterGroupBox = new GroupBox(this);
     with (this.SizeFilterGroupBox) {
-        title = "Size filtering";
+        title = "Size (radius) filtering";
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
@@ -388,7 +391,7 @@ function StarSizeMask_Dialog(refView) {
     with (this.minFluxFilter_Sizer) {
         spacing = 4;
         //addUnscaledSpacing( MIN_DIALOG_WIDTH / 3);
-		
+
         add(this.minFluxFilter_Label);
         add(this.minFluxFilter_Edit);
         addStretch();
@@ -430,6 +433,37 @@ function StarSizeMask_Dialog(refView) {
         sizer.add(this.maxFluxFilter_Sizer);
     }
 
+
+    // -- Mask Parameters --
+
+    // Mask parameter1
+    this.Parameter1_Label = new Label(this);
+    with (this.Parameter1_Label) {
+        margin = 4;
+        text = "Mask parameter";
+        textAlignment = TextAlign_Left | TextAlign_VertCenter;
+		setScaledMinWidth(MIN_DIALOG_WIDTH / 2);
+    }
+    
+    this.Parameter1_Sizer = new HorizontalSizer;
+    with (this.Parameter1_Sizer) {
+        spacing = 4;
+        //addUnscaledSpacing(labelWidth1);
+        add(this.Parameter1_Label);
+        addStretch();
+    }
+
+    // Mask Parameters groupbox
+    this.MaskParametersGroupBox = new GroupBox(this);
+    with (this.MaskParametersGroupBox) {
+        title = "Mask parameters";
+        sizer = new VerticalSizer;
+        sizer.margin = 6;
+        sizer.spacing = 4;
+        sizer.add(this.Parameter1_Sizer);
+    }
+
+
     // Sizer for both Size and Flux filters
     this.Filter_Sizer = new HorizontalSizer;
     with (this.Filter_Sizer) {
@@ -437,6 +471,8 @@ function StarSizeMask_Dialog(refView) {
         //addUnscaledSpacing(labelWidth1);
         add(this.SizeFilterGroupBox);
         add(this.FluxFilterGroupBox);
+        add(this.MaskParametersGroupBox);
+        
         addStretch();
     }
 
@@ -558,77 +594,141 @@ function StarSizeMask_Dialog(refView) {
 
 	// Evaluate statistics button
     this.evaluate_Button = new PushButton( this );
-	this.evaluate_Button.text = "(1) Evaluate";
-	this.evaluate_Button.toolTip = "Evaluate stars statistics";
-    this.evaluate_Button.onClick = function () {
-        console.writeln("Processing image...");
-        // (1) Detect stars in the image (calls StarsDetector object)
-        let AllStars = Engine.getStars(refView);
-        // (2) Make PSF fitting for all detected stars (calls DynamicPSF process)
-        Engine.fitStarPSF();
-        // now we can calc statistics
-        Engine.calculateStarStats();
-        Engine.printStars();
-        Engine.printGroupStat();
+	with(this.evaluate_Button) {
+        text = "(1) Evaluate";
+        toolTip = "Evaluate stars statistics";
+        icon = this.scaledResource(":/process/launch.png");
+        setFixedHeight (40);
+        onClick = function () {
+            if (refView.fullId == "") {
+                console.criticalln("No image specified");
+                return false;
+            }
+            console.writeln("(1) Processing image...");
+            // (1) Detect stars in the image (calls StarsDetector object)
+            parent.StarsDetected_Label.text = "Detecting stars..."
+            let AllStars = Engine.getStars(refView);
+            // (2) Make PSF fitting for all detected stars (calls DynamicPSF process)
+            parent.StarsDetected_Label.text = "(2) PSF fitting..."
+            Engine.fitStarPSF();
+            // now we can calc statistics
+            parent.StarsDetected_Label.text = "(3) Calculate statistics..."
+            Engine.calculateStarStats();
+            Engine.printStars();
+            Engine.printGroupStat();
 
-        this.parent.updateStarsData(Engine);
-		this.parent.displayStarsStat(Engine.Stars);
-		this.parent.displaySizeGroupsStat(Engine.StarsSizeGoupCnt, Engine.SizeGrouping, Engine.Stat );
-        this.parent.displayFluxGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat );
-		this.parent.filter_Button.enabled = true;
-		this.parent.mask_Button.enabled = true;
-		this.parent.showDetected_Button.enabled = true;
+            this.parent.updateStarsData(Engine);
+            this.parent.displayStarsStat(Engine.Stars);
+            this.parent.displaySizeGroupsStat(Engine.StarsSizeGoupCnt, Engine.SizeGrouping, Engine.Stat );
+            this.parent.displayFluxGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat );
+            this.parent.filter_Button.enabled = true;
+            this.parent.mask_Button.enabled = true;
+            this.parent.showDetected_Button.enabled = true;
 
+        }
     }
 
 	// Filter stars button
     this.filter_Button = new PushButton( this );
-	this.filter_Button.text = "(2) Filter";
-	this.filter_Button.toolTip = "Filter stars by flux";
-	this.filter_Button.enabled = false;
-    this.filter_Button.onClick = function () {
-        // console.writeln("Filtering stars...");
-        // now we can calc statistics
-        Engine.filterStarsByFlux(minFluxFilter_Edit.text, maxFluxFilter_Edit.text);
+	with (this.filter_Button) {
+        text = "Filter";
+        toolTip = "Filter stars by flux";
+        icon = this.scaledResource( ":/icons/filter.png" );
+        //icon = this.scaledResource( ":/icons/filter-delete.png" );
+        backgroundColor = this.backgroundColor;
+        //iconHeight = 40;
+        setFixedHeight (40);
+        enabled = false;
+        onClick = function () {
+            console.criticalln("State=" + this.state + ", pushed="+ this.pushed + ", icon=" +  (this.icon == ":/icons/filter-delete.png" ) + ", bgcolor=" + (this.backgroundColor) + "|");
+            if ( this.backgroundColor == parent.backgroundColor ) {
+                console.noteln("Apply filter");
+                this.pushed = true;
+                this.state = 1;
+                this.icon = this.scaledResource( ":/icons/filter-delete.png" );
+                this.backgroundColor = 0xffffffff;
+                //this.backgroundColor = Color.RED;
+                // console.writeln("Filtering stars...");
+                // now we can calc statistics
+                let FilteredStars = Engine.filterStarsBySize(parseFloat(this.parent.minSizeFilter_Edit.text), parseFloat(this.parent.maxSizeFilter_Edit.text));
+                Engine.filterStarsByFlux(parseFloat(this.parent.minFluxFilter_Edit.text), parseFloat(this.parent.maxFluxFilter_Edit.text), FilteredStars);
+                this.parent.updateStarsData(Engine, FilteredStars);
+            } else {
+                console.criticalln("Remove filter");
+                this.pushed = false;
+                this.backgroundColor = parent.backgroundColor;
+                this.icon = this.scaledResource( ":/icons/filter.png" );
+                Engine.filterApplied = false;
+                this.parent.updateStarsData(Engine);
+            }
+        }
+        onRelease = function () {
+            return false;
+        }
     }
 
 	// Create Mask button
     this.mask_Button = new PushButton( this );
-	this.mask_Button.text = "(3) Mask";
-	this.mask_Button.toolTip = "Create mask";
-	this.mask_Button.enabled = false;
-    this.mask_Button.onClick = function () {
-        console.writeln("Filtering stars...");
-        // now we can calc statistics
-        Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+	with (this.mask_Button) {
+        text = "Create Mask";
+        toolTip = "Create mask";
+        enabled = false;
+        icon = this.scaledResource( ":/toolbar/mask-enabled.png" );
+        setFixedHeight (40);
+        onClick = function () {
+            console.writeln("Filtering stars...");
+            // now we can calc statistics
+            if (Engine.filterApplied) {
+                parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+            } else {
+                parent.StarMaskId = Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+            }
+        }
     }
 
 	// Outuput Detected stars + Mask residiul button
     this.showDetected_Button = new PushButton( this );
-	this.showDetected_Button.text = "Show Detected";
-	this.showDetected_Button.toolTip = "Output detected stars and stars residial";
-	this.showDetected_Button.enabled = false;
-    this.showDetected_Button.onClick = function () {
-        console.writeln("Filtering stars...");
-        // now we can calc statistics
-        Engine.markStars();
-        Engine.makeResidual(Config.residualMaskName);
+    with (this.showDetected_Button) {
+        text = "Show Detected";
+        toolTip = "Output detected stars and stars residial";
+        setFixedHeight (40);
+        enabled = false;
+        onClick = function () {
+            console.writeln("Show detected stars...");
+            // now we can calc statistics
+            if (Engine.filterApplied) {
+                Engine.markStars(Engine.FilteredStars);
+            } else {
+                Engine.markStars();
+            }
+            if (parent.StarMaskId)
+                Engine.makeResidual(parent.StarMaskId);
+        }
     }
 
 	// Process all button
     this.ok_Button = new PushButton( this );
-	this.ok_Button.text = "Create";
-	this.ok_Button.toolTip = "Process everuthing (detected, calc stat and output mask)";
-    this.ok_Button.onClick = function () {
-        this.dialog.ok();
+	with(this.ok_Button) {
+        text = "Create";
+        toolTip = "Process everuthing (detected, calc stat and output mask)";
+        icon = this.scaledResource( ":/icons/ok.png" );
+        setFixedHeight (40);
+        onClick = function () {
+            this.dialog.ok();
+        }
     }
 
     // CLOSE button
     this.cancel_Button = new PushButton( this );
-	this.cancel_Button.text = "Close";
-	this.cancel_Button.toolTip = "Close the " + __SCRIPT_NAME + " script.";
-    this.cancel_Button.onClick = function () {
-        this.dialog.cancel();
+	with(this.cancel_Button) {
+        text = "Close";
+        toolTip = "Close the " + __SCRIPT_NAME + " script.";
+        setFixedHeight (40);
+        iconHeight = 100;
+        icon =  this.scaledResource( ":/icons/close.png" );
+        onClick = function () {
+            this.dialog.cancel();
+        }
     }
 
     //Dialog control buttons sizer
@@ -642,6 +742,7 @@ function StarSizeMask_Dialog(refView) {
         add(this.filter_Button);
         add(this.mask_Button);
         add(this.showDetected_Button);
+        addSpacing(20);
 		add(this.ok_Button);
         add(this.cancel_Button);
     }
@@ -740,11 +841,11 @@ function StarSizeMask_Dialog(refView) {
             treeNode.setAlignment( 0, Align_Right );
             treeNode.setTextColor( 0, Color.RED );
 
-            treeNode.setText( 1, lo.toFixed( 3 ) );
+            treeNode.setText( 1, lo.toFixed( 1 ) );
             treeNode.setAlignment( 1, Align_Right );
             //treeNode.setTextColor( 1, Color.RED );
 
-            treeNode.setText( 2, hi.toFixed( 3 ) );
+            treeNode.setText( 2, hi.toFixed( 1 ) );
             treeNode.setAlignment( 2, Align_Right );
             //treeNode.setTextColor( 2, Color.RED );
 
@@ -763,9 +864,7 @@ function StarSizeMask_Dialog(refView) {
  		console.writeln("<i>displayFluxGroupsStat: output stars flux grouping data to TreeBox. StarsArray = " + (StarsFluxGoupArr ? StarsFluxGoupArr.length : StarsFluxGoupArr) + "</i>");
         this.starsFluxGroupsTreeBox.clear();
 
-
  		for ( var i = 0; i < StarsFluxGoupArr.length; ++i ) {
-
  			var treeNode = new TreeBoxNode();
 
             lo = Math.pow( 10, FluxGrouping.IntervalWidth * i) *  Stat.flux_min ;
@@ -791,23 +890,27 @@ function StarSizeMask_Dialog(refView) {
             treeNode.setTextColor( 3, Color.BLUE );
 
             this.starsFluxGroupsTreeBox.add( treeNode );
-
             //console.writeln( format("(%d) [%5.2f, %5.2f]: %4d", i, lo, hi, (this.StarsFluxGoupCnt[i] ? this.StarsFluxGoupCnt[i] : 0) ) );
         }
  	}
-	
-	this.updateStarsData = function ( EngineObj )
+
+	this.updateStarsData = function ( EngineObj, FilteredStarsArray = undefined )
 	{
  		console.writeln("<i>updateStarsData: put stats into fields</i>");
 
-		console.noteln("Stars: " + EngineObj.cntFittedStars);
-		this.StarsDetected_Label.text = EngineObj.cntFittedStars.toString();
-		this.minSizeFilter_Edit.text = EngineObj.Stat.size_min.toFixed(0);
-		this.maxSizeFilter_Edit.text = EngineObj.Stat.size_max.toFixed(0);
-		
-		this.minFluxFilter_Edit.text = EngineObj.Stat.flux_min.toFixed(3);
-		this.maxFluxFilter_Edit.text = EngineObj.Stat.flux_max.toFixed(3);
-			
+        console.noteln("Stars: " + EngineObj.Stars.length  + ", fitted: " + EngineObj.cntFittedStars);
+        if (!FilteredStarsArray) {
+            this.StarsDetected_Label.text = EngineObj.Stars.length.toString() + ", fitted: " + EngineObj.cntFittedStars.toString();
+            this.minSizeFilter_Edit.text = EngineObj.Stat.r_min.toFixed(1);
+            this.maxSizeFilter_Edit.text = EngineObj.Stat.r_max.toFixed(1);
+
+            this.minFluxFilter_Edit.text = EngineObj.Stat.flux_min.toFixed(3);
+            this.maxFluxFilter_Edit.text = EngineObj.Stat.flux_max.toFixed(3);
+        } else {
+            console.noteln("Stars filtered: " + EngineObj.FilteredStars.length.toString());
+            this.StarsDetected_Label.text = EngineObj.FilteredStars.length.toString() + " of " + EngineObj.Stars.length.toString();
+        }
+
 	}
 
 
