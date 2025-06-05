@@ -1,5 +1,5 @@
 /*
- *  StarSizeMask - A PixInsight Script to create StarMasks based on their sizes
+ *  SelectiveStarMask - A PixInsight Script to create StarMasks based on their sizes
  *  Copyright (C) 2024-2025  Boris Emchenko http://astromania.info
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -180,7 +180,7 @@ function Star( pos, flux, bkg, rect, size, nmax )
       
  *
  */
-function StarSizeMask_engine()
+function SelectiveStarMask_engine()
 {
    /* pos   - Centroid position in pixels, image coordinates. This property is an object with x and y Number properties.
     * flux  - Total flux, normalized intensity units.
@@ -252,8 +252,14 @@ function StarSizeMask_engine()
       nmax_min: MAX_INT,
     };
 
-    this.curFilter = {
-      type : "",
+    this.curFilterSize = {
+      enabled: false,
+      min : 0,
+      max : MAX_INT,
+    }
+
+    this.curFilterFlux = {
+      enabled: false,
       min : 0,
       max : MAX_INT,
     }
@@ -823,7 +829,7 @@ function StarSizeMask_engine()
    {
       debug("Running [" + "filterStarsBySize( minRadius = " + minRadius + ", maxRadius = " + maxRadius + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
       
-      console.writeln(format("Filtering StarSizes to [%d, %d)", minRadius, maxRadius));
+      console.writeln(format("Filtering StarSizes to [%d, %d]", minRadius, maxRadius));
       
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -831,9 +837,9 @@ function StarSizeMask_engine()
       if (!StarsArray)
          return false;
 
-      this.curFilter.type = "Size";
-      this.curFilter.min = minRadius;
-      this.curFilter.max = maxRadius;
+      this.curFilterSize.enabled = true;
+      this.curFilterSize.min = minRadius;
+      this.curFilterSize.max = maxRadius;
 
       this.cntFittedStars = 0;
       
@@ -841,7 +847,7 @@ function StarSizeMask_engine()
       for ( let i=0; i < StarsArray.length; i++ )
       {
          let s = StarsArray[i];
-         if ( s.sizeRadius >= minRadius && s.sizeRadius < maxRadius  ) 
+         if ( s.sizeRadius >= minRadius && s.sizeRadius <= maxRadius  ) 
          {
             FilteredStars.push( s ); 
             if ( s.PSF_flux ) {
@@ -864,7 +870,7 @@ function StarSizeMask_engine()
    {
       debug("<br>Running [" + "filterStarsByFlux( minFlux = " + minFlux + ", maxFlux = " + maxFlux + " , StarsArray = "  + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
       
-      console.writeln(format("<b>Filtering StarFluxes to [%5.3f, %5.3f)</b>", minFlux, maxFlux));
+      console.writeln(format("<b>Filtering StarFluxes to [%5.3f, %5.3f]</b>", minFlux, maxFlux));
       
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -872,9 +878,9 @@ function StarSizeMask_engine()
       if (!StarsArray)
          return false;
       
-      this.curFilter.type = "Flux";
-      this.curFilter.min = minFlux;
-      this.curFilter.max = maxFlux;
+      this.curFilterFlux.enabled = true;
+      this.curFilterFlux.min = minFlux;
+      this.curFilterFlux.max = maxFlux;
 
       this.cntFittedStars = 0;
 
@@ -882,7 +888,7 @@ function StarSizeMask_engine()
       for ( let i=0; i < StarsArray.length; i++ )
       {
          let s = StarsArray[i];
-         if ( s.flux >= minFlux && s.flux < maxFlux  ) 
+         if ( s.flux >= minFlux && s.flux <= maxFlux  ) 
          {
             FilteredStars.push( s ); 
             if ( s.PSF_flux ) {
@@ -1011,7 +1017,7 @@ function StarSizeMask_engine()
    /*
     * Output Stars array to file
    */
-   this.saveStars = function (fileName = "StarSizeMask.csv", StarsArray = undefined)
+   this.saveStars = function (fileName = "SelectiveStarMask.csv", StarsArray = undefined)
    {
       debug("<br>Running [" + "saveStars(fileName = '" + fileName + "', StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
 
@@ -1172,7 +1178,7 @@ function StarSizeMask_engine()
       {
          var P = new Convolution;
          P.mode = Convolution.prototype.Parametric;
-         P.sigma = 4.00;
+         P.sigma = 2.00;
          P.shape = 2.00;
          P.aspectRatio = 1.00;
          P.rotationAngle = 0.00;
@@ -1356,13 +1362,19 @@ function StarSizeMask_engine()
       keywords.push( new FITSKeyword( "STARSPSF", format( "%d", this.cntFittedStars ), "Number of stars beeing fitted" ) );
       //keywords.push( new FITSKeyword( "STARSPSF", format( "%d", this.cntFittedStars ), "Number of stars beeing fitted" ) );
 
-      keywords.push( new FITSKeyword( "FILTTYPE", format( "%s", this.curFilter.type ), "Applied filters (last one)" ) );
-      if (this.curFilter.type != "")
+      if (this.curFilterSize.enabled)
       {  
-         keywords.push( new FITSKeyword( "FILTMIN",  format( "%.3f", this.curFilter.min ),  "Filter minimum value" ) );
-         keywords.push( new FITSKeyword( "FILTMAX",  format( "%.3f", this.curFilter.max ),  "Filter maximum value" ) );
+        keywords.push( new FITSKeyword( "FILTSIZE", format( "%s", true ), "Size filter applied (last one)" ) );
+        keywords.push( new FITSKeyword( "FSIZEMIN",  format( "%.3f", this.curFilterSize.min ),  "Size filter minimum value" ) );
+        keywords.push( new FITSKeyword( "FSIZEMAX",  format( "%.3f", this.curFilterSize.max ),  "Size filter maximum value" ) );
       } 
-      else
+
+      if (this.curFilterFlux.enabled)
+      {  
+        keywords.push( new FITSKeyword( "FILTFLUX", format( "%s", true ), "Flux filter applied (last one)" ) );
+        keywords.push( new FITSKeyword( "FFLUXMIN",  format( "%.3f", this.curFilterFlux.min ),  "Flux filter minimum value" ) );
+        keywords.push( new FITSKeyword( "FFLUXMAX",  format( "%.3f", this.curFilterFlux.max ),  "Flux filter maximum value" ) );
+      } 
 
       // Print Size Grouping
       var lo=0, hi=0;

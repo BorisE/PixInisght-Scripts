@@ -1,5 +1,5 @@
 /*
- *  StarSizeMask - A PixInsight Script to create StarMasks based on their sizes
+ *  SelectiveStarMask - A PixInsight Script to create StarMasks based on their sizes
  *  Copyright (C) 2024  Boris Emchenko http://astromania.info
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#feature-id Utilities2 > StarSizeMask
-#feature-info StarSizeMask - is a PixInsight Script to create StarMasks \
+#feature-id Utilities2 > SelectiveStarMask
+#feature-info SelectiveStarMask - is a PixInsight Script to create StarMasks \
     based on their sizes \
     stars, create masks from them and, finally, to fix them. \
     \
@@ -32,6 +32,7 @@
 // Need to be in front of other declarations
 #ifndef __STARSIZEMASK_VERSION_JSH__
 	#include "StarSizeMask-version.jsh"	// Version
+    #include "SelectiveStarMask-lib.js"
 #endif
 // Need to be a second
 #ifndef __STARMASKSIZE_SETTINGS__
@@ -66,7 +67,7 @@ function main() {
 
    let T = new ElapsedTime;
 
-   var SSMObj = new StarSizeMask_engine();
+   var SSMObj = new SelectiveStarMask_engine();
    SSMObj.debug = true;
 
    var minFlux=0;
@@ -137,7 +138,7 @@ function main_test() {
 
    let T = new ElapsedTime;
 
-   var SSMObj = new StarSizeMask_engine();
+   var SSMObj = new SelectiveStarMask_engine();
    SSMObj.debug = true;
 
    //SSMObj.sourceView = refView;

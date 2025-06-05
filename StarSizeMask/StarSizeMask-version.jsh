@@ -1,5 +1,6 @@
 /*
- *  StarSizeMask - A PixInsight Script to create StarMasks based on their sizes
+ *  
+ *  SelectiveStarMask - A PixInsight Script to create StarMasks based on their sizes
  *  Copyright (C) 2024-2025  Boris Emchenko http://astromania.info
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -19,15 +20,15 @@
 #ifndef __STARSIZEMASK_VERSION_JSH__
 	#define __STARSIZEMASK_VERSION_JSH__
 
-	#define __SCRIPT_NAME "StarSizeMask"
-	#define __SCRIPT_VERSION "2.0beta3"
-	#define __SCRIPT_DATE "20250603"
+	#define __SCRIPT_NAME "SelectiveStarMask"
+	#define __SCRIPT_VERSION "2.0beta4"
+	#define __SCRIPT_DATE "20250605"
 
 	#define __INFO_STRING__ "A script to create StarMask using detected and fitted stars with ability to filter star by sizes"
 	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko"
 
-	#define SETTINGS_KEY_BASE "StarSizeMask/"
-
+	#define SETTINGS_KEY_BASE "SelectiveStarMask/"
+    #define DEFAULT_MASK_NAME "SelectiveStarMask"
 
 #endif /* __STARSIZEMASK_VERSION_JSH__ */
 
@@ -36,7 +37,7 @@
 ToDo
 -- GUI --
    - mask parameters 
-   - same script instance
+   - save script instance
    - run with saved parameters with drag and drop on image
 -- Engine --
    - recalculate mask for non fitted stars (espesially Large Ones)
@@ -49,6 +50,12 @@ ToDo
  * History
  *
  
+ 2.0beta4 [2025 06 05]
+   - filters logic changed working
+   - mask parameters added
+   - settings now saved (not all)
+   - rename to SelectiveStarMask (not finished)
+   
  2.0beta3 [2025 06 03]
    - filters working
 

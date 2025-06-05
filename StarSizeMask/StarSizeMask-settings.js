@@ -13,14 +13,11 @@
  UI prt:
     Create object, Horiz spacer for it, add it to Vert spacer.
  Settings part:
-    1) loadSettings() with Config.name (but instead of "Config." use "this.") - (watch for data type!)
+    1) loadSettings() with Config.name (but instead of "Config." use "this.") - (watch for data type!) - and specify default value
     2) saveSettings() with Config.name  (watch for data type!)
     3) importSettings() with Config.name (watch for data type!)
     4) exportSettings() with Config.name 
     5) printParameters() with Config.name 
-
-
-
 */
 
 
@@ -30,8 +27,10 @@ function ConfigData() {
         console.writeln('<br/><br/>Config object created...<br/>');
 
     //Helper functions
-    function load(key, type) {
-        return Settings.read(SETTINGS_KEY_BASE + key, type);
+    function load(key, type, default_value) {
+        let retV = Settings.read(SETTINGS_KEY_BASE + key, type);
+        if  (retV == null) retV = default_value;
+        return retV;
     }
     function loadIndexed(key, index, type) {
         return load(key + '_' + index.toString(), type);
@@ -48,70 +47,45 @@ function ConfigData() {
      */
     this.loadSettings = function () {
         var o;
+
+        if ((o = load("softenMask", DataType_Boolean, true)) != null)
+            this.softenMask = o;
+        if ((o = load("contourMask", DataType_Boolean, false)) != null)
+            this.contourMask = o;
+        if ((o = load("maskGrowth", DataType_Boolean, true)) != null)
+            this.maskGrowth = o;
+        
+        
+        /*
         if ((o = load("InputPath", DataType_String)) != null)
             this.InputPath = o;
-        if ((o = load("PathMode", DataType_Int16)) != null)
-            this.PathMode = o;
         if ((o = load("SearchInSubDirs", DataType_Boolean)) != null)
             this.SearchInSubDirs = o;
-
-        if ((o = load("NeedCalibration", DataType_Boolean)) != null)
-            this.NeedCalibration = o;
-        if ((o = load("NeedCosmeticCorrection", DataType_Boolean)) != null)
-            this.NeedCosmeticCorrection = o;
-        if ((o = load("NeedABE", DataType_Boolean)) != null)
-            this.NeedABE = o;
-        if ((o = load("NeedRegister", DataType_Boolean)) != null)
-            this.NeedRegister = o;
-        if ((o = load("NeedNormalization", DataType_Boolean)) != null)
-            this.NeedNormalization = o;
-		if ((o = load("NeedApproving", DataType_Boolean)) != null)
-            this.NeedApproving = o;
-
-        if ((o = load("CalibratationMastersPath", DataType_String)) != null)
-            this.CalibratationMastersPath = o;
-        if ((o = load("RegistrationReferencesPath", DataType_String)) != null)
-            this.RegistrationReferencesPath = o;
-        if ((o = load("NormalizationReferencesPath", DataType_String)) != null)
-            this.NormalizationReferencesPath = o;
-
-        if ((o = load("NormalizationScale", DataType_Int16)) != null)
-            this.NormalizationScale = o;
-        if ((o = load("NormalizationNoScaleFlag", DataType_Boolean)) != null)
-            this.NormalizationNoScaleFlag = o;
-
         if ((o = load("OutputFileSize", DataType_Int16)) != null)
             this.OutputFormatIC = o;
+        */
 
+        if (__DEBUGF__) {
+            console.writeln("\n<b>Loaded parameters:</b>");
+            this.printParameters();
+            console.writeln("\n");
+        };
     }
 
     this.saveSettings = function () {
-        save("InputPath", DataType_String, this.InputPath);
-        save("PathMode", DataType_Int16, this.PathMode);
-        save("SearchInSubDirs", DataType_Boolean, this.SearchInSubDirs);
+        save("softenMask", DataType_Boolean, this.softenMask);
+        save("contourMask", DataType_Boolean, this.contourMask);
+        save("maskGrowth", DataType_Boolean, this.maskGrowth);
 
+        /* =
         save("NeedCalibration", DataType_Boolean, this.NeedCalibration);
-        save("NeedCosmeticCorrection", DataType_Boolean, this.NeedCosmeticCorrection);
-        save("NeedABE", DataType_Boolean, this.NeedABE);
-        save("NeedRegister", DataType_Boolean, this.NeedRegister);
-        save("NeedNormalization", DataType_Boolean, this.NeedNormalization);
-        save("NeedApproving", DataType_Boolean, this.NeedApproving);
-
         save("CalibratationMastersPath", DataType_String, this.CalibratationMastersPath);
-        save("RegistrationReferencesPath", DataType_String, this.RegistrationReferencesPath);
-        save("NormalizationReferencesPath", DataType_String, this.NormalizationReferencesPath);
-
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
-        save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
-        save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
-
-        save("OutputFileSize", DataType_Int16, this.OutputFormatIC);
+        */
 
         if (__DEBUGF__) {
             console.writeln("\n<b>Settings saved:</b>");
-
             this.printParameters();
-
             console.writeln("\n");
         };
     }
@@ -120,72 +94,41 @@ function ConfigData() {
      * Import / Export script parameters (global or target View run)
      */
     this.exportParameters = function () {
-        Parameters.set("InputPath", this.InputPath);
-        Parameters.set("PathMode", this.PathMode);
-        Parameters.set("SearchInSubDirs", this.SearchInSubDirs);
 
+        Parameters.set("softenMask", 			this.softenMask);
+        Parameters.set("contourMask", 			this.contourMask);
+        Parameters.set("maskGrowth", 			this.maskGrowth);
+        
+        /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
-        Parameters.set("NeedCosmeticCorrection", 	this.NeedCosmeticCorrection);
-        Parameters.set("NeedABE", 					this.NeedABE);
-        Parameters.set("NeedRegister", 				this.NeedRegister);
-        Parameters.set("NeedNormalization", 		this.NeedNormalization);
-        Parameters.set("NeedApproving", 			this.NeedApproving);
-
         Parameters.set("CalibratationMastersPath",      this.CalibratationMastersPath);
-        Parameters.set("RegistrationReferencesPath",    this.RegistrationReferencesPath);
-        Parameters.set("NormalizationReferencesPath",   this.NormalizationReferencesPath);
-
         Parameters.set("NormalizationScale",            this.NormalizationScale);
-        Parameters.set("NormalizationNoScaleFlag",      this.NormalizationNoScaleFlag);
-
-        Parameters.set("OutputFileSize",                this.OutputFormatIC);
-
+        */
         if (__DEBUGF__) {
             console.writeln("\n<b>Loaded Parameters:</b>");
-
             this.printParameters();
-
             console.writeln("\n");
         };
     }
 
     this.importParameters = function () {
+        if (Parameters.has("softenMask"))
+            this.softenMask = Parameters.getBoolean("softenMask");
+        if (Parameters.has("contourMask"))
+            this.contourMask = Parameters.getBoolean("contourMask");
+        if (Parameters.has("maskGrowth"))
+            this.maskGrowth = Parameters.getBoolean("maskGrowth");
 
-        if (Parameters.has("InputPath"))
-            this.InputPath = Parameters.getString("InputPath");
-        if (Parameters.has("PathMode"))
-            this.PathMode = Parameters.getInteger("PathMode");
-        if (Parameters.has("SearchInSubDirs"))
-            this.SearchInSubDirs = Parameters.getBoolean("SearchInSubDirs");
-
+        /*
         if (Parameters.has("NeedCalibration"))
             this.NeedCalibration = Parameters.getBoolean("NeedCalibration");
-        if (Parameters.has("NeedCosmeticCorrection"))
-            this.NeedCosmeticCorrection = Parameters.getBoolean("NeedCosmeticCorrection");
-        if (Parameters.has("NeedABE"))
-            this.NeedABE = Parameters.getBoolean("NeedABE");
-        if (Parameters.has("NeedRegister"))
-            this.NeedRegister = Parameters.getBoolean("NeedRegister");
-        if (Parameters.has("NeedNormalization"))
-            this.NeedNormalization = Parameters.getBoolean("NeedNormalization");
-        if (Parameters.has("NeedApproving"))
-            this.NeedApproving = Parameters.getBoolean("NeedApproving");
 
         if (Parameters.has("CalibratationMastersPath"))
             this.CalibratationMastersPath = Parameters.getString("CalibratationMastersPath");
-        if (Parameters.has("RegistrationReferencesPath"))
-            this.RegistrationReferencesPath = Parameters.getString("RegistrationReferencesPath");
-        if (Parameters.has("NormalizationReferencesPath"))
-            this.NormalizationReferencesPath = Parameters.getString("NormalizationReferencesPath");
 
         if (Parameters.has("NormalizationScale"))
             this.NormalizationScale = Parameters.getInteger("NormalizationScale");
-        if (Parameters.has("NormalizationNoScaleFlag"))
-            this.NormalizationNoScaleFlag = Parameters.getBoolean("NormalizationNoScaleFlag");
-
-        if (Parameters.has("OutputFileSize"))
-            this.OutputFormatIC = Parameters.getInteger("OutputFileSize");
-
+        */
         if (__DEBUGF__) {
             console.writeln("<b>Loaded Parameters:</b>");
             this.printParameters();
@@ -194,6 +137,12 @@ function ConfigData() {
     }
 
     this.printParameters = function () {
+        
+        console.writeln("softenMask:                     " + this.softenMask);
+        console.writeln("contourMask:                    " + this.contourMask);
+        console.writeln("maskGrowth:                     " + this.maskGrowth);
+
+        /*
         console.writeln("InputPath:                      " + this.InputPath);
         console.writeln("PathMode:                       " + this.PathMode);
         console.writeln("SearchInSubDirs:                " + this.SearchInSubDirs);
@@ -213,7 +162,7 @@ function ConfigData() {
         console.writeln("NormalizationNoScaleFlag:       " + this.NormalizationNoScaleFlag);
 
         console.writeln("OutputFileSize:                 " + this.OutputFormatIC);
-        
+        */
     }
 
     this.checkPathValidity = function () {

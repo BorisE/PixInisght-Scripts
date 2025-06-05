@@ -9,6 +9,7 @@
 // Need to be in front of other declarations
 #ifndef __STARSIZEMASK_VERSION_JSH__
 	#include "StarSizeMask-version.jsh"	// Version
+    #include "SelectiveStarMask-lib.js" // Functions lib
 #endif
 // Need to be a second
 #ifndef __STARMASKSIZE_SETTINGS__
@@ -34,13 +35,12 @@
 #include <pjsr/FontFamily.jsh>
 #include <pjsr/Color.jsh>
 
-
 /*
  * dialog
  */
 #define MIN_DIALOG_WIDTH 1000
 
-function StarSizeMask_Dialog(refView) {
+function SelectiveStarMask_Dialog(refView) {
     this.__base__ = Dialog;
     this.__base__();
 
@@ -137,7 +137,7 @@ function StarSizeMask_Dialog(refView) {
         {
             header:    "SizeRad",
             width:     80,
-            precision: 1,
+            precision: 2,
 			color:     Color.BLUE,
             extractor: s => s.sizeRadius
         },
@@ -319,6 +319,10 @@ function StarSizeMask_Dialog(refView) {
     with (this.minSizeFilter_Edit) {
         text = (Config.minSizeFilter ? Config.minSizeFilter : 0).toString();
         toolTip = "Minimum star Size to be included in filtered subset";
+        onTextUpdated = function () {
+            Engine.curFilterSize.min = parseFloat(this.text);
+            console.warningln("New min:" + Engine.curFilterSize.min);
+        };
     }
 
     this.minSizeFilter_Sizer = new HorizontalSizer;
@@ -344,6 +348,9 @@ function StarSizeMask_Dialog(refView) {
         //minWidth = labelWidth1;
         //minWidth = 5*this.font.width( 'M' );
         toolTip = "Maximum star Size to be included in filtered subset";
+        onTextUpdated = function () {
+            Engine.curFilterSize.max = parseFloat(this.text);
+        };
     }
 
     this.maxSizeFilter_Sizer = new HorizontalSizer;
@@ -385,6 +392,9 @@ function StarSizeMask_Dialog(refView) {
         text = (Config.minFluxFilter ? Config.minFluxFilter : 0).toString();
         //minWidth = labelWidth1;
         toolTip = "Minimum star flux to be included in filtered subset";
+        onTextUpdated = function () {
+            Engine.curFilterFlux.min = parseFloat(this.text);
+        };
     }
 
     this.minFluxFilter_Sizer = new HorizontalSizer;
@@ -411,6 +421,9 @@ function StarSizeMask_Dialog(refView) {
         text = (Config.maxFluxFilter ? Config.maxFluxFilter : 1000).toString();
         //minWidth = labelWidth1;
         toolTip = "Maximum star flux to be included in filtered subset";
+        onTextUpdated = function () {
+            Engine.curFilterFlux.max = parseFloat(this.text);
+        };
     }
 
     this.maxFluxFilter_Sizer = new HorizontalSizer;
@@ -436,20 +449,44 @@ function StarSizeMask_Dialog(refView) {
 
     // -- Mask Parameters --
 
-    // Mask parameter1
-    this.Parameter1_Label = new Label(this);
-    with (this.Parameter1_Label) {
-        margin = 4;
-        text = "Mask parameter";
-        textAlignment = TextAlign_Left | TextAlign_VertCenter;
-		setScaledMinWidth(MIN_DIALOG_WIDTH / 2);
-    }
-    
-    this.Parameter1_Sizer = new HorizontalSizer;
-    with (this.Parameter1_Sizer) {
+    // Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName
+    this.maskGrowth_CheckBox = new CheckBox(this);
+    with (this.maskGrowth_CheckBox){
+        text = "Mask growth";
+        checked = Config.maskGrowth;
+        toolTip = "<p>Increase mask beyound detected star radius</p>";
+		setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+        onClick = function (checked) {
+            Config.maskGrowth = checked;
+        };
+    };
+    this.softenMask_CheckBox = new CheckBox(this);
+    with (this.softenMask_CheckBox){
+        text = "Soften mask";
+        checked = Config.softenMask;
+        toolTip = "<p>Soften mask after creation using Convolve.</p>";
+		setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+        onClick = function (checked) {
+            Config.softenMask = checked;
+        };
+    };
+    this.contourMask_CheckBox = new CheckBox(this);
+    with (this.contourMask_CheckBox){
+        text = "Countour mask";
+        checked = Config.contourMask;
+        toolTip = "<p>Create mask as a countour.</p>";
+		setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+        onClick = function (checked) {
+            Config.contourMask = checked;
+        };
+    };
+    this.Parameters_Sizer = new HorizontalSizer;
+    with (this.Parameters_Sizer) {
         spacing = 4;
-        //addUnscaledSpacing(labelWidth1);
-        add(this.Parameter1_Label);
+        
+        add(this.maskGrowth_CheckBox);
+        add(this.softenMask_CheckBox);
+        add(this.contourMask_CheckBox);
         addStretch();
     }
 
@@ -460,7 +497,7 @@ function StarSizeMask_Dialog(refView) {
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
-        sizer.add(this.Parameter1_Sizer);
+        sizer.add(this.Parameters_Sizer);
     }
 
 
@@ -595,7 +632,7 @@ function StarSizeMask_Dialog(refView) {
 	// Evaluate statistics button
     this.evaluate_Button = new PushButton( this );
 	with(this.evaluate_Button) {
-        text = "(1) Evaluate";
+        text = "Detect stars";
         toolTip = "Evaluate stars statistics";
         icon = this.scaledResource(":/process/launch.png");
         setFixedHeight (40);
@@ -606,13 +643,13 @@ function StarSizeMask_Dialog(refView) {
             }
             console.writeln("(1) Processing image...");
             // (1) Detect stars in the image (calls StarsDetector object)
-            parent.StarsDetected_Label.text = "Detecting stars..."
+            parent.StarsDetected_Label.text = "(1) Detecting stars..."
             let AllStars = Engine.getStars(refView);
             // (2) Make PSF fitting for all detected stars (calls DynamicPSF process)
             parent.StarsDetected_Label.text = "(2) PSF fitting..."
             Engine.fitStarPSF();
             // now we can calc statistics
-            parent.StarsDetected_Label.text = "(3) Calculate statistics..."
+            parent.StarsDetected_Label.text = "(3) Calculating statistics..."
             Engine.calculateStarStats();
             Engine.printStars();
             Engine.printGroupStat();
@@ -677,7 +714,7 @@ function StarSizeMask_Dialog(refView) {
         setFixedHeight (40);
         onClick = function () {
             console.writeln("Filtering stars...");
-            // now we can calc statistics
+            Config.MaskName = parent.GetMaskName();
             if (Engine.filterApplied) {
                 parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
             } else {
@@ -841,11 +878,11 @@ function StarSizeMask_Dialog(refView) {
             treeNode.setAlignment( 0, Align_Right );
             treeNode.setTextColor( 0, Color.RED );
 
-            treeNode.setText( 1, lo.toFixed( 1 ) );
+            treeNode.setText( 1, lo.toFixed( 2 ) );
             treeNode.setAlignment( 1, Align_Right );
             //treeNode.setTextColor( 1, Color.RED );
 
-            treeNode.setText( 2, hi.toFixed( 1 ) );
+            treeNode.setText( 2, hi.toFixed( 2 ) );
             treeNode.setAlignment( 2, Align_Right );
             //treeNode.setTextColor( 2, Color.RED );
 
@@ -901,17 +938,28 @@ function StarSizeMask_Dialog(refView) {
         console.noteln("Stars: " + EngineObj.Stars.length  + ", fitted: " + EngineObj.cntFittedStars);
         if (!FilteredStarsArray) {
             this.StarsDetected_Label.text = EngineObj.Stars.length.toString() + ", fitted: " + EngineObj.cntFittedStars.toString();
-            this.minSizeFilter_Edit.text = EngineObj.Stat.r_min.toFixed(1);
-            this.maxSizeFilter_Edit.text = EngineObj.Stat.r_max.toFixed(1);
+            this.minSizeFilter_Edit.text = roundDown(EngineObj.Stat.r_min,2).toFixed(2);
+            this.maxSizeFilter_Edit.text = roundUp(EngineObj.Stat.r_max,2).toFixed(2);
 
-            this.minFluxFilter_Edit.text = EngineObj.Stat.flux_min.toFixed(3);
-            this.maxFluxFilter_Edit.text = EngineObj.Stat.flux_max.toFixed(3);
+            this.minFluxFilter_Edit.text = roundDown(EngineObj.Stat.flux_min,3).toFixed(3);
+            this.maxFluxFilter_Edit.text = roundUp(EngineObj.Stat.flux_max,3).toFixed(3);
         } else {
             console.noteln("Stars filtered: " + EngineObj.FilteredStars.length.toString());
-            this.StarsDetected_Label.text = EngineObj.FilteredStars.length.toString() + " of " + EngineObj.Stars.length.toString();
+            this.StarsDetected_Label.text = "filtered " + EngineObj.FilteredStars.length.toString() + " out of " + EngineObj.Stars.length.toString();
         }
-
 	}
+    
+    this.GetMaskName = function ()
+    {
+        let MN = DEFAULT_MASK_NAME;
+        if (Engine.curFilterSize.enabled){
+            MN = MN + "_size_" + Engine.curFilterSize.min.toString().replace(".","_") + "__" + Engine.curFilterSize.max.toString().replace(".","_")
+        }
+        if (Engine.curFilterFlux.enabled){
+            MN = MN + "_flux_" + Engine.curFilterFlux.min.toString().replace(".","_") + "__" + Engine.curFilterFlux.max.toString().replace(".","_")
+        }
+        return MN;
+    }
 
 
 }
@@ -925,20 +973,19 @@ function mainGUI() {
         console.clear();
 
     console.noteln(__SCRIPT_NAME, " script started. Version: ", __SCRIPT_VERSION, " Date: ", __SCRIPT_DATE);
-    console.noteln("PixInsight Version: ", coreId, ", ", coreVersionBuild, ", ", coreVersionMajor,
-        ", ", coreVersionMinor, ", ", coreVersionRelease);
+    console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
+    //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
 
    var refView = ImageWindow.activeWindow.currentView;
 
-   console.writeln ("Working on image: <b>" + refView.fullId + "</b>");
+   console.writeln ("Working on image: <b>" + (refView.fullId == "" ? "no image" : refView.fullId) + "</b>");
    if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
-
 
     Config.loadSettings();
 
     if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
         if (__DEBUGF__)
-            console.writeln("Script instance");
+            console.writeln("Running script instance");
         this.importParameters();
 
     } else {
@@ -956,16 +1003,15 @@ function mainGUI() {
     }
 
 
-
     // Our dialog inherits all properties and methods from the core Dialog object.
-    StarSizeMask_Dialog.prototype = new Dialog;
-    var dialog = new StarSizeMask_Dialog(refView);
+    SelectiveStarMask_Dialog.prototype = new Dialog;
+    var dialog = new SelectiveStarMask_Dialog(refView);
 
     // Show our dialog box, quit if cancelled.
     for (; ; ) {
         if (dialog.execute()) {
-            if (Config.InputPath == "") {
-                var msgStr = "<p>There are no input dir specified.</p>" +
+            if (refView.fullId == "") {
+                var msgStr = "<p>There are no image specified.</p>" +
                     "<p>Do you wish to continue?</p>";
                 var msg = new MessageBox(msgStr, __SCRIPT_NAME, StdIcon_Error, StdButton_Yes, StdButton_No);
                 if (msg.execute() == StdButton_Yes)
@@ -975,7 +1021,6 @@ function mainGUI() {
             } else {
                 console.show();
                 processEvents();
-                Engine.Process();
                 break;
             }
         } else {
@@ -997,13 +1042,7 @@ function mainGUI() {
 }
 
 #ifndef __STARSIZEMASK_MAIN__
-	var refView = ImageWindow.activeWindow.currentView;
-	console.writeln ("Working on image: <b>" + refView.fullId + "</b>");
-	if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
-
     //Engine
-	var Engine = new StarSizeMask_engine();
-
-
+	var Engine = new SelectiveStarMask_engine();
 	mainGUI();
 #endif
