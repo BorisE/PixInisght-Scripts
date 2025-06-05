@@ -20,6 +20,7 @@
     5) printParameters() with Config.name 
 */
 
+#define MAX_INT 1000000
 
 function ConfigData() {
 
@@ -55,6 +56,15 @@ function ConfigData() {
         if ((o = load("maskGrowth", DataType_Boolean, true)) != null)
             this.maskGrowth = o;
         
+        if ((o = load("FilterSize_min", DataType_Float, 0)) != null)
+            this.FilterSize_min = o;
+        if ((o = load("FilterSize_max", DataType_Float, MAX_INT)) != null)
+            this.FilterSize_max = o;
+        if ((o = load("FilterFlux_min", DataType_Float, 0)) != null)
+            this.FilterFlux_min = o;
+        if ((o = load("FilterFlux_max", DataType_Float, MAX_INT)) != null)
+            this.FilterFlux_max = o;
+
         
         /*
         if ((o = load("InputPath", DataType_String)) != null)
@@ -76,6 +86,11 @@ function ConfigData() {
         save("softenMask", DataType_Boolean, this.softenMask);
         save("contourMask", DataType_Boolean, this.contourMask);
         save("maskGrowth", DataType_Boolean, this.maskGrowth);
+
+        save("FilterSize_min", DataType_Float, this.FilterSize_min);
+        save("FilterSize_max", DataType_Float, this.FilterSize_max);
+        save("FilterFlux_min", DataType_Float, this.FilterFlux_min);
+        save("FilterFlux_max", DataType_Float, this.FilterFlux_max);
 
         /* =
         save("NeedCalibration", DataType_Boolean, this.NeedCalibration);
@@ -99,6 +114,11 @@ function ConfigData() {
         Parameters.set("contourMask", 			this.contourMask);
         Parameters.set("maskGrowth", 			this.maskGrowth);
         
+        Parameters.set("FilterSize_min",        this.FilterSize_min);
+        Parameters.set("FilterSize_max",        this.FilterSize_max);
+        Parameters.set("FilterFlux_min",        this.FilterFlux_min);
+        Parameters.set("FilterFlux_max",        this.FilterFlux_max);
+
         /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
         Parameters.set("CalibratationMastersPath",      this.CalibratationMastersPath);
@@ -118,6 +138,15 @@ function ConfigData() {
             this.contourMask = Parameters.getBoolean("contourMask");
         if (Parameters.has("maskGrowth"))
             this.maskGrowth = Parameters.getBoolean("maskGrowth");
+
+        if (Parameters.has("FilterSize_min"))
+            this.FilterSize_min = Parameters.getReal("FilterSize_min");
+        if (Parameters.has("FilterSize_max"))
+            this.FilterSize_max = Parameters.getReal("FilterSize_max");
+        if (Parameters.has("FilterFlux_min"))
+            this.FilterFlux_min = Parameters.getReal("FilterFlux_min");
+        if (Parameters.has("FilterFlux_max"))
+            this.FilterFlux_max = Parameters.getReal("FilterFlux_max");
 
         /*
         if (Parameters.has("NeedCalibration"))
@@ -141,6 +170,11 @@ function ConfigData() {
         console.writeln("softenMask:                     " + this.softenMask);
         console.writeln("contourMask:                    " + this.contourMask);
         console.writeln("maskGrowth:                     " + this.maskGrowth);
+
+        console.writeln("FilterSize_min:                 " + this.FilterSize_min);
+        console.writeln("FilterSize_max:                 " + this.FilterSize_max);
+        console.writeln("FilterFlux_min:                 " + this.FilterFlux_min);
+        console.writeln("FilterFlux_max:                 " + this.FilterFlux_max);
 
         /*
         console.writeln("InputPath:                      " + this.InputPath);

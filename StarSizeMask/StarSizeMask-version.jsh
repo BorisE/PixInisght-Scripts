@@ -21,7 +21,7 @@
 	#define __STARSIZEMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME "SelectiveStarMask"
-	#define __SCRIPT_VERSION "2.0beta4"
+	#define __SCRIPT_VERSION "2.0beta5"
 	#define __SCRIPT_DATE "20250605"
 
 	#define __INFO_STRING__ "A script to create StarMask using detected and fitted stars with ability to filter star by sizes"
@@ -36,7 +36,6 @@
 /*
 ToDo
 -- GUI --
-   - mask parameters 
    - save script instance
    - run with saved parameters with drag and drop on image
 -- Engine --
@@ -50,6 +49,9 @@ ToDo
  * History
  *
  
+ 2.0beta5 [2025 06 05]
+   - filter data is saved
+
  2.0beta4 [2025 06 05]
    - filters logic changed working
    - mask parameters added

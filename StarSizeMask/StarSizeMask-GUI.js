@@ -317,10 +317,11 @@ function SelectiveStarMask_Dialog(refView) {
 
     this.minSizeFilter_Edit = new Edit( this );
     with (this.minSizeFilter_Edit) {
-        text = (Config.minSizeFilter ? Config.minSizeFilter : 0).toString();
+        text = (Config.FilterSize_min ? Config.FilterSize_min : 0).toString();
         toolTip = "Minimum star Size to be included in filtered subset";
         onTextUpdated = function () {
             Engine.curFilterSize.min = parseFloat(this.text);
+            Config.FilterSize_min = Engine.curFilterSize.min;
             console.warningln("New min:" + Engine.curFilterSize.min);
         };
     }
@@ -344,12 +345,13 @@ function SelectiveStarMask_Dialog(refView) {
 
     this.maxSizeFilter_Edit = new Edit( this );
     with (this.maxSizeFilter_Edit) {
-        text = (Config.maxSizeFilter ? Config.maxSizeFilter : 1000).toString();
+        text = (Config.FilterSize_max ? Config.FilterSize_max : MAX_INT).toString();
         //minWidth = labelWidth1;
         //minWidth = 5*this.font.width( 'M' );
         toolTip = "Maximum star Size to be included in filtered subset";
         onTextUpdated = function () {
             Engine.curFilterSize.max = parseFloat(this.text);
+            Config.FilterSize_max = Engine.curFilterSize.max;
         };
     }
 
@@ -389,11 +391,12 @@ function SelectiveStarMask_Dialog(refView) {
 
     this.minFluxFilter_Edit = new Edit( this );
     with (this.minFluxFilter_Edit) {
-        text = (Config.minFluxFilter ? Config.minFluxFilter : 0).toString();
+        text = (Config.FilterFlux_min ? Config.FilterFlux_min : 0).toString();
         //minWidth = labelWidth1;
         toolTip = "Minimum star flux to be included in filtered subset";
         onTextUpdated = function () {
             Engine.curFilterFlux.min = parseFloat(this.text);
+            Config.FilterFlux_min = Engine.curFilterFlux.min;
         };
     }
 
@@ -418,11 +421,12 @@ function SelectiveStarMask_Dialog(refView) {
 
     this.maxFluxFilter_Edit = new Edit( this );
     with (this.maxFluxFilter_Edit) {
-        text = (Config.maxFluxFilter ? Config.maxFluxFilter : 1000).toString();
+        text = (Config.FilterFlux_max ? Config.FilterFlux_max : MAX_INT).toString();
         //minWidth = labelWidth1;
         toolTip = "Maximum star flux to be included in filtered subset";
         onTextUpdated = function () {
             Engine.curFilterFlux.max = parseFloat(this.text);
+            Config.FilterFlux_max = Engine.curFilterFlux.max;
         };
     }
 
@@ -938,11 +942,19 @@ function SelectiveStarMask_Dialog(refView) {
         console.noteln("Stars: " + EngineObj.Stars.length  + ", fitted: " + EngineObj.cntFittedStars);
         if (!FilteredStarsArray) {
             this.StarsDetected_Label.text = EngineObj.Stars.length.toString() + ", fitted: " + EngineObj.cntFittedStars.toString();
+            
             this.minSizeFilter_Edit.text = roundDown(EngineObj.Stat.r_min,2).toFixed(2);
             this.maxSizeFilter_Edit.text = roundUp(EngineObj.Stat.r_max,2).toFixed(2);
 
             this.minFluxFilter_Edit.text = roundDown(EngineObj.Stat.flux_min,3).toFixed(3);
             this.maxFluxFilter_Edit.text = roundUp(EngineObj.Stat.flux_max,3).toFixed(3);
+            
+            Config.FilterSize_min = roundDown(EngineObj.Stat.r_min,2);
+            Config.FilterSize_max = roundUp(EngineObj.Stat.r_max,2);
+
+            Config.FilterFlux_min = roundDown(EngineObj.Stat.flux_min,2);
+            Config.FilterFlux_max = roundUp(EngineObj.Stat.flux_max,2);
+            
         } else {
             console.noteln("Stars filtered: " + EngineObj.FilteredStars.length.toString());
             this.StarsDetected_Label.text = "filtered " + EngineObj.FilteredStars.length.toString() + " out of " + EngineObj.Stars.length.toString();
@@ -986,7 +998,7 @@ function mainGUI() {
     if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
         if (__DEBUGF__)
             console.writeln("Running script instance");
-        this.importParameters();
+        Config.importParameters();
 
     } else {
         if (__DEBUGF__)
