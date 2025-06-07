@@ -1,7 +1,7 @@
- #ifndef __STARMASKSIZE_SETTINGS__
+#ifndef __STARMASKSIZE_SETTINGS__
     #define __STARMASKSIZE_SETTINGS__
     #include <pjsr/DataType.jsh>
- #endif
+#endif
 
 #ifndef __DEBUGF__
 	#define __DEBUGF__ true  /*or false*/
@@ -20,7 +20,9 @@
     5) printParameters() with Config.name 
 */
 
-#define MAX_INT 1000000
+#ifndef MAX_INT
+    #define MAX_INT 10000
+#endif
 
 function ConfigData() {
 

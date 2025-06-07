@@ -21,7 +21,7 @@
 	#define __PJSR_USE_STAR_DETECTOR_V2
 	#define __PJSR_STAR_OBJECT_DEFINED  1
 	#define __PJSR_NO_STAR_DETECTOR_TEST_ROUTINES
-
+    
 #endif /* __STARSIZEMASK_ENGINE__ */
 
 #include <pjsr/StarDetector.jsh>
@@ -34,7 +34,9 @@
 
 #include "../lib/STFAutoStretch.js"
 
-#define MAX_INT 1000000
+#ifndef MAX_INT
+    #define MAX_INT 10000
+#endif
 
 #ifndef __DEBUGF__
 	#define __DEBUGF__ true  /*or false*/
@@ -267,9 +269,13 @@ function SelectiveStarMask_engine()
     this.cntFittedStars = 0;
 
 
-/*
- * Proccess source image and get all stars from it
- */
+    /** 
+     * Proccess source image and get all stars from it
+     * Check if Pedestal need to be added
+     * Run StarDetector object to get stars from the image
+     * @param {sourceView} source image to work on
+     * @returns {Array} array of stars ([Stars] type)
+     */
     this.getStars = function ( sourceView )
 	{
         debug("<br>Running [" + "GetStars(sourceView = '" + sourceView.fullId +  "')]");
@@ -316,193 +322,213 @@ function SelectiveStarMask_engine()
         return this.Stars;
     }
    
-/*
- * Fit stars profiles using DynamicPSF process
- */
-   this.fitStarPSF = function (StarsArray = undefined)
-   {      
-      debug("<br>Running [" + "fitStarPSF(StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ")]");
-      
-      if (!StarsArray)
-         StarsArray = this.Stars;
-      
-      if (!StarsArray)
-         return false;
-      
-      if (!this.Stat.w_max || !this.Stat.h_max)
-         this.calculateStarStats( StarsArray );
 
-      var dynamicPSF = new DynamicPSF;
+    /** 
+     * Fit stars profiles using DynamicPSF process
+     * Check if Pedestal need to be added
+     * Run StarDetector object to get stars from the image
+     * @param {StarsArray} array of detected stars (from getStars())
+     * @returns {Array} array of stars ([Stars] type) with added profile data
+     */
+    this.fitStarPSF = function (StarsArray = undefined)
+    {      
+        debug("<br>Running [" + "fitStarPSF(StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + ")]");
 
-      dynamicPSF.autoPSF = true;
-      /*
-      dynamicPSF.circularPSF = false;
-      dynamicPSF.gaussianPSF = parameters.modelFunctionIndex == 0;
-      dynamicPSF.moffatPSF = false;
-      dynamicPSF.moffat10PSF = parameters.modelFunctionIndex == 1;
-      dynamicPSF.moffat8PSF = parameters.modelFunctionIndex == 2;
-      dynamicPSF.moffat6PSF = parameters.modelFunctionIndex == 3;
-      dynamicPSF.moffat4PSF = parameters.modelFunctionIndex == 4;
-      dynamicPSF.moffat25PSF = parameters.modelFunctionIndex == 5;
-      dynamicPSF.moffat15PSF = parameters.modelFunctionIndex == 6;
-      dynamicPSF.lorentzianPSF = parameters.modelFunctionIndex == 7;
-      */
-      dynamicPSF.circularPSF  = true;
-      dynamicPSF.gaussianPSF  = true;  //parameters.modelFunctionIndex == 0;
-      dynamicPSF.moffatPSF    = true;
-      dynamicPSF.moffat10PSF  = true;  //parameters.modelFunctionIndex == 1;
-      dynamicPSF.moffat8PSF   = true;  //parameters.modelFunctionIndex == 2;
-      dynamicPSF.moffat6PSF   = true;  //parameters.modelFunctionIndex == 3;
-      dynamicPSF.moffat4PSF   = true;  //parameters.modelFunctionIndex == 4;
-      dynamicPSF.moffat25PSF  = true;  //parameters.modelFunctionIndex == 5;
-      dynamicPSF.moffat15PSF  = true;  //parameters.modelFunctionIndex == 6;
-      dynamicPSF.lorentzianPSF = true; //parameters.modelFunctionIndex == 7;
-      dynamicPSF.regenerate   = true;
-      
-      dynamicPSF.searchRadius = Math.max( this.Stat.w_max, this.Stat.h_max );
-      dynamicPSF.searchRadius = dynamicPSF.searchRadius >= 20 ? 120 : dynamicPSF.searchRadius;
-      dynamicPSF.searchRadius = 120;
+        if (!StarsArray)
+            StarsArray = this.Stars;
+
+        if (!StarsArray)
+            return false;
+
+        if (!this.Stat.w_max || !this.Stat.h_max)
+            this.calculateStarStats( StarsArray );
+
+        var dynamicPSF = new DynamicPSF;
+
+        // -- Set DynamicPSF parameters
+
+        dynamicPSF.autoPSF = true;
+        /*
+        dynamicPSF.circularPSF = false;
+        dynamicPSF.gaussianPSF = parameters.modelFunctionIndex == 0;
+        dynamicPSF.moffatPSF = false;
+        dynamicPSF.moffat10PSF = parameters.modelFunctionIndex == 1;
+        dynamicPSF.moffat8PSF = parameters.modelFunctionIndex == 2;
+        dynamicPSF.moffat6PSF = parameters.modelFunctionIndex == 3;
+        dynamicPSF.moffat4PSF = parameters.modelFunctionIndex == 4;
+        dynamicPSF.moffat25PSF = parameters.modelFunctionIndex == 5;
+        dynamicPSF.moffat15PSF = parameters.modelFunctionIndex == 6;
+        dynamicPSF.lorentzianPSF = parameters.modelFunctionIndex == 7;
+        */
+        dynamicPSF.circularPSF  = true;
+        dynamicPSF.gaussianPSF  = true;  //parameters.modelFunctionIndex == 0;
+        dynamicPSF.moffatPSF    = true;
+        dynamicPSF.moffat10PSF  = true;  //parameters.modelFunctionIndex == 1;
+        dynamicPSF.moffat8PSF   = true;  //parameters.modelFunctionIndex == 2;
+        dynamicPSF.moffat6PSF   = true;  //parameters.modelFunctionIndex == 3;
+        dynamicPSF.moffat4PSF   = true;  //parameters.modelFunctionIndex == 4;
+        dynamicPSF.moffat25PSF  = true;  //parameters.modelFunctionIndex == 5;
+        dynamicPSF.moffat15PSF  = true;  //parameters.modelFunctionIndex == 6;
+        dynamicPSF.lorentzianPSF = true; //parameters.modelFunctionIndex == 7;
+        dynamicPSF.regenerate   = true;
+
+        dynamicPSF.searchRadius = Math.max( this.Stat.w_max, this.Stat.h_max );
+        dynamicPSF.searchRadius = dynamicPSF.searchRadius >= 20 ? 120 : dynamicPSF.searchRadius;
+        dynamicPSF.searchRadius = 120;
       
 
-      var views = new Array;
-      views.push(new Array(this.workingView.fullId));
-      dynamicPSF.views = views;
+        // -- Prepare data for DynamicPSF process
+        // Working image
+        var views = new Array;
+        views.push(new Array(this.workingView.fullId));
+        dynamicPSF.views = views;
 
-
-      var stars = new Array;
-      for (var i = 0; i < StarsArray.length; i++) {
-         let s = StarsArray[i];
-         stars.push(new Array(
-            0, 0, DynamicPSF.prototype.Star_DetectedOk,
-            s.pos.x - s.sizeRadius,
-            s.pos.y - s.sizeRadius,
-            s.pos.x + s.sizeRadius,
-            s.pos.y + s.sizeRadius,
-            s.pos.x,
-            s.pos.y
-         ));
-      }
-      dynamicPSF.stars = stars;
+        // -- Stars for DynamicPSF process
+        var stars = new Array;
+        for (var i = 0; i < StarsArray.length; i++) {
+            let s = StarsArray[i];
+            stars.push(new Array(
+                    0, 0, DynamicPSF.prototype.Star_DetectedOk,
+                    s.pos.x - s.sizeRadius,
+                    s.pos.y - s.sizeRadius,
+                    s.pos.x + s.sizeRadius,
+                    s.pos.y + s.sizeRadius,
+                    s.pos.x,
+                    s.pos.y
+                )
+            );
+        }
+        dynamicPSF.stars = stars;
       
-      if (__DEBUGF__)
-      {
-         dynamicPSF.setDescription("Test");
-         let sProcIcon = "PSFSave1";
-         var icons = ProcessInstance.iconsByProcessId("DynamicPSF");
-         let bPFnd=false;
-         for (let i = 0; i < icons.length; i++) 
-            if (icons[i] == sProcIcon)
-               bPFnd=true;
-            
-         if (bPFnd)
-            dynamicPSF.writeIcon(sProcIcon);
-         else
-            console.warningln("Process icon [" + sProcIcon + "] not found");
-      }
-      
-      
-      var fitted = new Array(stars.length);
-      for (var i = 0; i != fitted.length; ++i) {
-         fitted[i] = false;
-      }
-      
-      dynamicPSF.executeGlobal();
-      
-      if (__DEBUGF__)
-      {
-         dynamicPSF.setDescription("Test");
-         let sProcIcon = "PSFSave2";
-         var icons = ProcessInstance.iconsByProcessId("DynamicPSF");
-         let bPFnd=false;
-         for (let i = 0; i < icons.length; i++) 
-            if (icons[i] == sProcIcon)
-               bPFnd=true;
-            
-         if (bPFnd)
-            dynamicPSF.writeIcon(sProcIcon);
-         else
-            console.warningln("Process icon [" + sProcIcon + "] not found");
-      }
-      
-      // starIndex, function, circular, status, B, A, cx, cy, sx, sy, theta, beta, mad, celestial, alpha, delta, flux, meanSignal
-      #define DYNAMICPSF_PSF_StarIndex 0
-      #define DYNAMICPSF_PSF_FuncType 1
-      #define DYNAMICPSF_PSF_CircularFlag 2
-      #define DYNAMICPSF_PSF_Status 3
-      #define DYNAMICPSF_PSF_b 4
-      #define DYNAMICPSF_PSF_a 5
-      #define DYNAMICPSF_PSF_cx 6
-      #define DYNAMICPSF_PSF_cy 7
-      #define DYNAMICPSF_PSF_sx 8
-      #define DYNAMICPSF_PSF_sy 9
-      #define DYNAMICPSF_PSF_theta 10
-      #define DYNAMICPSF_PSF_beta 11
-      #define DYNAMICPSF_PSF_residual 12
-      #define DYNAMICPSF_PSF_flux 16
-      
-      #define DYNAMICPSF_Stars_x0 3
-      #define DYNAMICPSF_Stars_y0 4
-      #define DYNAMICPSF_Stars_x1 5
-      #define DYNAMICPSF_Stars_y1 6
-
-      var starProfiles = new Array;
-      var psfTable = dynamicPSF.psf;
-      var starsTable = dynamicPSF.stars;
-      this.cntFittedStars = 0;
-      for (var i = 0; i != psfTable.length; ++i) {
-         let psfRow = psfTable[i];
-         let idx = psfRow[DYNAMICPSF_PSF_StarIndex];
-         if (
-            psfRow[DYNAMICPSF_PSF_Status] == DynamicPSF.prototype.PSF_FittedOk &&
-            psfRow[DYNAMICPSF_PSF_residual] < 0.1 &&
-            !fitted[idx]
-         ) {
-            StarsArray[idx].PSF_b = psfRow[DYNAMICPSF_PSF_b];
-            StarsArray[idx].PSF_a = psfRow[DYNAMICPSF_PSF_a];
-            StarsArray[idx].PSF_cx = psfRow[DYNAMICPSF_PSF_cx];
-            StarsArray[idx].PSF_cy = psfRow[DYNAMICPSF_PSF_cy];
-            StarsArray[idx].PSF_sx = psfRow[DYNAMICPSF_PSF_sx];
-            StarsArray[idx].PSF_sy = psfRow[DYNAMICPSF_PSF_sy];
-            StarsArray[idx].PSF_theta = psfRow[DYNAMICPSF_PSF_theta];
-            StarsArray[idx].PSF_residual = psfRow[DYNAMICPSF_PSF_residual];
-            StarsArray[idx].PSF_flux = psfRow[DYNAMICPSF_PSF_flux];
-            
-            StarsArray[idx].PSF_rect = new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
-            StarsArray[idx].PSF_diag = Math.sqrt( (StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0)*(StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0) + (StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0)*(StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0));
-            
-            StarsArray[idx].FWHMx = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sx], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
-            StarsArray[idx].FWHMy = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sy], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
-            
-            //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
-
-            fitted[idx] = true;
-            this.cntFittedStars++;
-         }
-      }
-
-      var nonfitted = 0;
-      let idx = 0;
-      fitted.forEach( 
-         function (fittedf) 
-         {
-            if (!fittedf) {
-               debug(format("Star [%d] with flux=%4.3f couldn't be fitted", idx, StarsArray[idx].flux));
-               nonfitted++;
+        // Try to save DynanmicPSF before running process
+        if (__DEBUGF__)
+        {
+            dynamicPSF.setDescription("Before running PSF");
+            let sProcIcon = "PSFSave1";
+            var icons = ProcessInstance.iconsByProcessId("DynamicPSF");
+            let bPFnd=false;
+            for (let i = 0; i < icons.length; i++) {
+                if (icons[i] == sProcIcon)
+                    bPFnd=true;
             }
-            idx++;
-         }
-      )
-
-      console.writeln(psfTable.length + " PSF fittings were gathered and added to stat");
-      console.writeln(nonfitted + " stas couldn't be fitted");
+            if (bPFnd)
+                dynamicPSF.writeIcon(sProcIcon);
+            else
+                console.warningln("Process icon [" + sProcIcon + "] not found");
+        }
       
-      return starProfiles;
+      
+        // Prepare "star was fitted flag"
+        let fitted = new Array(stars.length);
+        for (var i = 0; i != fitted.length; ++i) {
+            fitted[i] = false;
+        }
+      
+        
+        // -- Run the process
+        dynamicPSF.executeGlobal();
+      
+        // Try to store DynanmicPSF results aftrer running process
+        if (__DEBUGF__)
+        {
+            dynamicPSF.setDescription("Store PSF results");
+            let sProcIcon = "PSFSave2";
+            var icons = ProcessInstance.iconsByProcessId("DynamicPSF");
+            let bPFnd=false;
+            for (let i = 0; i < icons.length; i++) {
+                if (icons[i] == sProcIcon)
+                    bPFnd=true;
+            }
+            if (bPFnd)
+                dynamicPSF.writeIcon(sProcIcon);
+            else
+                console.warningln("Process icon [" + sProcIcon + "] not found");
+        }
+      
+        // starIndex, function, circular, status, B, A, cx, cy, sx, sy, theta, beta, mad, celestial, alpha, delta, flux, meanSignal
+        #define DYNAMICPSF_PSF_StarIndex 0
+        #define DYNAMICPSF_PSF_FuncType 1
+        #define DYNAMICPSF_PSF_CircularFlag 2
+        #define DYNAMICPSF_PSF_Status 3
+        #define DYNAMICPSF_PSF_b 4
+        #define DYNAMICPSF_PSF_a 5
+        #define DYNAMICPSF_PSF_cx 6
+        #define DYNAMICPSF_PSF_cy 7
+        #define DYNAMICPSF_PSF_sx 8
+        #define DYNAMICPSF_PSF_sy 9
+        #define DYNAMICPSF_PSF_theta 10
+        #define DYNAMICPSF_PSF_beta 11
+        #define DYNAMICPSF_PSF_residual 12
+        #define DYNAMICPSF_PSF_flux 16
+
+        #define DYNAMICPSF_Stars_x0 3
+        #define DYNAMICPSF_Stars_y0 4
+        #define DYNAMICPSF_Stars_x1 5
+        #define DYNAMICPSF_Stars_y1 6
+
+        var psfTable = dynamicPSF.psf;
+        var starsTable = dynamicPSF.stars;
+        this.cntFittedStars = 0;
+        for (var i = 0; i != psfTable.length; ++i) {
+            let psfRow = psfTable[i];
+            let idx = psfRow[DYNAMICPSF_PSF_StarIndex];
+            if (
+                    psfRow[DYNAMICPSF_PSF_Status] == DynamicPSF.prototype.PSF_FittedOk &&
+                    psfRow[DYNAMICPSF_PSF_residual] < 0.1 &&
+                    !fitted[idx]
+                ) 
+            {
+                StarsArray[idx].PSF_b = psfRow[DYNAMICPSF_PSF_b];
+                StarsArray[idx].PSF_a = psfRow[DYNAMICPSF_PSF_a];
+                StarsArray[idx].PSF_cx = psfRow[DYNAMICPSF_PSF_cx];
+                StarsArray[idx].PSF_cy = psfRow[DYNAMICPSF_PSF_cy];
+                StarsArray[idx].PSF_sx = psfRow[DYNAMICPSF_PSF_sx];
+                StarsArray[idx].PSF_sy = psfRow[DYNAMICPSF_PSF_sy];
+                StarsArray[idx].PSF_theta = psfRow[DYNAMICPSF_PSF_theta];
+                StarsArray[idx].PSF_residual = psfRow[DYNAMICPSF_PSF_residual];
+                StarsArray[idx].PSF_flux = psfRow[DYNAMICPSF_PSF_flux];
+
+                StarsArray[idx].PSF_rect = new Rect( starsTable[idx][DYNAMICPSF_Stars_x0], starsTable[idx][DYNAMICPSF_Stars_y0], starsTable[idx][DYNAMICPSF_Stars_x1], starsTable[idx][DYNAMICPSF_Stars_y1] );
+                StarsArray[idx].PSF_diag = Math.sqrt( (StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0)*(StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0) + (StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0)*(StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0));
+
+                StarsArray[idx].FWHMx = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sx], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
+                StarsArray[idx].FWHMy = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sy], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
+
+                //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
+
+                fitted[idx] = true;
+                this.cntFittedStars++;
+            }
+        }
+
+        var nonfitted = 0;
+        let idx = 0;
+        fitted.forEach( 
+            function (fittedf) 
+            {
+                if (!fittedf) {
+                    debug(format("Star [%d] with flux=%4.3f couldn't be fitted", idx, StarsArray[idx].flux));
+                    nonfitted++;
+                }
+                idx++;
+            }
+        )
+
+        console.writeln(psfTable.length + " PSF fittings were gathered and added to stat");
+        console.writeln(nonfitted + " stas couldn't be fitted");
+      
+        return StarsArray;
    }
 
 
-/*
- * Add pedestal if needed - when image bg level is close to zero (as in case of Starnet stars)
- */
+
+    /** 
+     * Check if Pedestal need to be added.
+     * In case of too low bg level (close to zero), copies source image to a temporary image and adds pedestal and notise for it. 
+     * This is mandatory to do because StarDetector results highly depends on pedestal and noise level.
+     * Usually needed if script is run on Stars Only image (after stars seprattion with Starnet/StarXTermninator or any similar tool)
+     * @returns {w.mainView} reference to temp image in case of need of its creation, or false otherwise
+     */
     this.addPedestal = function ()
     {
         debug("<br>Running [" + "addPedestal()]");
@@ -514,7 +540,7 @@ function SelectiveStarMask_engine()
           
         if ( min.at(0) <= ADDPEDESTAL_MIN_THRESHOLD && median.at(0) <= ADDPEDESTAL_MEDIAN_THRESHOLD  ) {
             console.warningln("Image median = " + format( "%5.5f", median.at(0) ) + " is less then MEDIAN_THRESHOLD = " + ADDPEDESTAL_MEDIAN_THRESHOLD +  " AND Image min = " + + format( "%5.5f", min.at(0) ) + " is less then MIN_THRESHOLD " + ADDPEDESTAL_MIN_THRESHOLD + ""  );
-            console.writeln("Creating temp image and adding pedestal to it");
+            console.writeln("Creating temp image and adding pedestal and some noise to it");
              
             // Copy image
             let w = new ImageWindow( this.sourceView.image.width, this.sourceView.image.height,
@@ -529,6 +555,7 @@ function SelectiveStarMask_engine()
 
             debug ("Temp image created (" + w.mainView.fullId + ")");
 
+            // Change working image to temp image
             this.workingView = w.mainView;
             this.workingImage = this.workingView.image;
              
@@ -537,6 +564,7 @@ function SelectiveStarMask_engine()
                 w.zoomToFit();
             }
 
+            // Add pedestal
             var P = new PixelMath;
             P.expression = "$T + " + TEMP_PEDESTAL;
             P.useSingleExpression = true;
@@ -552,7 +580,7 @@ function SelectiveStarMask_engine()
 
             debug ("Pedestal [" + TEMP_PEDESTAL + "] to temp image [" +  w.mainView.id + "] was added");
              
-             
+            // Add noise
             var P = new NoiseGenerator;
             P.amount = TEMP_NOISE_PROBABILITY;
             P.distribution = NoiseGenerator.prototype.Poisson;
@@ -562,28 +590,34 @@ function SelectiveStarMask_engine()
             debug ("Noise [" + TEMP_PEDESTAL + "] to temp image [" +  w.mainView.id + "] was added");
              
             return this.workingView;
+            
+        } else {
+            console.noteln("No need to add pedestal for the image");
         }
           
-        return true;
+        return false;
     }
 
-   /*
-    * Close temp images if they were created
-    */
-   this.closeTempImages = function ()
-   {
-      debug("<br>Running [" + "closeTempImages()]");
+    /** 
+     * Closes temp image if they were created
+     * In case of inside addPedestal() it was created
+     * @returns {Boolean} true if image was closed false otherwise
+     */
+    this.closeTempImages = function ()
+    {
+        debug("<br>Running [" + "closeTempImages()]");
       
-      if (this.sourceView != this.workingView)
-      {
-         this.workingView.window.hide();
-         this.workingView.setPropertyValue("dispose", true);
-         this.workingView.window.forceClose();
-         debug("TempImage closed");
-      }      
+        if (this.sourceView != this.workingView)
+        {
+            this.workingView.window.hide();
+            this.workingView.setPropertyValue("dispose", true);
+            this.workingView.window.forceClose();
+            debug("TempImage closed");
+            return true;
+        }      
       
-      return true;
-   }
+        return false;
+    }
 
 
 
@@ -599,7 +633,6 @@ function SelectiveStarMask_engine()
       
       if (!StarsArray)
          return false;
-
 
       this.Stat.flux_min = MAX_INT;
       this.Stat.flux_max = 0;
@@ -1364,14 +1397,14 @@ function SelectiveStarMask_engine()
 
       if (this.curFilterSize.enabled)
       {  
-        keywords.push( new FITSKeyword( "FILTSIZE", format( "%s", true ), "Size filter applied (last one)" ) );
+        keywords.push( new FITSKeyword( "FILTSIZE", format( "%s", "TRUE" ), "Size filter applied (last one)" ) );
         keywords.push( new FITSKeyword( "FSIZEMIN",  format( "%.3f", this.curFilterSize.min ),  "Size filter minimum value" ) );
         keywords.push( new FITSKeyword( "FSIZEMAX",  format( "%.3f", this.curFilterSize.max ),  "Size filter maximum value" ) );
       } 
 
       if (this.curFilterFlux.enabled)
       {  
-        keywords.push( new FITSKeyword( "FILTFLUX", format( "%s", true ), "Flux filter applied (last one)" ) );
+        keywords.push( new FITSKeyword( "FILTFLUX", format( "%s", "TRUE" ), "Flux filter applied (last one)" ) );
         keywords.push( new FITSKeyword( "FFLUXMIN",  format( "%.3f", this.curFilterFlux.min ),  "Flux filter minimum value" ) );
         keywords.push( new FITSKeyword( "FFLUXMAX",  format( "%.3f", this.curFilterFlux.max ),  "Flux filter maximum value" ) );
       } 
@@ -1472,53 +1505,66 @@ function SelectiveStarMask_engine()
       else
          return false;
    } 
+
+    this.GetMaskName = function ()
+    {
+        let MN = DEFAULT_MASK_NAME;
+        if (this.curFilterSize.enabled){
+            MN = MN + "_size_" + this.curFilterSize.min.toString().replace(".","_") + "_" + this.curFilterSize.max.toString().replace(".","_")
+        }
+        if (this.curFilterFlux.enabled){
+            MN = MN + "_flux_" + this.curFilterFlux.min.toString().replace(".","_") + "_" + this.curFilterFlux.max.toString().replace(".","_")
+        }
+        return MN;
+    }
+
    
    /*
     * Expremimental, not finished
     */
-   this.getGaia = function(StarsArray = undefined)
-   {
-      debug("<br>Running [" + "getGaia( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+    this.getGaia = function(StarsArray = undefined)
+    {
+        debug("<br>Running [" + "getGaia( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
 
-      if (!StarsArray)
-         StarsArray = this.Stars;
+        if (!StarsArray)
+            StarsArray = this.Stars;
 
-      if (!StarsArray)
-         return false;
+        if (!StarsArray)
+            return false;
 
-		cat = new Gaia();
-		cat.command = "search";
-		cat.dataRelease = Gaia.prototype.DataRelease_3;
-		cat.centerRA = 308.087500000;
-		cat.centerDec = 59.863611111;
-		cat.radius = 0.166694;
-		cat.magnitudeLow = -1.500;
-		cat.magnitudeHigh = 17.000;		// Some other config to the process
+        cat = new Gaia();
+        cat.command = "search";
+        cat.dataRelease = Gaia.prototype.DataRelease_3;
+        cat.centerRA = 308.087500000;
+        cat.centerDec = 59.863611111;
+        cat.radius = 0.166694;
+        cat.magnitudeLow = -1.500;
+        cat.magnitudeHigh = 17.000;		// Some other config to the process
+
+        cat.generateTextOutput = true;
+        cat.generateBinaryOutput = false;
+        cat.textFormat = Gaia.prototype.TextFormat_TabularCompound;
+        cat.textHeaders = Gaia.prototype.TextHeaders_SearchParametersAndTableColumns;
+
+        cat.executeGlobal();
+
+        /*
+        Форматированный вывод:
+               α               δ             ϖ         μα*        μδ       G     G_BP   G_RP   Flags
+        --------------- --------------- ---------- ---------- ---------- ------ ------ ------ --------
+          h  m  s          °  ′  ″           mas       mas/yr     mas/yr   mag    mag    mag
+        =============== =============== ========== ========== ========== ====== ====== ====== ========
+        20 31 02.041684 +59 52 33.68059     8.3361   +25.4153   +10.8035  8.495  8.705  8.038 000800f0
+
+        В скрипте:
+        307.75850701675705,59.87602238665325,8.336106300354004,25.415267944335938,10.803519248962402,8.494999885559082,8.704999923706055,8.038000106811523,524528,,
+        */
+        let cat_stars = cat.sources;
+
+        console.writeln("Count=" + cat_stars.length);
 		
-		cat.generateTextOutput = true;
-		cat.generateBinaryOutput = false;
-		cat.textFormat = Gaia.prototype.TextFormat_TabularCompound;
-		cat.textHeaders = Gaia.prototype.TextHeaders_SearchParametersAndTableColumns;
-		
-		cat.executeGlobal();
-		
-		/*
-		Форматированный вывод:
-			   α               δ             ϖ         μα*        μδ       G     G_BP   G_RP   Flags
-		--------------- --------------- ---------- ---------- ---------- ------ ------ ------ --------
-		  h  m  s          °  ′  ″           mas       mas/yr     mas/yr   mag    mag    mag
-		=============== =============== ========== ========== ========== ====== ====== ====== ========
-		20 31 02.041684 +59 52 33.68059     8.3361   +25.4153   +10.8035  8.495  8.705  8.038 000800f0
-		
-		В скрипте:
-		307.75850701675705,59.87602238665325,8.336106300354004,25.415267944335938,10.803519248962402,8.494999885559082,8.704999923706055,8.038000106811523,524528,,
-		*/
-		let cat_stars = cat.sources;
-		
-		console.writeln("Count=" + cat_stars.length);
-		
-		 for ( let i = 0; i < StarsArray.length; ++i )
-		 {
+        for ( let i = 0; i < StarsArray.length; ++i )
+		{
 			let StarFnd = false;
 			let s = StarsArray[i];
 
@@ -1598,10 +1644,9 @@ function SelectiveStarMask_engine()
 				
 			}
 
-		 }
-
-		
-   }
+        }
+		return true;
+    }
 
    
 };

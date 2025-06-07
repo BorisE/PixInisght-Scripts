@@ -21,8 +21,8 @@
 	#define __STARSIZEMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME "SelectiveStarMask"
-	#define __SCRIPT_VERSION "2.0beta5"
-	#define __SCRIPT_DATE "20250605"
+	#define __SCRIPT_VERSION "2.0beta7"
+	#define __SCRIPT_DATE "20250607"
 
 	#define __INFO_STRING__ "A script to create StarMask using detected and fitted stars with ability to filter star by sizes"
 	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko"
@@ -36,8 +36,6 @@
 /*
 ToDo
 -- GUI --
-   - save script instance
-   - run with saved parameters with drag and drop on image
 -- Engine --
    - recalculate mask for non fitted stars (espesially Large Ones)
    - function TopN Stars
@@ -48,6 +46,13 @@ ToDo
 /*
  * History
  *
+
+ 2.0beta7 [2025 06 07]
+   - run filter routines only in case of filter change
+   - optimizations and code clearance
+ 
+ 2.0beta6 [2025 06 05]
+   - saved script instance is working
  
  2.0beta5 [2025 06 05]
    - filter data is saved

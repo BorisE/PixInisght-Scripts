@@ -39,7 +39,7 @@
 	#include "StarSizeMask-settings.js" // Settings object
 #endif
 // Variable for global access to script data
-var Config = new ConfigData();
+let Config = new ConfigData();
 
 #ifndef __STARSIZEMASK_GUI__
 	#include "StarSizeMask-GUI.js" // GUI
@@ -48,165 +48,139 @@ var Config = new ConfigData();
 	#include "StarSizeMask-engine.js" // Engine
 #endif
 
+let Engine;
 
 
-
-
+//main
 function main() {
     if (!__DEBUGF__)
         console.hide();
-   console.abortEnabled = true;
 
-   var refView = ImageWindow.activeWindow.currentView;
+    if (__DEBUGF__)
+        //console.clear();
 
-   console.noteln("<cbr><b>" + __SCRIPT_NAME + "</b> by Boris Emchenko");
-   console.noteln("v" + __SCRIPT_VERSION + " from "+ __SCRIPT_DATE + "<br>");
+    console.noteln(__SCRIPT_NAME, " script. Version: ", __SCRIPT_VERSION, " Date: ", __SCRIPT_DATE);
+    console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
+    //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
 
-   console.writeln ("Working on image: <b>" + refView.fullId + "</b>");
-   if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
+    var refView = ImageWindow.activeWindow.currentView;
 
-   let T = new ElapsedTime;
+    console.writeln ("Working on image: <b>" + (refView.fullId == "" ? "no image" : refView.fullId) + "</b>");
+    if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
 
-   var SSMObj = new SelectiveStarMask_engine();
-   SSMObj.debug = true;
+    Config.loadSettings();
+    
+    Engine = new SelectiveStarMask_engine();
+    Engine.debug = __DEBUGF__;
 
-   var minFlux=0;
-   var maxFlux=0.79;
-   MaskName = "StarMask_ang_" + minFlux.toString().replace(".","_") + "__" + maxFlux.toString().replace(".","_");
+    if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
+        if (__DEBUGF__)
+            console.noteln("Running from saved script instance");
+        Config.importParameters();
+        
+        // Run without GUI
+        if (Parameters.isViewTarget) {
+            console.noteln("Executed on target view, created StarMask based on saved parameters without GUI");
+            main_cli(refView);
+            return true;
+        }
+    } else {
+        if (__DEBUGF__)
+            console.writeln("Started as a new script");
+    }
 
-   //SSMObj.sourceView = refView;
-   //SSMObj.addPiedestal();
-   //return;
+    // For future use
+    if (!Parameters.isViewTarget) {
+        if (__DEBUGF__)
+            console.noteln("Global context");
+    }
 
-   var AllStars = SSMObj.getStars( refView );
+    main_gui(refView);
 
-   //SSMObj.calculateStarStats();
-   SSMObj.printStars();
-
-   SSMObj.fitStarPSF();
-   //SSMObj.calculateStarStats();
-   SSMObj.printStars();
-
-   SSMObj.calculateStarStats();
-   SSMObj.printStars();
-
-   SSMObj.printGroupStat();
-
-   let mask = SSMObj.createMaskAngle(AllStars, false, true, false, MaskName);
-   SSMObj.makeResidual(mask);
-   SSMObj.markStars(AllStars);
-
-   return false;
-
-   //SSMObj.saveStars("d:/M63stars.csv");
-   //SSMObj.createMask(undefined, false, false, "StarMask_ord");
-   //  *this.createMaskAngle = function (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
-
-   //let mask = SSMObj.createMaskAngle(undefined, true, true, false, "StarMask_ang");
-   //SSMObj.markStars();
-   //SSMObj.makeResidual(mask);
-
-
-
-   var Stars3 = SSMObj.filterStarsByFlux(minFlux, maxFlux);
-   //SSMObj.printStars(Stars3);
-   SSMObj.printGroupStat(Stars3);
-   let mask = SSMObj.createMaskAngle(Stars3, false, true, false, MaskName);
-   SSMObj.makeResidual(mask);
-   SSMObj.markStars(Stars3);
-
-   //SSMObj.getGaia(Stars3);
-   //let mask = SSMObj.createMaskAngle(Stars3, true, false, false, "StarMask_small");
-   //SSMObj.makeResidual(mask, Stars3);
-
-
-   //SSMObj.closeTempImages();
-
-   console.writeln( "Runtime: " + T.text );
-
+    return true;
 }
 
-function main_test() {
-   console.abortEnabled = true;
-   var refView = ImageWindow.activeWindow.currentView;
 
-   console.noteln("<cbr><b>" + __SCRIPT_NAME + "</b> by Boris Emchenko");
-   console.noteln("v" + __SCRIPT_VERSION + " from "+ __SCRIPT_DATE + "<br>");
+function main_cli(refView) 
+{
+    console.abortEnabled = true;
 
-   console.writeln ("Working on image: <b>" + refView.fullId + "</b>");
-   if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
+    let T = new ElapsedTime;
 
-   let T = new ElapsedTime;
 
-   var SSMObj = new SelectiveStarMask_engine();
-   SSMObj.debug = true;
+    // (1) Detect stars in the image (calls StarsDetector object)
+    var AllStars = Engine.getStars( refView );
+    // (2) Make PSF fitting for all detected stars (calls DynamicPSF process)
+    Engine.fitStarPSF();
+    // (3) Now can calculate star statistics
+    Engine.calculateStarStats();
+    Engine.printStars();
+    Engine.printGroupStat();
 
-   //SSMObj.sourceView = refView;
-   //SSMObj.addPiedestal();
-   //return;
+    // (4) Filter stars based on saved parameters
+    let FilteredStars = undefined;
+    if ( (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2)) && ( Config.FilterSize_min != 0 || Config.FilterSize_max != MAX_INT))
+        FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
+    if ((Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2)) && ( Config.FilterFlux_min != 0 || Config.FilterFlux_max != MAX_INT))
+        Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+    
+    // (5) Create StarMask
+    Config.MaskName = Engine.GetMaskName();
+    let StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
 
-   var AllStars = SSMObj.getStars( refView );
-   SSMObj.fitStarPSF();
-   SSMObj.calculateStarStats();
-   SSMObj.printStars(AllStars, 10);
-   SSMObj.printGroupStat();
+    // (6) Create residuals
+    //Engine.makeResidual(mask);
+    //Engine.markStars(AllStars);
 
-   for ( let i = 0; i < AllStars.length; i++ )
-   {
-      let s = AllStars[i];
+   
+    if (!__DEBUGF__)
+        Engine.closeTempImages();
 
-      if (!s.PSF_rect)
-      {
-            if ( s.fluxGroup == SSMObj.FluxGrouping.numIntervals-1 )
-            {
-               var prev = SSMObj.prevPSFfitted(i);
-               var next = SSMObj.nextPSFfitted(i);
-               debug("idx = " + i + ", prev = " + prev.PSF_flux + ", next = " + next.PSF_flux);
-               let diagonal = next.PSF_diag;
-               let k = diagonal / next.flux;
-               let w = s.flux * k;
-               debug("s.flux = " + s.flux + ", next.psfRect_w = " + next.psfRect_w + ", s_w = " + w);
+    console.writeln( "Runtime: " + T.text );
+    return true;
+}
+
+
+function main_gui(refView) 
+{
+    // Our dialog inherits all properties and methods from the core Dialog object.
+    SelectiveStarMask_Dialog.prototype = new Dialog;
+    var dialog = new SelectiveStarMask_Dialog(refView);
+
+    // Show our dialog box, quit if cancelled.
+    for (; ; ) {
+        if (dialog.execute()) {
+            if (refView.fullId == "") {
+                console.criticalln("There is no active image to work on");
+                return false;
+            } else {
+                if (__DEBUGF__)
+                    console.noteln("Ok pressed and dialog was closed");
+                console.show();
+                processEvents();
+                return main_cli(refView);
             }
-
-      }
-   }
-
-
-
-/*
-   var Stars3 = SSMObj.filterStarsByFlux(5.1, 1000);
-   SSMObj.printStars(Stars3);
-   //SSMObj.printGroupStat(Stars3);
-   SSMObj.markStars(Stars3);
-   let mask = SSMObj.createMaskAngle(Stars3, true, false, false, "StarMask_small");
-   SSMObj.makeResidual(mask, Stars3);
-*/
-
-   SSMObj.closeTempImages();
-
-   console.writeln( "Runtime: " + T.text );
+        } else {
+            /*
+            if (__DEBUGF__)
+                console.warningln("Cancel was pressed");
+            var msgStr = "<p>All infromation would be lost.</p>" +
+                "<p>Are you sure?</p>";
+            var msgBox = new MessageBox(msgStr, __SCRIPT_NAME, StdIcon_Error, StdButton_Yes, StdButton_No);
+            if (msgBox.execute() == StdButton_Yes)
+                break;
+            else
+                continue;
+            */
+            break; // instead of asking loop
+        }
+        break;
+    }
+    return true;
 }
 
-//main_test();
+
+// --  Run main function
+
 main();
 
-function GetWindowBmp(window)
-{
-   var imageOrg = window.mainView.image;
-   var tmpW = null;
-   try
-   {
-      tmpW = new ImageWindow(imageOrg.width, imageOrg.height, imageOrg.numberOfChannels,
-         window.bitsPerSample, window.isFloatSample, imageOrg.isColor, "Aux");
-      tmpW.mainView.beginProcess(UndoFlag_NoSwapFile);
-      tmpW.mainView.image.apply(imageOrg);
-     // ApplySTF(tmpW.mainView, window.mainView.stf);
-      tmpW.mainView.endProcess();
-      var bmp = new Bitmap(imageOrg.width, imageOrg.height);
-      bmp.assign(tmpW.mainView.image.render());
-      return bmp;
-   } finally
-   {
-      tmpW.forceClose();
-   }
-}
