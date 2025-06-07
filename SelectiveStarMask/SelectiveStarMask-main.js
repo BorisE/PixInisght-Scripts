@@ -17,17 +17,16 @@
 */
 
 #feature-id Utilities2 > SelectiveStarMask
-#feature-info SelectiveStarMask - is a PixInsight Script to create StarMasks \
-    based on their sizes \
-    stars, create masks from them and, finally, to fix them. \
-    \
-    Copyright &copy; 2024-2025 Boris Emchenko http://astromania.info
+#feature-info A script for generating precise star masks filtered by size and brightness \
+    using StarDetector and PSF fitting. <br/>\
+    <br/>\
+    Copyright &copy; 2024-2025 Boris Emchenko (astromania.info)
 
 //File id
 #define __SELECTIVESTARMASK_MAIN__
 
 // Run Debug mode
-#define __DEBUGF__ true  /*or false*/
+#define __DEBUGF__ false  /*or false*/
 
 // Need to be in front of other declarations
 #ifndef __SELECTIVESTARMASK_VERSION_JSH__
@@ -57,9 +56,11 @@ function main() {
         console.hide();
 
     if (__DEBUGF__)
-        //console.clear();
+        console.clear();
 
-    console.noteln(__SCRIPT_NAME, " script. Version: ", __SCRIPT_VERSION, " Date: ", __SCRIPT_DATE);
+    console.noteln(__SCRIPT_NAME__, ". Version: ", __SCRIPT_VERSION__, " Date: ", __SCRIPT_DATE__);
+
+    if (__DEBUGF__)
     console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
     //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
 
@@ -69,7 +70,7 @@ function main() {
     if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
 
     Config.loadSettings();
-    
+
     Engine = new SelectiveStarMask_engine();
     Engine.debug = __DEBUGF__;
 
@@ -77,7 +78,7 @@ function main() {
         if (__DEBUGF__)
             console.noteln("Running from saved script instance");
         Config.importParameters();
-        
+
         // Run without GUI
         if (Parameters.isViewTarget) {
             console.noteln("Executed on target view, created StarMask based on saved parameters without GUI");
@@ -101,7 +102,7 @@ function main() {
 }
 
 
-function main_cli(refView) 
+function main_cli(refView)
 {
     console.abortEnabled = true;
 
@@ -123,7 +124,7 @@ function main_cli(refView)
         FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
     if ((Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2)) && ( Config.FilterFlux_min != 0 || Config.FilterFlux_max != MAX_INT))
         FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
-    
+
     // (5) Create StarMask
     Config.MaskName = Engine.GetMaskName();
     let StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
@@ -132,7 +133,7 @@ function main_cli(refView)
     //Engine.makeResidual(mask);
     //Engine.markStars(AllStars);
 
-   
+
     if (!__DEBUGF__)
         Engine.closeTempImages();
 
@@ -141,7 +142,7 @@ function main_cli(refView)
 }
 
 
-function main_gui(refView) 
+function main_gui(refView)
 {
     // Our dialog inherits all properties and methods from the core Dialog object.
     SelectiveStarMask_Dialog.prototype = new Dialog;
@@ -166,7 +167,7 @@ function main_gui(refView)
                 console.warningln("Cancel was pressed");
             var msgStr = "<p>All infromation would be lost.</p>" +
                 "<p>Are you sure?</p>";
-            var msgBox = new MessageBox(msgStr, __SCRIPT_NAME, StdIcon_Error, StdButton_Yes, StdButton_No);
+            var msgBox = new MessageBox(msgStr, __SCRIPT_NAME__, StdIcon_Error, StdButton_Yes, StdButton_No);
             if (msgBox.execute() == StdButton_Yes)
                 break;
             else

@@ -239,9 +239,10 @@ function SelectiveStarMask_Dialog(refView) {
         wordWrapping = true;
         useRichText = true;
         backgroundColor = Color.rgbaColor(150,200,255,0xff);
-        text = "<p><b>" + __SCRIPT_NAME + " v" + __SCRIPT_VERSION + "</b><br/>" +
+        text = "<p><b>" + __SCRIPT_NAME__ + " v" + __SCRIPT_VERSION__ + "</b><br/>" +
             __INFO_STRING__ +
-            ".</p><p>" +
+            ".</p>"
+            + "<p>" +
             __COPYRIGHT_STRING__ +
             "</p>"
         setScaledMinWidth(MIN_DIALOG_WIDTH); //min width //45*this.font.width( 'M' );
@@ -685,7 +686,8 @@ function SelectiveStarMask_Dialog(refView) {
         enabled = false;
         onClick = function () {
             if ( this.backgroundColor == parent.backgroundColor ) {
-                console.noteln("Apply filter");
+                console.noteln();
+                console.noteln("Appling filters...");
                 this.pushed = true;
                 this.icon = this.scaledResource( ":/icons/filter-delete.png" );
                 this.backgroundColor = 0xffffffff;
@@ -724,7 +726,8 @@ function SelectiveStarMask_Dialog(refView) {
         icon = this.scaledResource( ":/toolbar/mask-enabled.png" );
         setFixedHeight (40);
         onClick = function () {
-            console.writeln("Filtering stars...");
+            console.noteln();
+            console.noteln("Creating mask...");
             Config.MaskName = Engine.GetMaskName();
             if (Engine.filterApplied) {
                 parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
@@ -772,7 +775,7 @@ function SelectiveStarMask_Dialog(refView) {
     this.cancel_Button = new PushButton( this );
 	with(this.cancel_Button) {
         text = "Close";
-        toolTip = "Close the " + __SCRIPT_NAME + " script.";
+        toolTip = "Close the " + __SCRIPT_NAME__ + " script.";
         setFixedHeight (40);
         iconHeight = 100;
         icon =  this.scaledResource( ":/icons/close.png" );
@@ -825,7 +828,7 @@ function SelectiveStarMask_Dialog(refView) {
         add(this.buttons_Sizer);
     }
 
-    this.windowTitle = __SCRIPT_NAME + " Script";
+    this.windowTitle = __SCRIPT_NAME__ + " Script";
     this.adjustToContents();
 
 
@@ -873,7 +876,7 @@ function SelectiveStarMask_Dialog(refView) {
 
  	this.displaySizeGroupsStat = function( StarsSizeGoupArr, SizeGrouping, Stat )
     {
- 		console.writeln("<i>displaySizeGroupsStat: output stars size grouping data to TreeBox. StarsArray = " + (StarsSizeGoupArr ? StarsSizeGoupArr.length : StarsSizeGoupArr) + "</i>");
+ 		debug("displaySizeGroupsStat: output stars size grouping data to TreeBox. StarsArray = " + (StarsSizeGoupArr ? StarsSizeGoupArr.length : StarsSizeGoupArr));
         this.starsSizeGroupsTreeBox.clear();
 
  		for ( var i = 0; i < StarsSizeGoupArr.length; ++i ) {
@@ -945,7 +948,8 @@ function SelectiveStarMask_Dialog(refView) {
 	{
         debug("<i>updateMainData: put stats into fields</i>");
 
-        console.noteln("Stars: " + Engine.Stars.length  + ", fitted: " + Engine.cntFittedStars);
+        debug("Stars: " + Engine.Stars.length  + ", fitted: " + Engine.cntFittedStars);
+        
         if (!FilteredStarsArray) {
             this.StarsDetected_Label.text = Engine.Stars.length.toString() + ", fitted: " + Engine.cntFittedStars.toString();
             
@@ -962,7 +966,8 @@ function SelectiveStarMask_Dialog(refView) {
             Config.FilterFlux_max = roundUp(Engine.Stat.flux_max,3);
             
         } else {
-            console.noteln("Stars filtered: " + Engine.FilteredStars.length.toString());
+            console.writeln();
+            console.writeln("Stars after filters applied: " + Engine.FilteredStars.length.toString());
             this.StarsDetected_Label.text = "filtered " + Engine.FilteredStars.length.toString() + " out of " + Engine.Stars.length.toString();
         }
 	}
@@ -978,7 +983,7 @@ function mainGUI() {
     if (__DEBUGF__)
         console.clear();
 
-    console.noteln(__SCRIPT_NAME, " script started. Version: ", __SCRIPT_VERSION, " Date: ", __SCRIPT_DATE);
+    console.noteln(__SCRIPT_NAME__, " script started. Version: ", __SCRIPT_VERSION__, " Date: ", __SCRIPT_DATE__);
     console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
     //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
 
@@ -1019,7 +1024,7 @@ function mainGUI() {
             if (refView.fullId == "") {
                 var msgStr = "<p>There are no image specified.</p>" +
                     "<p>Do you wish to continue?</p>";
-                var msg = new MessageBox(msgStr, __SCRIPT_NAME, StdIcon_Error, StdButton_Yes, StdButton_No);
+                var msg = new MessageBox(msgStr, __SCRIPT_NAME__, StdIcon_Error, StdButton_Yes, StdButton_No);
                 if (msg.execute() == StdButton_Yes)
                     continue;
                 else
@@ -1032,7 +1037,7 @@ function mainGUI() {
         } else {
             var msgStr = "<p>All infromation would be lost.</p>" +
                 "<p>Are you sure?</p>";
-            var msgBox = new MessageBox(msgStr, __SCRIPT_NAME, StdIcon_Error, StdButton_Yes, StdButton_No);
+            var msgBox = new MessageBox(msgStr, __SCRIPT_NAME__, StdIcon_Error, StdButton_Yes, StdButton_No);
             break; //for debug
             if (msgBox.execute() == StdButton_Yes)
                 break;

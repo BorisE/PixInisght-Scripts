@@ -592,7 +592,7 @@ function SelectiveStarMask_engine()
             return this.workingView;
             
         } else {
-            console.noteln("No need to add pedestal for the image");
+            console.writeln("*** No need to add pedestal for the image");
         }
           
         return false;
@@ -993,7 +993,7 @@ function SelectiveStarMask_engine()
       console.noteln( "=".repeat(100) );
 
       // Legend
-      console.writeln("Legend: nmax=0, nmax=");
+      console.writeln("Note: nmax - number of local maxima in the detection structure: nmax>1 denoted double/multiple star, namx=0 poorly detected (i.e. oversaturated)");
       
       return true;
    }
@@ -1206,6 +1206,10 @@ function SelectiveStarMask_engine()
       w.zoomToFit();
 
       this.addFITSData( w, StarsArray );
+      
+      console.writeln();
+      console.writeln("Mask was created");
+      console.writeln();
 
       if (softenMask)
       {
@@ -1508,7 +1512,7 @@ function SelectiveStarMask_engine()
 
     this.GetMaskName = function ()
     {
-        let MN = DEFAULT_MASK_NAME;
+        let MN = __DEFAULT_MASK_NAME__;
         if (this.curFilterSize.enabled){
             MN = MN + "_size_" + this.curFilterSize.min.toString().replace(".","_") + "_" + this.curFilterSize.max.toString().replace(".","_")
         }

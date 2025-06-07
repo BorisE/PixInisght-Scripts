@@ -31,7 +31,7 @@ function ConfigData() {
 
     //Helper functions
     function load(key, type, default_value, precision = 2) {
-        let retV = Settings.read(SETTINGS_KEY_BASE + key, type);
+        let retV = Settings.read(__SETTINGS_KEY_BASE__ + key, type);
         if  (retV == null) retV = default_value;
         // Need to round float to give precision, because it seems that arbitrary numbers can be added to lower decimals (like 3.2100000000012)
         if (type == DataType_Float) retV = round(retV, precision);
@@ -41,7 +41,7 @@ function ConfigData() {
         return load(key + '_' + index.toString(), type);
     }
     function save(key, type, value) {
-        Settings.write(SETTINGS_KEY_BASE + key, type, value);
+        Settings.write(__SETTINGS_KEY_BASE__ + key, type, value);
     }
     function saveIndexed(key, index, type, value) {
         save(key + '_' + index.toString(), type, value);
