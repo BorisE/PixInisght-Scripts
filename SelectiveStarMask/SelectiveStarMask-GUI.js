@@ -1,5 +1,5 @@
-#ifndef __STARSIZEMASK_GUI__
-    #define __STARSIZEMASK_GUI__
+#ifndef __SELECTIVESTARMASK_GUI__
+    #define __SELECTIVESTARMASK_GUI__
 #endif
 
 #ifndef __DEBUGF__
@@ -7,21 +7,21 @@
 #endif
 
 // Need to be in front of other declarations
-#ifndef __STARSIZEMASK_VERSION_JSH__
-	#include "StarSizeMask-version.jsh"	// Version
+#ifndef __SELECTIVESTARMASK_VERSION_JSH__
+	#include "SelectiveStarMask-version.jsh"	// Version
     #include "SelectiveStarMask-lib.js" // Functions lib
 #endif
 // Need to be a second
-#ifndef __STARMASKSIZE_SETTINGS__
-	#include "StarSizeMask-settings.js" // Settings object
+#ifndef __SELECTIVESTARMASK_SETTINGS__
+	#include "SelectiveStarMask-settings.js" // Settings object
     var Config = new ConfigData(); //variable for global access to script data
     //Need to be in front of other declarations
     console.noteln('Creating again Config');
 #endif
 
 
-#ifndef __STARSIZEMASK_ENGINE__
-	#include "StarSizeMask-engine.js" // Engine
+#ifndef __SELECTIVESTARMASK_ENGINE__
+	#include "SelectiveStarMask-engine.js" // Engine
 #endif
 
 
@@ -319,8 +319,8 @@ function SelectiveStarMask_Dialog(refView) {
         text = (Config.FilterSize_min ? Config.FilterSize_min : 0).toString();
         toolTip = "Minimum star Size to be included in filtered subset";
         onTextUpdated = function () {
-            Engine.curFilterSize.min = parseFloat(this.text);
-            Config.FilterSize_min = Engine.curFilterSize.min;
+            Config.FilterSize_min = parseFloat(this.text);
+            Engine.curFilterSize.min = Config.FilterSize_min;
             console.warningln("New min:" + Engine.curFilterSize.min);
         };
     }
@@ -349,8 +349,8 @@ function SelectiveStarMask_Dialog(refView) {
         //minWidth = 5*this.font.width( 'M' );
         toolTip = "Maximum star Size to be included in filtered subset";
         onTextUpdated = function () {
-            Engine.curFilterSize.max = parseFloat(this.text);
-            Config.FilterSize_max = Engine.curFilterSize.max;
+            Config.FilterSize_max = parseFloat(this.text);
+            Engine.curFilterSize.max = Config.FilterSize_max;
         };
     }
 
@@ -394,8 +394,8 @@ function SelectiveStarMask_Dialog(refView) {
         //minWidth = labelWidth1;
         toolTip = "Minimum star flux to be included in filtered subset";
         onTextUpdated = function () {
-            Engine.curFilterFlux.min = parseFloat(this.text);
-            Config.FilterFlux_min = Engine.curFilterFlux.min;
+            Config.FilterFlux_min = parseFloat(this.text);
+            Engine.curFilterFlux.min = Config.FilterFlux_min;
         };
     }
 
@@ -424,8 +424,8 @@ function SelectiveStarMask_Dialog(refView) {
         //minWidth = labelWidth1;
         toolTip = "Maximum star flux to be included in filtered subset";
         onTextUpdated = function () {
-            Engine.curFilterFlux.max = parseFloat(this.text);
-            Config.FilterFlux_max = Engine.curFilterFlux.max;
+            Config.FilterFlux_max = parseFloat(this.text);
+            Engine.curFilterFlux.max = Config.FilterFlux_max;
         };
     }
 
@@ -660,7 +660,6 @@ function SelectiveStarMask_Dialog(refView) {
             Engine.printGroupStat();
             if (!__DEBUGF__)
                 Engine.closeTempImages();
-            Config.saveSettings();
 
             this.parent.updateMainData();
             this.parent.displayStarsStat(Engine.Stars);
@@ -697,9 +696,7 @@ function SelectiveStarMask_Dialog(refView) {
                     FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
                 // Filter by flux (if needed)
                 if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
-                    Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
-                
-                Config.saveSettings();
+                    FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
                 
                 this.parent.updateMainData(FilteredStars);
                 
@@ -711,6 +708,7 @@ function SelectiveStarMask_Dialog(refView) {
                 Engine.filterApplied = false;
                 this.parent.updateMainData();
             }
+            Config.saveSettings();
         }
         onRelease = function () {
             return false;
@@ -733,6 +731,7 @@ function SelectiveStarMask_Dialog(refView) {
             } else {
                 parent.StarMaskId = Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
             }
+            Config.saveSettings();
         }
     }
 
@@ -914,6 +913,7 @@ function SelectiveStarMask_Dialog(refView) {
 
  		for ( var i = 0; i < StarsFluxGoupArr.length; ++i ) {
  			var treeNode = new TreeBoxNode();
+            let hi, lo;
 
             lo = Math.pow( 10, FluxGrouping.IntervalWidth * i) *  Stat.flux_min ;
             if (i == StarsFluxGoupArr.length-1)
@@ -958,8 +958,8 @@ function SelectiveStarMask_Dialog(refView) {
             Config.FilterSize_min = roundDown(Engine.Stat.r_min,2);
             Config.FilterSize_max = roundUp(Engine.Stat.r_max,2);
 
-            Config.FilterFlux_min = roundDown(Engine.Stat.flux_min,2);
-            Config.FilterFlux_max = roundUp(Engine.Stat.flux_max,2);
+            Config.FilterFlux_min = roundDown(Engine.Stat.flux_min,3);
+            Config.FilterFlux_max = roundUp(Engine.Stat.flux_max,3);
             
         } else {
             console.noteln("Stars filtered: " + Engine.FilteredStars.length.toString());
@@ -1047,7 +1047,7 @@ function mainGUI() {
     //Config.saveSettings();
 }
 
-#ifndef __STARSIZEMASK_MAIN__
+#ifndef __SELECTIVESTARMASK_MAIN__
     //Engine
 	var Engine = new SelectiveStarMask_engine();
 	mainGUI();

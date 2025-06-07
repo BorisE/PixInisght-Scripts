@@ -15,14 +15,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef __STARSIZEMASK_ENGINE__
-	#define __STARSIZEMASK_ENGINE__
+#ifndef __SELECTIVESTARMASK_ENGINE__
+	#define __SELECTIVESTARMASK_ENGINE__
 
 	#define __PJSR_USE_STAR_DETECTOR_V2
 	#define __PJSR_STAR_OBJECT_DEFINED  1
 	#define __PJSR_NO_STAR_DETECTOR_TEST_ROUTINES
     
-#endif /* __STARSIZEMASK_ENGINE__ */
+#endif /* __SELECTIVESTARMASK_ENGINE__ */
 
 #include <pjsr/StarDetector.jsh>
 

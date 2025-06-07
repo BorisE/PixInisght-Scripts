@@ -24,28 +24,28 @@
     Copyright &copy; 2024-2025 Boris Emchenko http://astromania.info
 
 //File id
-#define __STARSIZEMASK_MAIN__
+#define __SELECTIVESTARMASK_MAIN__
 
 // Run Debug mode
 #define __DEBUGF__ true  /*or false*/
 
 // Need to be in front of other declarations
-#ifndef __STARSIZEMASK_VERSION_JSH__
-	#include "StarSizeMask-version.jsh"	// Version
+#ifndef __SELECTIVESTARMASK_VERSION_JSH__
+	#include "SelectiveStarMask-version.jsh"	// Version
     #include "SelectiveStarMask-lib.js"
 #endif
 // Need to be a second
 #ifndef __STARMASKSIZE_SETTINGS__
-	#include "StarSizeMask-settings.js" // Settings object
+	#include "SelectiveStarMask-settings.js" // Settings object
 #endif
 // Variable for global access to script data
 let Config = new ConfigData();
 
-#ifndef __STARSIZEMASK_GUI__
-	#include "StarSizeMask-GUI.js" // GUI
+#ifndef __SELECTIVESTARMASK_GUI__
+	#include "SelectiveStarMask-GUI.js" // GUI
 #endif
-#ifndef __STARSIZEMASK_ENGINE__
-	#include "StarSizeMask-engine.js" // Engine
+#ifndef __SELECTIVESTARMASK_ENGINE__
+	#include "SelectiveStarMask-engine.js" // Engine
 #endif
 
 let Engine;
@@ -122,7 +122,7 @@ function main_cli(refView)
     if ( (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2)) && ( Config.FilterSize_min != 0 || Config.FilterSize_max != MAX_INT))
         FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
     if ((Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2)) && ( Config.FilterFlux_min != 0 || Config.FilterFlux_max != MAX_INT))
-        Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+        FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
     
     // (5) Create StarMask
     Config.MaskName = Engine.GetMaskName();

@@ -1,5 +1,5 @@
-#ifndef __STARMASKSIZE_SETTINGS__
-    #define __STARMASKSIZE_SETTINGS__
+#ifndef __SELECTIVESTARMASK_SETTINGS__
+    #define __SELECTIVESTARMASK_SETTINGS__
     #include <pjsr/DataType.jsh>
 #endif
 
@@ -30,9 +30,11 @@ function ConfigData() {
         console.writeln('<br/><br/>Config object created...<br/>');
 
     //Helper functions
-    function load(key, type, default_value) {
+    function load(key, type, default_value, precision = 2) {
         let retV = Settings.read(SETTINGS_KEY_BASE + key, type);
         if  (retV == null) retV = default_value;
+        // Need to round float to give precision, because it seems that arbitrary numbers can be added to lower decimals (like 3.2100000000012)
+        if (type == DataType_Float) retV = round(retV, precision);
         return retV;
     }
     function loadIndexed(key, index, type) {
@@ -58,13 +60,13 @@ function ConfigData() {
         if ((o = load("maskGrowth", DataType_Boolean, true)) != null)
             this.maskGrowth = o;
         
-        if ((o = load("FilterSize_min", DataType_Float, 0)) != null)
+        if ((o = load("FilterSize_min", DataType_Float, 0, 2)) != null)
             this.FilterSize_min = o;
-        if ((o = load("FilterSize_max", DataType_Float, MAX_INT)) != null)
+        if ((o = load("FilterSize_max", DataType_Float, MAX_INT, 2)) != null)
             this.FilterSize_max = o;
-        if ((o = load("FilterFlux_min", DataType_Float, 0)) != null)
+        if ((o = load("FilterFlux_min", DataType_Float, 0, 3)) != null)
             this.FilterFlux_min = o;
-        if ((o = load("FilterFlux_max", DataType_Float, MAX_INT)) != null)
+        if ((o = load("FilterFlux_max", DataType_Float, MAX_INT, 3)) != null)
             this.FilterFlux_max = o;
 
         

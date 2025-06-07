@@ -17,20 +17,20 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __STARSIZEMASK_VERSION_JSH__
-	#define __STARSIZEMASK_VERSION_JSH__
+#ifndef __SELECTIVESTARMASK_VERSION_JSH__
+	#define __SELECTIVESTARMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME "SelectiveStarMask"
-	#define __SCRIPT_VERSION "2.0beta7"
+	#define __SCRIPT_VERSION "2.0"
 	#define __SCRIPT_DATE "20250607"
 
-	#define __INFO_STRING__ "A script to create StarMask using detected and fitted stars with ability to filter star by sizes"
+	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting features"
 	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko"
 
 	#define SETTINGS_KEY_BASE "SelectiveStarMask/"
     #define DEFAULT_MASK_NAME "SelectiveStarMask"
 
-#endif /* __STARSIZEMASK_VERSION_JSH__ */
+#endif /* __SELECTIVESTARMASK_VERSION_JSH__ */
 
 
 /*
@@ -46,6 +46,11 @@ ToDo
 /*
  * History
  *
+
+ 2.0 [2025 06 07]
+   - first release
+   - all files renamed to SelectiveStarMask (instead of old name StarSizeMask)
+   - saving/loading with floating datatype bug fixed
 
  2.0beta7 [2025 06 07]
    - run filter routines only in case of filter change
