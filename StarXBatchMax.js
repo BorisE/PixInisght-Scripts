@@ -3,7 +3,7 @@
    and merge results using maximum pixel value.
 
    This script clones the active view and runs StarXTerminator on each
-   clone with overlap values ranging from 0.05 to 0.60.  The resulting
+   clone with overlap values in a configurable range.  The resulting
    images are then combined with a PixelMath expression taking the
    maximum value for every pixel.
 */
@@ -13,6 +13,13 @@
 #feature-info  compose the maximum of the results.
 
 #include <pjsr/UndoFlag.jsh>
+
+// ---------------------------------------------------------------------------
+// Global overlap parameters
+// ---------------------------------------------------------------------------
+var OVERLAP_MIN  = 0.05;  // Lowest overlap value
+var OVERLAP_MAX  = 0.60;  // Highest overlap value
+var OVERLAP_STEP = 0.05;  // Increment between overlap values
 
 function cloneView( view, newId )
 {
@@ -35,7 +42,7 @@ function run()
 
    var baseView = window.currentView;
    var overlapValues = [];
-   for ( var o = 0.05; o <= 0.60 + 1e-5; o += 0.05 )
+   for ( var o = OVERLAP_MIN; o <= OVERLAP_MAX + 1e-5; o += OVERLAP_STEP )
       overlapValues.push( Math.round( o*100 )/100 );
 
    var ids = [];
