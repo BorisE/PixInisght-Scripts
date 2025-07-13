@@ -17,32 +17,51 @@
 #include <pjsr/NumericControl.jsh>
 #include <pjsr/StdButton.jsh>
 #include <pjsr/StdIcon.jsh>
+#include <pjsr/FrameStyle.jsh>
 
 // ---------------------------------------------------------------------------
 // Global overlap parameters
 // ---------------------------------------------------------------------------
-var OVERLAP_MIN  = 0.05;  // Lowest overlap value
-var OVERLAP_MAX  = 0.65;  // Highest overlap value
-var OVERLAP_STEP = 0.05;  // Increment between overlap values
+#define __SCRIPT_NAME__ "StarXBatchMax"
+#define __SCRIPT_VERSION__ "1.0"
+#define __SCRIPT_DATE__ "20250713"
+
+#define __INFO_STRING__ "A PixInsight script for generating starless image created with different overlap values"
+#define __COPYRIGHT_STRING__ "Copyright &copy; 2025 by Boris Emchenko (astromania.info)"
+
+// Restrictions
+#define OVERLAP_VALUE_MIN     0.05  // Lowest possible overlap value
+#define OVERLAP_VALUE_MAX     0.65  // Highest possible overlap value
+// Defaults
+#define OVERLAP_MIN_DEFAULT   0.20  // Lowest overlap value
+#define OVERLAP_MAX_DEFAULT   0.60  // Highest overlap value
+#define OVERLAP_STEP_DEFAULT  0.10  // Increment between overlap values
+
+
+// Current values
+var OVERLAP_MIN  = OVERLAP_MIN_DEFAULT;   // Lowest overlap value
+var OVERLAP_MAX  = OVERLAP_MAX_DEFAULT;   // Highest overlap value
+var OVERLAP_STEP = OVERLAP_STEP_DEFAULT;  // Increment between overlap values
 var CLOSE_INTERMEDIATE = true; // Close temporary SXT images
+
 
 function exportParameters()
 {
    Parameters.clear();
-   Parameters.set( "overlap_min", OVERLAP_MIN );
-   Parameters.set( "overlap_max", OVERLAP_MAX );
-   Parameters.set( "overlap_step", OVERLAP_STEP );
+   Parameters.set( "OVERLAP_MIN", OVERLAP_MIN );
+   Parameters.set( "OVERLAP_MAX", OVERLAP_MAX );
+   Parameters.set( "OVERLAP_STEP", OVERLAP_STEP );
    Parameters.set( "close_intermediate", CLOSE_INTERMEDIATE );
 }
 
 function importParameters()
 {
-   if ( Parameters.has( "overlap_min" ) )
-      OVERLAP_MIN = Parameters.getReal( "overlap_min" );
-   if ( Parameters.has( "overlap_max" ) )
-      OVERLAP_MAX = Parameters.getReal( "overlap_max" );
-   if ( Parameters.has( "overlap_step" ) )
-      OVERLAP_STEP = Parameters.getReal( "overlap_step" );
+   if ( Parameters.has( "OVERLAP_MIN" ) )
+      OVERLAP_MIN = Parameters.getReal( "OVERLAP_MIN" );
+   if ( Parameters.has( "OVERLAP_MAX" ) )
+      OVERLAP_MAX = Parameters.getReal( "OVERLAP_MAX" );
+   if ( Parameters.has( "OVERLAP_STEP" ) )
+      OVERLAP_STEP = Parameters.getReal( "OVERLAP_STEP" );
    if ( Parameters.has( "close_intermediate" ) )
       CLOSE_INTERMEDIATE = Parameters.getBoolean( "close_intermediate" );
 }
@@ -55,17 +74,33 @@ function OverlapDialog()
    this.__base__ = Dialog;
    this.__base__();
 
-   var labelWidth1 = this.font.width( "Maximum overlap:" ) + 20;
+   var labelWidth1 = this.font.width( "Maximum overlap:" ) + 120;
+
+    this.helpLabel = new Label(this);
+    with (this.helpLabel) {
+        frameStyle = FrameStyle_Box;
+        margin = 4;
+        wordWrapping = true;
+        useRichText = true;
+        backgroundColor = Color.rgbaColor(150,200,255,0xff);
+        text = "<p><b>" + __SCRIPT_NAME__ + " v" + __SCRIPT_VERSION__ + "</b><br/>" +
+            __INFO_STRING__ +
+            ".</p>"
+            + "<p>" +
+            __COPYRIGHT_STRING__ +
+            "</p>"
+        setScaledMinWidth(labelWidth1); //min width //45*this.font.width( 'M' );
+    }
 
    this.minEdit = new NumericEdit( this );
    with ( this.minEdit )
    {
       label.text = "Start overlap:";
       label.minWidth = labelWidth1;
-      setRange( 0.05, 0.65 );
+      setRange( OVERLAP_VALUE_MIN, OVERLAP_VALUE_MAX );
       setPrecision( 2 );
       setValue( OVERLAP_MIN );
-      toolTip = "Lowest overlap value";
+      toolTip = "Lowest overlap value, should be lower then highest and could be in the range [" + OVERLAP_VALUE_MIN + "," + OVERLAP_VALUE_MAX + "].<br>For StarXTerminator default value is 0.2, if 'Large overlap option' selected - then 0.5";
       onValueUpdated = function( value ){ OVERLAP_MIN = value; };
    }
 
@@ -74,10 +109,10 @@ function OverlapDialog()
    {
       label.text = "End overlap:";
       label.minWidth = labelWidth1;
-      setRange( 0.05, 0.65 );
+      setRange( OVERLAP_VALUE_MIN, OVERLAP_VALUE_MAX );
       setPrecision( 2 );
       setValue( OVERLAP_MAX );
-      toolTip = "Highest overlap value";
+      toolTip = "Highest overlap value, should be higher then lowest and could be in the range [" + OVERLAP_VALUE_MIN + "," + OVERLAP_VALUE_MAX + "].<br>For StarXTerminator default value is 0.2, if 'Large overlap option' selected - then 0.5";
       onValueUpdated = function( value ){ OVERLAP_MAX = value; };
    }
 
@@ -88,7 +123,7 @@ function OverlapDialog()
       label.minWidth = labelWidth1;
       setRange( 0.01, 1.0 );
       setPrecision( 2 );
-      setValue( OVERLAP_STEP );
+      setValue( OVERLAP_STEP_DEFAULT );
       toolTip = "Increment between overlap values";
       onValueUpdated = function( value ){ OVERLAP_STEP = value; };
    }
@@ -146,6 +181,7 @@ function OverlapDialog()
    this.sizer = new VerticalSizer;
    this.sizer.margin = 6;
    this.sizer.spacing = 6;
+   this.sizer.add( this.helpLabel );
    this.sizer.add( this.paramsBox );
    this.sizer.add( this.buttonsSizer );
 
@@ -177,7 +213,7 @@ function run()
 
    var baseView = window.currentView;
    var overlapValues = [];
-   for ( var o = OVERLAP_MIN; o <= OVERLAP_MAX + 1e-5; o += OVERLAP_STEP )
+   for ( var o = Math.min(OVERLAP_MIN,OVERLAP_MAX); o <= Math.max(OVERLAP_MIN,OVERLAP_MAX) + 1e-5; o += OVERLAP_STEP )
       overlapValues.push( Math.round( o*100 )/100 );
 
    var ids = [];
