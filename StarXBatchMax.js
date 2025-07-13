@@ -22,7 +22,7 @@
 // Global overlap parameters
 // ---------------------------------------------------------------------------
 var OVERLAP_MIN  = 0.05;  // Lowest overlap value
-var OVERLAP_MAX  = 0.60;  // Highest overlap value
+var OVERLAP_MAX  = 0.65;  // Highest overlap value
 var OVERLAP_STEP = 0.05;  // Increment between overlap values
 var CLOSE_INTERMEDIATE = true; // Close temporary SXT images
 
@@ -62,7 +62,7 @@ function OverlapDialog()
    {
       label.text = "Start overlap:";
       label.minWidth = labelWidth1;
-      setRange( 0.0, 1.0 );
+      setRange( 0.05, 0.65 );
       setPrecision( 2 );
       setValue( OVERLAP_MIN );
       toolTip = "Lowest overlap value";
@@ -74,7 +74,7 @@ function OverlapDialog()
    {
       label.text = "End overlap:";
       label.minWidth = labelWidth1;
-      setRange( 0.0, 1.0 );
+      setRange( 0.05, 0.65 );
       setPrecision( 2 );
       setValue( OVERLAP_MAX );
       toolTip = "Highest overlap value";
@@ -228,9 +228,13 @@ function run()
 
    for ( var j = 0; j < clones.length; ++j )
    {
-      var w = clones[j].window;
+      var w = clones[j];
       if ( CLOSE_INTERMEDIATE )
-         w.close();
+      {
+         w.window.hide();
+         w.setPropertyValue("dispose", true);
+         w.window.forceClose();
+      }
       else
       {
          w.show();
