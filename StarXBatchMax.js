@@ -25,6 +25,24 @@ var OVERLAP_MIN  = 0.05;  // Lowest overlap value
 var OVERLAP_MAX  = 0.60;  // Highest overlap value
 var OVERLAP_STEP = 0.05;  // Increment between overlap values
 
+function exportParameters()
+{
+   Parameters.clear();
+   Parameters.set( "overlap_min", OVERLAP_MIN );
+   Parameters.set( "overlap_max", OVERLAP_MAX );
+   Parameters.set( "overlap_step", OVERLAP_STEP );
+}
+
+function importParameters()
+{
+   if ( Parameters.has( "overlap_min" ) )
+      OVERLAP_MIN = Parameters.getReal( "overlap_min" );
+   if ( Parameters.has( "overlap_max" ) )
+      OVERLAP_MAX = Parameters.getReal( "overlap_max" );
+   if ( Parameters.has( "overlap_step" ) )
+      OVERLAP_STEP = Parameters.getReal( "overlap_step" );
+}
+
 // ---------------------------------------------------------------------------
 // GUI Dialog for parameter selection
 // ---------------------------------------------------------------------------
@@ -71,6 +89,17 @@ function OverlapDialog()
       onValueUpdated = function( value ){ OVERLAP_STEP = value; };
    }
 
+   this.newInstance_Button = new ToolButton( this );
+   this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
+   this.newInstance_Button.toolTip = "New Instance";
+   this.newInstance_Button.onMousePress = function()
+   {
+      this.hasFocus = true;
+      exportParameters();
+      this.pushed = false;
+      this.dialog.newInstance();
+   };
+
    this.ok_Button = new PushButton( this );
    this.ok_Button.text = "OK";
    this.ok_Button.icon = this.scaledResource( ":/images/icons/ok.png" );
@@ -83,6 +112,7 @@ function OverlapDialog()
 
    this.buttonsSizer = new HorizontalSizer;
    this.buttonsSizer.spacing = 6;
+   this.buttonsSizer.add( this.newInstance_Button );
    this.buttonsSizer.addStretch();
    this.buttonsSizer.add( this.ok_Button );
    this.buttonsSizer.add( this.cancel_Button );
@@ -183,9 +213,17 @@ function run()
 
 function main()
 {
-   var dialog = new OverlapDialog();
-   if ( dialog.execute() )
+   if ( Parameters.isGlobalTarget || Parameters.isViewTarget )
+   {
+      importParameters();
       run();
+   }
+   else
+   {
+      var dialog = new OverlapDialog();
+      if ( dialog.execute() )
+         run();
+   }
 }
 
 main();
