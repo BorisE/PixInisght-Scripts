@@ -13,6 +13,10 @@
 #feature-info  compose the maximum of the results.
 
 #include <pjsr/UndoFlag.jsh>
+#include <pjsr/Sizer.jsh>
+#include <pjsr/NumericEdit.jsh>
+#include <pjsr/StdButton.jsh>
+#include <pjsr/StdIcon.jsh>
 
 // ---------------------------------------------------------------------------
 // Global overlap parameters
@@ -20,6 +24,93 @@
 var OVERLAP_MIN  = 0.05;  // Lowest overlap value
 var OVERLAP_MAX  = 0.60;  // Highest overlap value
 var OVERLAP_STEP = 0.05;  // Increment between overlap values
+
+// ---------------------------------------------------------------------------
+// GUI Dialog for parameter selection
+// ---------------------------------------------------------------------------
+function OverlapDialog()
+{
+   this.__base__ = Dialog;
+   this.__base__();
+
+   var labelWidth1 = this.font.width( "Maximum overlap:" ) + 20;
+
+   this.minEdit = new NumericEdit( this );
+   with ( this.minEdit )
+   {
+      label.text = "Start overlap:";
+      label.minWidth = labelWidth1;
+      setRange( 0.0, 1.0 );
+      setPrecision( 2 );
+      setValue( OVERLAP_MIN );
+      toolTip = "Lowest overlap value";
+      onValueUpdated = function( value ){ OVERLAP_MIN = value; };
+   }
+
+   this.maxEdit = new NumericEdit( this );
+   with ( this.maxEdit )
+   {
+      label.text = "End overlap:";
+      label.minWidth = labelWidth1;
+      setRange( 0.0, 1.0 );
+      setPrecision( 2 );
+      setValue( OVERLAP_MAX );
+      toolTip = "Highest overlap value";
+      onValueUpdated = function( value ){ OVERLAP_MAX = value; };
+   }
+
+   this.stepEdit = new NumericEdit( this );
+   with ( this.stepEdit )
+   {
+      label.text = "Step:";
+      label.minWidth = labelWidth1;
+      setRange( 0.01, 1.0 );
+      setPrecision( 2 );
+      setValue( OVERLAP_STEP );
+      toolTip = "Increment between overlap values";
+      onValueUpdated = function( value ){ OVERLAP_STEP = value; };
+   }
+
+   this.ok_Button = new PushButton( this );
+   this.ok_Button.text = "OK";
+   this.ok_Button.icon = this.scaledResource( ":/images/icons/ok.png" );
+   this.ok_Button.onClick = function(){ this.dialog.ok(); };
+
+   this.cancel_Button = new PushButton( this );
+   this.cancel_Button.text = "Cancel";
+   this.cancel_Button.icon = this.scaledResource( ":/images/icons/cancel.png" );
+   this.cancel_Button.onClick = function(){ this.dialog.cancel(); };
+
+   this.buttonsSizer = new HorizontalSizer;
+   this.buttonsSizer.spacing = 6;
+   this.buttonsSizer.addStretch();
+   this.buttonsSizer.add( this.ok_Button );
+   this.buttonsSizer.add( this.cancel_Button );
+
+   this.paramsBox = new GroupBox( this );
+   with ( this.paramsBox )
+   {
+      title = "Overlap Parameters";
+      sizer = new VerticalSizer;
+      sizer.margin = 6;
+      sizer.spacing = 4;
+      sizer.add( this.minEdit );
+      sizer.add( this.maxEdit );
+      sizer.add( this.stepEdit );
+   }
+
+   this.sizer = new VerticalSizer;
+   this.sizer.margin = 6;
+   this.sizer.spacing = 6;
+   this.sizer.add( this.paramsBox );
+   this.sizer.add( this.buttonsSizer );
+
+   this.windowTitle = "StarXBatchMax";
+   this.adjustToContents();
+   this.setFixedSize();
+}
+
+OverlapDialog.prototype = new Dialog;
 
 function cloneView( view, newId )
 {
@@ -90,4 +181,11 @@ function run()
    PM.executeOn( baseView );
 }
 
-run();
+function main()
+{
+   var dialog = new OverlapDialog();
+   if ( dialog.execute() )
+      run();
+}
+
+main();
