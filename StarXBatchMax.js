@@ -24,6 +24,7 @@
 var OVERLAP_MIN  = 0.05;  // Lowest overlap value
 var OVERLAP_MAX  = 0.60;  // Highest overlap value
 var OVERLAP_STEP = 0.05;  // Increment between overlap values
+var CLOSE_INTERMEDIATE = true; // Close temporary SXT images
 
 function exportParameters()
 {
@@ -31,6 +32,7 @@ function exportParameters()
    Parameters.set( "overlap_min", OVERLAP_MIN );
    Parameters.set( "overlap_max", OVERLAP_MAX );
    Parameters.set( "overlap_step", OVERLAP_STEP );
+   Parameters.set( "close_intermediate", CLOSE_INTERMEDIATE );
 }
 
 function importParameters()
@@ -41,6 +43,8 @@ function importParameters()
       OVERLAP_MAX = Parameters.getReal( "overlap_max" );
    if ( Parameters.has( "overlap_step" ) )
       OVERLAP_STEP = Parameters.getReal( "overlap_step" );
+   if ( Parameters.has( "close_intermediate" ) )
+      CLOSE_INTERMEDIATE = Parameters.getBoolean( "close_intermediate" );
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +93,15 @@ function OverlapDialog()
       onValueUpdated = function( value ){ OVERLAP_STEP = value; };
    }
 
+   this.closeCheckBox = new CheckBox( this );
+   with ( this.closeCheckBox )
+   {
+      text = "Close intermediate SXT images";
+      checked = CLOSE_INTERMEDIATE;
+      toolTip = "Close temporary StarXTerminator images after processing";
+      onCheck = function( checked ){ CLOSE_INTERMEDIATE = checked; };
+   }
+
    this.newInstance_Button = new ToolButton( this );
    this.newInstance_Button.icon = new Bitmap( ":/process-interface/new-instance.png" );
    this.newInstance_Button.toolTip = "New Instance";
@@ -127,6 +140,7 @@ function OverlapDialog()
       sizer.add( this.minEdit );
       sizer.add( this.maxEdit );
       sizer.add( this.stepEdit );
+      sizer.add( this.closeCheckBox );
    }
 
    this.sizer = new VerticalSizer;
@@ -167,6 +181,7 @@ function run()
       overlapValues.push( Math.round( o*100 )/100 );
 
    var ids = [];
+   var clones = [];
 
    for ( var i = 0; i < overlapValues.length; ++i )
    {
@@ -174,6 +189,7 @@ function run()
       var suffix = ( ov*100 < 10 ? "0" : "" ) + Math.round( ov*100 );
       var id = "SXT_" + suffix;
       var clone = cloneView( baseView, id );
+      clones.push( clone );
 
       var P = new StarXTerminator;
       P.ai_file = "StarXTerminator.11.pb";
@@ -209,6 +225,18 @@ function run()
    PM.newImageColorSpace = PixelMath.prototype.SameAsTarget;
    PM.newImageSampleFormat = PixelMath.prototype.SameAsTarget;
    PM.executeOn( baseView );
+
+   for ( var j = 0; j < clones.length; ++j )
+   {
+      var w = clones[j].window;
+      if ( CLOSE_INTERMEDIATE )
+         w.close();
+      else
+      {
+         w.show();
+         w.zoomToFit();
+      }
+   }
 }
 
 function main()
