@@ -14,7 +14,7 @@
 
 #include <pjsr/UndoFlag.jsh>
 #include <pjsr/Sizer.jsh>
-#include <pjsr/NumericEdit.jsh>
+#include <pjsr/NumericControl.jsh>
 #include <pjsr/StdButton.jsh>
 #include <pjsr/StdIcon.jsh>
 
