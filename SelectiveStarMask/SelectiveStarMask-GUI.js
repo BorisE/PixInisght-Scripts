@@ -586,10 +586,10 @@ function SelectiveStarMask_Dialog(refView) {
             headerSorting = true;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
-                setHeaderText ( i, this.starsListColumnKeys[i].header );
-                //adjustColumnWidthToContents( i );
+                setHeaderText( i, this.starsListColumnKeys[i].header );
                 setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
-                setColumnWidth( i, this.starsListColumnKeys[i].width );
+                // Scale column widths so headers remain evenly distributed on high-DPI displays
+                setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
             }
 
             setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
