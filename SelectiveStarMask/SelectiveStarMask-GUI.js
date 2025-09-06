@@ -582,18 +582,16 @@ function SelectiveStarMask_Dialog(refView) {
             headerVisible = true;
             indentSize = 0;
 
-            // enable manual sorting when clicking column headers
-            headerSorting = true;
-
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText( i, this.starsListColumnKeys[i].header );
                 setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
-                // Use fixed column widths so headers remain within the visible frame
-                setColumnWidth( i, this.starsListColumnKeys[i].width );
+                // Scale column widths to maintain even distribution across resolutions
+                setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
             }
 
             setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
         }
+        // enable manual sorting when clicking column headers
         this.starsListTreeBox.sortColumn = -1;
         this.starsListTreeBox.sortAscending = true;
         this.starsListTreeBox.onHeaderClick = function( index ) {
