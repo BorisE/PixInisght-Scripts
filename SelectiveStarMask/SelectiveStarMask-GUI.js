@@ -584,29 +584,27 @@ function SelectiveStarMask_Dialog(refView) {
 
             // enable manual sorting when clicking column headers
             headerSorting = true;
-            sortColumn = -1;
-            sortAscending = true;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText ( i, this.starsListColumnKeys[i].header );
                 setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
                 // scale column widths so that they adapt to screen resolution
-                setColumnWidth( i, dialog.scaled( this.starsListColumnKeys[i].width ) );
+                setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
             }
-
-            // toggle sorting order when clicking on column headers
-            onHeaderClick = function( index ) {
-                if ( this.sortColumn === index )
-                    this.sortAscending = !this.sortAscending;
-                else {
-                    this.sortColumn = index;
-                    this.sortAscending = true;
-                }
-                this.sort( index, this.sortAscending );
-            };
 
             setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
         }
+        this.starsListTreeBox.sortColumn = -1;
+        this.starsListTreeBox.sortAscending = true;
+        this.starsListTreeBox.onHeaderClick = function( index ) {
+            if ( this.sortColumn === index )
+                this.sortAscending = !this.sortAscending;
+            else {
+                this.sortColumn = index;
+                this.sortAscending = true;
+            }
+            this.sort( index, this.sortAscending );
+        };
     this.StarList_Control = new Control( this )
     this.StarList_Control.sizer = new VerticalSizer;
     this.StarList_Control.sizer.margin = 6;
