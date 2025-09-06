@@ -94,25 +94,25 @@ function SelectiveStarMask_Dialog(refView) {
         // — Geometric / detection properties —
         {
             header:    "X",
-            width:     60,
+            width:     40,
             precision: 0,
             extractor: s => s.pos != null ? s.pos.x : NaN
         },
         {
             header:    "Y",
-            width:     60,
+            width:     40,
             precision: 0,
             extractor: s => s.pos != null ? s.pos.y : NaN
         },
         {
             header:    "Flux",
-            width:     105,
+            width:     75,
             precision: 3,
             extractor: s => s.flux
         },
         {
             header:    "Bkg",
-            width:     100,
+            width:     75,
             precision: 5,
             extractor: s => s.bkg
         },
@@ -130,20 +130,20 @@ function SelectiveStarMask_Dialog(refView) {
         },
         {
             header:    "Size",
-            width:     60,
+            width:     50,
             precision: 0,
             extractor: s => s.size
         },
         {
             header:    "SizeRad",
-            width:     80,
+            width:     55,
             precision: 2,
 			color:     Color.BLUE,
             extractor: s => s.sizeRadius
         },
         {
             header:    "NMax",
-            width:     60,
+            width:     45,
             precision: 0,
             extractor: s => (s.nmax != null ? "(" + s.nmax + ")" : "")
         },
@@ -152,13 +152,13 @@ function SelectiveStarMask_Dialog(refView) {
         // — DynamicPSF parameters —
         {
             header:    "PSF_flux",
-            width:     105,
+            width:     60,
             precision: 3,
             extractor: s => s.PSF_flux
         },
         {
             header:    "PSF_A",
-            width:     70,
+            width:     60,
             precision: 3,
             extractor: s => s.PSF_a
         },
@@ -168,21 +168,21 @@ function SelectiveStarMask_Dialog(refView) {
 
         {
             header:    "SizeGrp",
-            width:     85,
+            width:     55,
             precision: 0,
             color:     Color.RED,
             extractor: s => (s.sizeGroup != null ? s.sizeGroup : "")
         },
         {
             header:    "FluxGrp",
-            width:     85,
+            width:     55,
             precision: 0,
             color:     Color.RED,
             extractor: s => (s.fluxGroup != null ? s.fluxGroup : "")
         },
         {
             header:    "FluxLog",
-            width:     80,
+            width:     55,
             precision: 2,
             color:     Color.BLUE,
             extractor: s => (s.fluxLog != null ? s.fluxLog : NaN)
@@ -191,32 +191,32 @@ function SelectiveStarMask_Dialog(refView) {
         // — Final FWHM values —
         {
             header:    "FWHMx",
-            width:     90,
+            width:     60,
             precision: 2,
             extractor: s => s.FWHMx
         },
         {
             header:    "FWHMy",
-            width:     90,
+            width:     60,
             precision: 2,
             extractor: s => s.FWHMy
         },
 
         {
             header:    "PSF_theta",
-            width:     100,
-            precision: 2,
+            width:     80,
+            precision: 1,
             extractor: s => s.PSF_theta
         },
         {
             header:    "Pw",
-            width:     70,
+            width:     40,
             precision: 0,
             extractor: s => (s.PSF_rect != null ? s.PSF_rect.x1 - s.PSF_rect.x0 : NaN)
         },
         {
-            header:    "Pg",
-            width:     70,
+            header:    "Ph",
+            width:     40,
             precision: 0,
             extractor: s => (s.PSF_rect != null ? s.PSF_rect.y1 - s.PSF_rect.y0 : NaN)
         }
@@ -532,7 +532,7 @@ function SelectiveStarMask_Dialog(refView) {
             setHeaderText ( i, this.starsSizeGroupsColumnKeys[i].header );
             //adjustColumnWidthToContents( i );
             setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsSizeGroupsColumnKeys[i].width );
+            setColumnWidth( i,  this.logicalPixelsToPhysical(this.starsSizeGroupsColumnKeys[i].width) );
         }
 
 		//setScaledMinSize( 400, 270 );
@@ -555,7 +555,7 @@ function SelectiveStarMask_Dialog(refView) {
             setHeaderText ( i, this.starsFluxGroupsColumnKeys[i].header );
             //adjustColumnWidthToContents( i );
             setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsFluxGroupsColumnKeys[i].width );
+            setColumnWidth( i,  this.logicalPixelsToPhysical(this.starsFluxGroupsColumnKeys[i].width) );
         }
 
 		setScaledMinHeight( 100 );
@@ -574,24 +574,37 @@ function SelectiveStarMask_Dialog(refView) {
 
     // -- StarsList Table --
     
-	this.starsListTreeBox = new TreeBox( this );
-	with ( this.starsListTreeBox ) {
-		toolTip = "<p>Output of computed Star statistics.</p>";
-        alternateRowColor = true;
-		font = new Font( FontFamily_Monospace, 8 );
-        headerVisible = true;
-        indentSize = 0;
+        this.starsListTreeBox = new TreeBox( this );
+        with ( this.starsListTreeBox ) {
+            toolTip = "<p>Output of computed Star statistics.</p>";
+            alternateRowColor = true;
+            font = new Font( FontFamily_Monospace, 8 );
+            headerVisible = true;
+            indentSize = 0;
 
-        for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
-            setHeaderText ( i, this.starsListColumnKeys[i].header );
-            //adjustColumnWidthToContents( i );
-            setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsListColumnKeys[i].width ); //this.starsListColumnKeys[i].width
+            // enable manual sorting when clicking column headers
+            headerSorting = true;
+
+            for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
+                setHeaderText ( i, this.starsListColumnKeys[i].header );
+                setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
+                // scale column widths so that they adapt to screen resolution
+                setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
+            }
+
+            setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
         }
-
-		setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
-
-    }
+        this.starsListTreeBox.sortColumn = -1;
+        this.starsListTreeBox.sortAscending = true;
+        this.starsListTreeBox.onHeaderClick = function( index ) {
+            if ( this.sortColumn === index )
+                this.sortAscending = !this.sortAscending;
+            else {
+                this.sortColumn = index;
+                this.sortAscending = true;
+            }
+            this.sort( index, this.sortAscending );
+        };
     this.StarList_Control = new Control( this )
     this.StarList_Control.sizer = new VerticalSizer;
     this.StarList_Control.sizer.margin = 6;
