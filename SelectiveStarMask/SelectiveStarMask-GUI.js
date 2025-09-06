@@ -532,7 +532,7 @@ function SelectiveStarMask_Dialog(refView) {
             setHeaderText ( i, this.starsSizeGroupsColumnKeys[i].header );
             //adjustColumnWidthToContents( i );
             setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsSizeGroupsColumnKeys[i].width );
+            setColumnWidth( i, this.logicalPixelsToPhysical( this.starsSizeGroupsColumnKeys[i].width ) );
         }
 
 		//setScaledMinSize( 400, 270 );
@@ -555,7 +555,7 @@ function SelectiveStarMask_Dialog(refView) {
             setHeaderText ( i, this.starsFluxGroupsColumnKeys[i].header );
             //adjustColumnWidthToContents( i );
             setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsFluxGroupsColumnKeys[i].width );
+            setColumnWidth( i, this.logicalPixelsToPhysical( this.starsFluxGroupsColumnKeys[i].width ) );
         }
 
 		setScaledMinHeight( 100 );
@@ -585,7 +585,7 @@ function SelectiveStarMask_Dialog(refView) {
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText( i, this.starsListColumnKeys[i].header );
                 setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
-                setColumnWidth( i, this.starsListColumnKeys[i].width );
+                setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
             }
 
             setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
