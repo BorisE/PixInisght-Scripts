@@ -299,6 +299,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.ImageInfo_Sizer);
         sizer.add(this.StarsInfo_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH );
     }
 
 
@@ -367,7 +368,7 @@ function SelectiveStarMask_Dialog(refView) {
     }
 
     // Size filter groupbox
-	this.SizeFilterGroupBox = new GroupBox(this);
+    this.SizeFilterGroupBox = new GroupBox(this);
     with (this.SizeFilterGroupBox) {
         title = "Size (radius) filtering";
         sizer = new VerticalSizer;
@@ -375,6 +376,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.minSizeFilter_Sizer);
         sizer.add(this.maxSizeFilter_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
     }
 
 
@@ -448,6 +450,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.minFluxFilter_Sizer);
         sizer.add(this.maxFluxFilter_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
     }
 
 
@@ -502,6 +505,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.margin = 6;
         sizer.spacing = 4;
         sizer.add(this.Parameters_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
     }
 
 
@@ -510,11 +514,9 @@ function SelectiveStarMask_Dialog(refView) {
     with (this.Filter_Sizer) {
         spacing = 4;
         //addUnscaledSpacing(labelWidth1);
-        add(this.SizeFilterGroupBox);
-        add(this.FluxFilterGroupBox);
-        add(this.MaskParametersGroupBox);
-        
-        addStretch();
+        add(this.SizeFilterGroupBox, 100);
+        add(this.FluxFilterGroupBox, 100);
+        add(this.MaskParametersGroupBox, 100);
     }
 
 
@@ -566,9 +568,8 @@ function SelectiveStarMask_Dialog(refView) {
     this.GroupingReports_Sizer = new HorizontalSizer;
     with (this.GroupingReports_Sizer) {
         spacing = 4;
-        add(this.starsSizeGroupsTreeBox);
-        add(this.starsFluxGroupsTreeBox);
-        addStretch();
+        add(this.starsSizeGroupsTreeBox, 100);
+        add(this.starsFluxGroupsTreeBox, 100);
     }
 
 
