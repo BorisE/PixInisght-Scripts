@@ -574,24 +574,39 @@ function SelectiveStarMask_Dialog(refView) {
 
     // -- StarsList Table --
     
-	this.starsListTreeBox = new TreeBox( this );
-	with ( this.starsListTreeBox ) {
-		toolTip = "<p>Output of computed Star statistics.</p>";
-        alternateRowColor = true;
-		font = new Font( FontFamily_Monospace, 8 );
-        headerVisible = true;
-        indentSize = 0;
+        this.starsListTreeBox = new TreeBox( this );
+        with ( this.starsListTreeBox ) {
+            toolTip = "<p>Output of computed Star statistics.</p>";
+            alternateRowColor = true;
+            font = new Font( FontFamily_Monospace, 8 );
+            headerVisible = true;
+            indentSize = 0;
 
-        for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
-            setHeaderText ( i, this.starsListColumnKeys[i].header );
-            //adjustColumnWidthToContents( i );
-            setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.starsListColumnKeys[i].width ); //this.starsListColumnKeys[i].width
+            // enable manual sorting when clicking column headers
+            headerSorting = true;
+            sortColumn = -1;
+            sortAscending = true;
+
+            for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
+                setHeaderText ( i, this.starsListColumnKeys[i].header );
+                setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
+                // scale column widths so that they adapt to screen resolution
+                setColumnWidth( i, dialog.scaled( this.starsListColumnKeys[i].width ) );
+            }
+
+            // toggle sorting order when clicking on column headers
+            onHeaderClick = function( index ) {
+                if ( this.sortColumn === index )
+                    this.sortAscending = !this.sortAscending;
+                else {
+                    this.sortColumn = index;
+                    this.sortAscending = true;
+                }
+                this.sort( index, this.sortAscending );
+            };
+
+            setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
         }
-
-		setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
-
-    }
     this.StarList_Control = new Control( this )
     this.StarList_Control.sizer = new VerticalSizer;
     this.StarList_Control.sizer.margin = 6;
