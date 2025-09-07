@@ -571,6 +571,20 @@ function SelectiveStarMask_Dialog(refView) {
         add(this.starsFluxGroupsTreeBox, 100);
     }
 
+    this.GroupingReports_Control = new Control( this );
+    this.GroupingReports_Control.sizer = this.GroupingReports_Sizer;
+
+    this.GroupingReports_Section = new SectionBar( this, "Star groups" );
+    this.GroupingReports_Section.setSection( this.GroupingReports_Control );
+    this.GroupingReports_Section.onToggleSection = function ( section, beginToggle ) {
+        if ( !beginToggle ) {
+            section.dialog.setVariableHeight();
+            section.dialog.adjustToContents();
+        } else {
+            section.dialog.setMinHeight();
+        }
+    };
+
 
     // -- StarsList Table --
 
@@ -603,7 +617,29 @@ function SelectiveStarMask_Dialog(refView) {
                 this.sortColumn = index;
                 this.sortAscending = true;
             }
-            this.sort( index, this.sortAscending );
+
+            // Custom numeric-aware sorting
+            let nodes = [];
+            for ( let i = 0; i < this.numberOfChildren; ++i )
+                nodes.push( this.child( i ) );
+
+            let asc = this.sortAscending ? 1 : -1;
+            nodes.sort( (a, b) => {
+                let va = a.rawValues ? a.rawValues[index] : a.text( index );
+                let vb = b.rawValues ? b.rawValues[index] : b.text( index );
+                let na = Number( va );
+                let nb = Number( vb );
+                let cmp;
+                if ( !isNaN( na ) && !isNaN( nb ) )
+                    cmp = na - nb;
+                else
+                    cmp = String( va ).localeCompare( String( vb ) );
+                return asc * cmp;
+            } );
+
+            this.clear();
+            for ( let n of nodes )
+                this.add( n );
         };
 
     this.StarList_Control = new Control( this )
@@ -828,12 +864,13 @@ function SelectiveStarMask_Dialog(refView) {
         add(this.Filter_Sizer);
         addSpacing(4);
 
-        add(this.GroupingReports_Sizer);
+        add(this.GroupingReports_Section);
+        add(this.GroupingReports_Control);
         addSpacing(10);
 
         add(this.StarList_Section);
         add(this.StarList_Control);
-		//add(this.starsListTreeBox);
+                //add(this.starsListTreeBox);
 
         //add(this.clearConsoleCheckBox_Sizer);
         addSpacing(10);
@@ -857,16 +894,18 @@ function SelectiveStarMask_Dialog(refView) {
         if ( topRecords == 0 )
             topRecords = StarsArray.length;
 
- 		for ( var i = 0; i < topRecords; ++i ) {
+        for ( var i = 0; i < topRecords; ++i ) {
 
- 			var treeNode = new TreeBoxNode();
- 			let s = StarsArray[i];
+            var treeNode = new TreeBoxNode();
+            treeNode.rawValues = [];
+            let s = StarsArray[i];
 
             for ( let col = 0; col < this.starsListColumnKeys.length; ++col ) {
                 let { extractor, precision } = this.starsListColumnKeys[col];
 
                 // Convert `rawValue` to string, with formatting for numbers:
                 let rawValue = extractor(s);
+                treeNode.rawValues[col] = rawValue;
                 let text;
                 if (typeof rawValue === "number" && !isNaN(rawValue)) {
                     // Format number with the column's precision
@@ -884,8 +923,8 @@ function SelectiveStarMask_Dialog(refView) {
                 treeNode.setText( col, text );
             }
             this.starsListTreeBox.add( treeNode );
- 		}
- 	}
+        }
+    }
 
 
  	this.displaySizeGroupsStat = function( StarsSizeGoupArr, SizeGrouping, Stat )
