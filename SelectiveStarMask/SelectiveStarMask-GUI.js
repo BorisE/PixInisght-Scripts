@@ -725,13 +725,14 @@ function SelectiveStarMask_Dialog(refView) {
             this.parent.filter_Button.enabled = true;
             this.parent.mask_Button.enabled = true;
             this.parent.showDetected_Button.enabled = true;
+            this.parent.saveStars_Button.enabled = true;
             return true;
         }
     }
 
 	// Filter stars button
     this.filter_Button = new PushButton( this );
-	with (this.filter_Button) {
+        with (this.filter_Button) {
         text = "Filter";
         toolTip = "Filter stars by flux";
         icon = this.scaledResource( ":/icons/filter.png" );
@@ -770,6 +771,25 @@ function SelectiveStarMask_Dialog(refView) {
         }
         onRelease = function () {
             return false;
+        }
+    }
+
+    // Save detected stars to CSV button
+    this.saveStars_Button = new PushButton( this );
+    with (this.saveStars_Button) {
+        text = "Save CSV";
+        toolTip = "Save detected stars to CSV file";
+        icon = this.scaledResource( ":/icons/save.png" );
+        setFixedHeight (40);
+        enabled = false;
+        onClick = function () {
+            let saveDialog = new SaveFileDialog;
+            saveDialog.caption = "Save Detected Stars";
+            saveDialog.overwritePrompt = true;
+            saveDialog.filters = [["CSV Files", "*.csv"], ["All Files", "*"]];
+            if (saveDialog.execute()) {
+                Engine.saveStars(saveDialog.fileName, Engine.filterApplied ? Engine.FilteredStars : undefined);
+            }
         }
     }
 
@@ -849,10 +869,11 @@ function SelectiveStarMask_Dialog(refView) {
 
         add(this.evaluate_Button);
         add(this.filter_Button);
+        add(this.saveStars_Button);
         add(this.mask_Button);
         add(this.showDetected_Button);
         addSpacing(20);
-		add(this.ok_Button);
+                add(this.ok_Button);
         add(this.cancel_Button);
     }
 
