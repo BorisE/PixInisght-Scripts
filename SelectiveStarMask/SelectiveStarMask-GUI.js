@@ -49,44 +49,43 @@ function SelectiveStarMask_Dialog(refView) {
 
     this.StarMaskId = undefined; // save created mask image id
 
-    this.starsFluxGroupsColumnKeys = [
-        {
-            header:    "Group Id",
-            width:     100,
-        },
-        {
-            header:    "Flux Min",
-            width:     200,
-        },
-        {
-            header:    "Flux Max",
-            width:     200,
-        },
-        {
-            header:    "Number of stars",
-            width:     200,
-        }
-    ];
-
     this.starsSizeGroupsColumnKeys = [
         {
             header:    "Group Id",
-            width:     100,
+            width:     70,
         },
         {
             header:    "Size Min",
-            width:     200,
+            width:     100,
         },
         {
             header:    "Size Max",
-            width:     200,
+            width:     100,
         },
         {
             header:    "Number of stars",
-            width:     200,
+            width:     100,
         }
     ];
 
+    this.starsFluxGroupsColumnKeys = [
+        {
+            header:    "Group Id",
+            width:     70,
+        },
+        {
+            header:    "Flux Min",
+            width:     100,
+        },
+        {
+            header:    "Flux Max",
+            width:     100,
+        },
+        {
+            header:    "Number of stars",
+            width:     100,
+        }
+    ];
 
 
 
@@ -299,6 +298,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.ImageInfo_Sizer);
         sizer.add(this.StarsInfo_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH );
     }
 
 
@@ -367,7 +367,7 @@ function SelectiveStarMask_Dialog(refView) {
     }
 
     // Size filter groupbox
-	this.SizeFilterGroupBox = new GroupBox(this);
+    this.SizeFilterGroupBox = new GroupBox(this);
     with (this.SizeFilterGroupBox) {
         title = "Size (radius) filtering";
         sizer = new VerticalSizer;
@@ -375,6 +375,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.minSizeFilter_Sizer);
         sizer.add(this.maxSizeFilter_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH / 3 - this.logicalPixelsToPhysical(50));
     }
 
 
@@ -448,6 +449,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.minFluxFilter_Sizer);
         sizer.add(this.maxFluxFilter_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH / 3 -this.logicalPixelsToPhysical( 50 ));
     }
 
 
@@ -487,7 +489,7 @@ function SelectiveStarMask_Dialog(refView) {
     this.Parameters_Sizer = new HorizontalSizer;
     with (this.Parameters_Sizer) {
         spacing = 4;
-        
+
         add(this.maskGrowth_CheckBox);
         add(this.softenMask_CheckBox);
         add(this.contourMask_CheckBox);
@@ -502,6 +504,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.margin = 6;
         sizer.spacing = 4;
         sizer.add(this.Parameters_Sizer);
+        setScaledMinWidth( MIN_DIALOG_WIDTH / 3 - this.logicalPixelsToPhysical(50) );
     }
 
 
@@ -510,11 +513,9 @@ function SelectiveStarMask_Dialog(refView) {
     with (this.Filter_Sizer) {
         spacing = 4;
         //addUnscaledSpacing(labelWidth1);
-        add(this.SizeFilterGroupBox);
-        add(this.FluxFilterGroupBox);
-        add(this.MaskParametersGroupBox);
-        
-        addStretch();
+        add(this.SizeFilterGroupBox, 100);
+        add(this.FluxFilterGroupBox, 100);
+        add(this.MaskParametersGroupBox, 100);
     }
 
 
@@ -537,7 +538,7 @@ function SelectiveStarMask_Dialog(refView) {
 
 		//setScaledMinSize( 400, 270 );
 		setScaledMinHeight( 100 );
-		setScaledMinWidth( MIN_DIALOG_WIDTH / 2 );
+		setScaledMinWidth( MIN_DIALOG_WIDTH / 2);
     }
 
 
@@ -566,14 +567,13 @@ function SelectiveStarMask_Dialog(refView) {
     this.GroupingReports_Sizer = new HorizontalSizer;
     with (this.GroupingReports_Sizer) {
         spacing = 4;
-        add(this.starsSizeGroupsTreeBox);
-        add(this.starsFluxGroupsTreeBox);
-        addStretch();
+        add(this.starsSizeGroupsTreeBox, 100);
+        add(this.starsFluxGroupsTreeBox, 100);
     }
 
 
     // -- StarsList Table --
-    
+
         this.starsListTreeBox = new TreeBox( this );
         with ( this.starsListTreeBox ) {
             toolTip = "<p>Output of computed Star statistics.</p>";
@@ -592,7 +592,7 @@ function SelectiveStarMask_Dialog(refView) {
                 setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
             }
 
-            setScaledMinSize( MIN_DIALOG_WIDTH, 270 );
+            setScaledMinSize( MIN_DIALOG_WIDTH+45, 270 );
         }
         this.starsListTreeBox.sortColumn = -1;
         this.starsListTreeBox.sortAscending = true;
@@ -605,6 +605,7 @@ function SelectiveStarMask_Dialog(refView) {
             }
             this.sort( index, this.sortAscending );
         };
+
     this.StarList_Control = new Control( this )
     this.StarList_Control.sizer = new VerticalSizer;
     this.StarList_Control.sizer.margin = 6;
@@ -704,7 +705,7 @@ function SelectiveStarMask_Dialog(refView) {
                 this.pushed = true;
                 this.icon = this.scaledResource( ":/icons/filter-delete.png" );
                 this.backgroundColor = 0xffffffff;
-                
+
                 // Filter by size (if needed)
                 let FilteredStars = undefined;
                 if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
@@ -712,9 +713,9 @@ function SelectiveStarMask_Dialog(refView) {
                 // Filter by flux (if needed)
                 if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
                     FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
-                
+
                 this.parent.updateMainData(FilteredStars);
-                
+
             } else {
                 console.criticalln("Remove filter");
                 this.pushed = false;
@@ -962,29 +963,29 @@ function SelectiveStarMask_Dialog(refView) {
         debug("<i>updateMainData: put stats into fields</i>");
 
         debug("Stars: " + Engine.Stars.length  + ", fitted: " + Engine.cntFittedStars);
-        
+
         if (!FilteredStarsArray) {
             this.StarsDetected_Label.text = Engine.Stars.length.toString() + ", fitted: " + Engine.cntFittedStars.toString();
-            
+
             this.minSizeFilter_Edit.text = roundDown(Engine.Stat.r_min,2).toFixed(2);
             this.maxSizeFilter_Edit.text = roundUp(Engine.Stat.r_max,2).toFixed(2);
 
             this.minFluxFilter_Edit.text = roundDown(Engine.Stat.flux_min,3).toFixed(3);
             this.maxFluxFilter_Edit.text = roundUp(Engine.Stat.flux_max,3).toFixed(3);
-            
+
             Config.FilterSize_min = roundDown(Engine.Stat.r_min,2);
             Config.FilterSize_max = roundUp(Engine.Stat.r_max,2);
 
             Config.FilterFlux_min = roundDown(Engine.Stat.flux_min,3);
             Config.FilterFlux_max = roundUp(Engine.Stat.flux_max,3);
-            
+
         } else {
             console.writeln();
             console.writeln("Stars after filters applied: " + Engine.FilteredStars.length.toString());
             this.StarsDetected_Label.text = "filtered " + Engine.FilteredStars.length.toString() + " out of " + Engine.Stars.length.toString();
         }
 	}
-    
+
 
 }
 
