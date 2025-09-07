@@ -596,8 +596,8 @@ function SelectiveStarMask_Dialog(refView) {
             headerVisible = true;
             indentSize = 0;
 
-            // enable header clicks - we'll handle sorting ourselves
-            headerSorting = true;
+            // disable TreeBox built-in sorting; we'll handle ordering manually
+            headerSorting = false;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText ( i, this.starsListColumnKeys[i].header );
@@ -636,14 +636,8 @@ function SelectiveStarMask_Dialog(refView) {
                 return asc * String( va ).localeCompare( String( vb ) );
             } );
 
-            // repopulate without triggering built-in lexicographic sort
-            let col = this.sortColumn;
-            let ascFlag = this.sortAscending;
-            this.headerSorting = false;
+            // repopulate with the freshly sorted data
             self.displayStarsStat( self._starData );
-            this.sortColumn = col;
-            this.sortAscending = ascFlag;
-            this.headerSorting = true;
         };
 
     this.StarList_Control = new Control( this )
