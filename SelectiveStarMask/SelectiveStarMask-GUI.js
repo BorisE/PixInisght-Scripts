@@ -571,6 +571,20 @@ function SelectiveStarMask_Dialog(refView) {
         add(this.starsFluxGroupsTreeBox, 100);
     }
 
+    this.GroupingReports_Control = new Control( this );
+    this.GroupingReports_Control.sizer = this.GroupingReports_Sizer;
+
+    this.GroupingReports_Section = new SectionBar( this, "Star groups" );
+    this.GroupingReports_Section.setSection( this.GroupingReports_Control );
+    this.GroupingReports_Section.onToggleSection = function ( section, beginToggle ) {
+        if ( !beginToggle ) {
+            section.dialog.setVariableHeight();
+            section.dialog.adjustToContents();
+        } else {
+            section.dialog.setMinHeight();
+        }
+    };
+
 
     // -- StarsList Table --
 
@@ -582,7 +596,8 @@ function SelectiveStarMask_Dialog(refView) {
             headerVisible = true;
             indentSize = 0;
 
-            // enable manual sorting when clicking column headers
+            // enable header sorting so clicks are captured, but we'll re-order
+            // rows ourselves to ensure numeric comparisons
             headerSorting = true;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
@@ -594,17 +609,44 @@ function SelectiveStarMask_Dialog(refView) {
 
             setScaledMinSize( MIN_DIALOG_WIDTH+45, 270 );
         }
+        // keep track of current sort state and data array
         this.starsListTreeBox.sortColumn = -1;
         this.starsListTreeBox.sortAscending = true;
+
+ /*        var self = this;
         this.starsListTreeBox.onHeaderClick = function( index ) {
+            // temporarily disable automatic sorting so we can sort numerically
+            // without the TreeBox reordering nodes lexicographically
+            this.headerSorting = false;
+
             if ( this.sortColumn === index )
                 this.sortAscending = !this.sortAscending;
             else {
                 this.sortColumn = index;
                 this.sortAscending = true;
             }
-            this.sort( index, this.sortAscending );
-        };
+
+            if ( !self._starData || self._starData.length === 0 )
+                return;
+
+            let asc = this.sortAscending ? 1 : -1;
+            const extractor = self.starsListColumnKeys[index].extractor;
+            self._starData.sort( (a, b) => {
+                let va = extractor( a );
+                let vb = extractor( b );
+                let na = Number( va );
+                let nb = Number( vb );
+                if ( !isNaN( na ) && !isNaN( nb ) )
+                    return asc * ( na - nb );
+                return asc * String( va ).localeCompare( String( vb ) );
+            } );
+
+            // repopulate with the freshly sorted data
+            self.displayStarsStat( self._starData );
+
+            // re-enable header sorting so users can trigger additional sorts
+            this.headerSorting = true;
+        }; */
 
     this.StarList_Control = new Control( this )
     this.StarList_Control.sizer = new VerticalSizer;
@@ -828,12 +870,13 @@ function SelectiveStarMask_Dialog(refView) {
         add(this.Filter_Sizer);
         addSpacing(4);
 
-        add(this.GroupingReports_Sizer);
+        add(this.GroupingReports_Section);
+        add(this.GroupingReports_Control);
         addSpacing(10);
 
         add(this.StarList_Section);
         add(this.StarList_Control);
-		//add(this.starsListTreeBox);
+                //add(this.starsListTreeBox);
 
         //add(this.clearConsoleCheckBox_Sizer);
         addSpacing(10);
@@ -851,22 +894,26 @@ function SelectiveStarMask_Dialog(refView) {
  	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
     {
  		debug("<i>displayStarStat: output stars data to TreeBox. StarsArray = " + (StarsArray?StarsArray.length:StarsArray));
-        this.starsListTreeBox.clear();
-
-        // Rows
         if ( topRecords == 0 )
             topRecords = StarsArray.length;
 
- 		for ( var i = 0; i < topRecords; ++i ) {
+        // Keep a copy for future sorting
+        this._starData = StarsArray ? StarsArray.slice( 0, topRecords ) : [];
+        this.starsListTreeBox.clear();
 
- 			var treeNode = new TreeBoxNode();
- 			let s = StarsArray[i];
+        // Rows
+        for ( var i = 0; i < topRecords; ++i ) {
+
+            var treeNode = new TreeBoxNode();
+            treeNode.rawValues = [];
+            let s = StarsArray[i];
 
             for ( let col = 0; col < this.starsListColumnKeys.length; ++col ) {
                 let { extractor, precision } = this.starsListColumnKeys[col];
 
                 // Convert `rawValue` to string, with formatting for numbers:
                 let rawValue = extractor(s);
+                treeNode.rawValues[col] = rawValue;
                 let text;
                 if (typeof rawValue === "number" && !isNaN(rawValue)) {
                     // Format number with the column's precision
@@ -884,8 +931,8 @@ function SelectiveStarMask_Dialog(refView) {
                 treeNode.setText( col, text );
             }
             this.starsListTreeBox.add( treeNode );
- 		}
- 	}
+        }
+    }
 
 
  	this.displaySizeGroupsStat = function( StarsSizeGoupArr, SizeGrouping, Stat )

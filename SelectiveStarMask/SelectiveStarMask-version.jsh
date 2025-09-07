@@ -21,7 +21,7 @@
 	#define __SELECTIVESTARMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME__ "SelectiveStarMask"
-	#define __SCRIPT_VERSION__ "2.0.2"
+	#define __SCRIPT_VERSION__ "2.0.3"
 	#define __SCRIPT_DATE__ "20250907"
 
 	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting"
@@ -36,7 +36,14 @@
 /*
 ToDo
 -- GUI --
+   - sorting
+   - export to CSV
+   - filter/remove filter
+   - adjustment factor
+   - icon
+
 -- Engine --
+   - check for wrong fitted stars (StarRadius vs PSF Rectangle)
    - recalculate mask for non fitted stars (espesially Large Ones)
    - function TopN Stars
    - filter by Gaia color
@@ -47,6 +54,9 @@ ToDo
  * History
  *
 
+ 
+ 2.0.3 [2025 09 07]
+    - folding group part
  
  2.0.2 [2025 09 07]
     - UI optimization (width)
