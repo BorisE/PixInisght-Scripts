@@ -596,9 +596,8 @@ function SelectiveStarMask_Dialog(refView) {
             headerVisible = true;
             indentSize = 0;
 
-            // disable built-in lexicographic sorting so we can
-            // implement numeric-aware sorting in onHeaderClick
-            headerSorting = false;
+            // enable header clicks - we'll handle sorting ourselves
+            headerSorting = true;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText ( i, this.starsListColumnKeys[i].header );
@@ -609,8 +608,11 @@ function SelectiveStarMask_Dialog(refView) {
 
             setScaledMinSize( MIN_DIALOG_WIDTH+45, 270 );
         }
+        // keep track of current sort state and data array
         this.starsListTreeBox.sortColumn = -1;
         this.starsListTreeBox.sortAscending = true;
+
+        var self = this;
         this.starsListTreeBox.onHeaderClick = function( index ) {
             if ( this.sortColumn === index )
                 this.sortAscending = !this.sortAscending;
@@ -619,28 +621,29 @@ function SelectiveStarMask_Dialog(refView) {
                 this.sortAscending = true;
             }
 
-            // Custom numeric-aware sorting
-            let nodes = [];
-            for ( let i = 0; i < this.numberOfChildren; ++i )
-                nodes.push( this.child( i ) );
+            if ( !self._starData || self._starData.length === 0 )
+                return;
 
             let asc = this.sortAscending ? 1 : -1;
-            nodes.sort( (a, b) => {
-                let va = a.rawValues ? a.rawValues[index] : a.text( index );
-                let vb = b.rawValues ? b.rawValues[index] : b.text( index );
+            const extractor = self.starsListColumnKeys[index].extractor;
+            self._starData.sort( (a, b) => {
+                let va = extractor( a );
+                let vb = extractor( b );
                 let na = Number( va );
                 let nb = Number( vb );
-                let cmp;
                 if ( !isNaN( na ) && !isNaN( nb ) )
-                    cmp = na - nb;
-                else
-                    cmp = String( va ).localeCompare( String( vb ) );
-                return asc * cmp;
+                    return asc * ( na - nb );
+                return asc * String( va ).localeCompare( String( vb ) );
             } );
 
-            this.clear();
-            for ( let n of nodes )
-                this.add( n );
+            // repopulate without triggering built-in lexicographic sort
+            let col = this.sortColumn;
+            let ascFlag = this.sortAscending;
+            this.headerSorting = false;
+            self.displayStarsStat( self._starData );
+            this.sortColumn = col;
+            this.sortAscending = ascFlag;
+            this.headerSorting = true;
         };
 
     this.StarList_Control = new Control( this )
@@ -889,12 +892,14 @@ function SelectiveStarMask_Dialog(refView) {
  	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
     {
  		debug("<i>displayStarStat: output stars data to TreeBox. StarsArray = " + (StarsArray?StarsArray.length:StarsArray));
-        this.starsListTreeBox.clear();
-
-        // Rows
         if ( topRecords == 0 )
             topRecords = StarsArray.length;
 
+        // Keep a copy for future sorting
+        this._starData = StarsArray ? StarsArray.slice( 0, topRecords ) : [];
+        this.starsListTreeBox.clear();
+
+        // Rows
         for ( var i = 0; i < topRecords; ++i ) {
 
             var treeNode = new TreeBoxNode();
