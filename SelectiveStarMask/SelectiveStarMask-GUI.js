@@ -596,8 +596,9 @@ function SelectiveStarMask_Dialog(refView) {
             headerVisible = true;
             indentSize = 0;
 
-            // enable manual sorting when clicking column headers
-            headerSorting = true;
+            // disable built-in lexicographic sorting so we can
+            // implement numeric-aware sorting in onHeaderClick
+            headerSorting = false;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText ( i, this.starsListColumnKeys[i].header );
