@@ -49,6 +49,7 @@
 #define TEMP_PEDESTAL 0.0002
 #define TEMP_NOISE_PROBABILITY 0.01
 
+#define MAX_PSF_DIAG_DISCREPANCY 3
 
 /*
  * Star data object
@@ -79,6 +80,7 @@ function Star( pos, flux, bkg, rect, size, nmax )
    this.w = this.rect.x1 - this.rect.x0; 
    // Height
    this.h = this.rect.y1 - this.rect.y0; 
+   this.diag = Math.sqrt(this.w*this.w + this.h*this.h);
 
    let AdjFact = Math.min ( ( this.flux > 1 ? this.flux : 1) * 1.5, 3);
    this.rectEx = new Rect (this.pos.x - this.w * AdjFact * 0.5, this.pos.y - this.h * AdjFact * 0.5, this.pos.x + this.w * AdjFact * 0.5, this.pos.y + this.h * AdjFact * 0.5);
@@ -1145,8 +1147,14 @@ function SelectiveStarMask_engine()
          let s = StarsArray[i];
 
          // PSF fitting
-         if (s.PSF_rect)
+         if (s.PSF_diag)
          {
+            // Check for wrong (large) fittings
+            if (s.PSF_diag > s.diag * MAX_PSF_DIAG_DISCREPANCY) {
+               G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFFFAAAA:0xFFFFFFFF ) );
+            }
+            
+            
             if (maskGrowth) {
                //AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
                let diagonal = s.PSF_diag;

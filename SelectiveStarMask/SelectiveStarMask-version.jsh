@@ -21,7 +21,7 @@
 	#define __SELECTIVESTARMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME__ "SelectiveStarMask"
-	#define __SCRIPT_VERSION__ "2.0.3"
+	#define __SCRIPT_VERSION__ "2.0.4"
 	#define __SCRIPT_DATE__ "20250907"
 
 	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting"
@@ -55,6 +55,10 @@ ToDo
  *
 
  
+ 2.0.4 [2025 09 07]
+    - save stars data as CSV file added
+    - sorting fixed
+    
  2.0.3 [2025 09 07]
     - folding group part
  
