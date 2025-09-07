@@ -596,8 +596,9 @@ function SelectiveStarMask_Dialog(refView) {
             headerVisible = true;
             indentSize = 0;
 
-            // disable TreeBox built-in sorting; we'll handle ordering manually
-            headerSorting = false;
+            // enable header sorting so clicks are captured, but we'll re-order
+            // rows ourselves to ensure numeric comparisons
+            headerSorting = true;
 
             for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
                 setHeaderText ( i, this.starsListColumnKeys[i].header );
@@ -614,6 +615,10 @@ function SelectiveStarMask_Dialog(refView) {
 
         var self = this;
         this.starsListTreeBox.onHeaderClick = function( index ) {
+            // temporarily disable automatic sorting so we can sort numerically
+            // without the TreeBox reordering nodes lexicographically
+            this.headerSorting = false;
+
             if ( this.sortColumn === index )
                 this.sortAscending = !this.sortAscending;
             else {
@@ -638,6 +643,9 @@ function SelectiveStarMask_Dialog(refView) {
 
             // repopulate with the freshly sorted data
             self.displayStarsStat( self._starData );
+
+            // re-enable header sorting so users can trigger additional sorts
+            this.headerSorting = true;
         };
 
     this.StarList_Control = new Control( this )
