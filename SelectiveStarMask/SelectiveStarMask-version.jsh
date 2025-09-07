@@ -36,8 +36,6 @@
 /*
 ToDo
 -- GUI --
-   - sorting
-   - export to CSV
    - filter/remove filter
    - adjustment factor
    - icon
@@ -54,7 +52,6 @@ ToDo
  * History
  *
 
- 
  2.0.4 [2025 09 07]
     - save stars data as CSV file added
     - sorting fixed

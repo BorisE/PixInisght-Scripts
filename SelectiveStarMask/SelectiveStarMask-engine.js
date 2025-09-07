@@ -1151,7 +1151,8 @@ function SelectiveStarMask_engine()
          {
             // Check for wrong (large) fittings
             if (s.PSF_diag > s.diag * MAX_PSF_DIAG_DISCREPANCY) {
-               G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFFFAAAA:0xFFFFFFFF ) );
+               G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+               debug("For a star [" +  s.pos.x + ", " + s.pos.y + "] s.PSF_diag=" + s.PSF_diag + ", while s.diag="+ s.diag);
             }
             
             
