@@ -786,7 +786,9 @@ function SelectiveStarMask_Dialog(refView) {
             let saveDialog = new SaveFileDialog;
             saveDialog.caption = "Save Detected Stars";
             saveDialog.overwritePrompt = true;
-            saveDialog.filters = [["CSV Files", "*.csv"], ["All Files", "*"]];
+            saveDialog.filters = [["CSV Files", ".csv"], ["All Files", "*"]];
+            saveDialog.selectedFileExtension = ".csv";
+            saveDialog.fileName = Engine.GetMaskName() + ".csv";
             if (saveDialog.execute()) {
                 Engine.saveStars(saveDialog.fileName, Engine.filterApplied ? Engine.FilteredStars : undefined);
             }
