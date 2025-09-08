@@ -323,6 +323,8 @@ function SelectiveStarMask_Dialog(refView) {
             Config.FilterSize_min = parseFloat(this.text);
             Engine.curFilterSize.min = Config.FilterSize_min;
             console.warningln("New min:" + Engine.curFilterSize.min);
+        if (Engine.filterApplied)
+            this.parent.applyFilters();
         };
     }
 
@@ -352,6 +354,8 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterSize_max = parseFloat(this.text);
             Engine.curFilterSize.max = Config.FilterSize_max;
+            if (Engine.filterApplied)
+                this.parent.applyFilters();
         };
     }
 
@@ -398,6 +402,8 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterFlux_min = parseFloat(this.text);
             Engine.curFilterFlux.min = Config.FilterFlux_min;
+            if (Engine.filterApplied)
+                this.parent.applyFilters();
         };
     }
 
@@ -428,6 +434,8 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterFlux_max = parseFloat(this.text);
             Engine.curFilterFlux.max = Config.FilterFlux_max;
+            if (Engine.filterApplied)
+                this.parent.applyFilters();
         };
     }
 
@@ -730,7 +738,25 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-	// Filter stars button
+    // Apply current filters and update UI
+    this.applyFilters = function ()
+    {
+        console.noteln();
+        console.noteln("Appling filters...");
+
+        // Filter by size (if needed)
+        let FilteredStars = undefined;
+        if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
+            FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
+
+        // Filter by flux (if needed)
+        if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
+            FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+
+        this.updateMainData(FilteredStars);
+    };
+
+        // Filter stars button
     this.filter_Button = new PushButton( this );
         with (this.filter_Button) {
         text = "Filter";
@@ -743,21 +769,11 @@ function SelectiveStarMask_Dialog(refView) {
         enabled = false;
         onClick = function () {
             if ( this.backgroundColor == parent.backgroundColor ) {
-                console.noteln();
-                console.noteln("Appling filters...");
                 this.pushed = true;
                 this.icon = this.scaledResource( ":/icons/filter-delete.png" );
                 this.backgroundColor = 0xffffffff;
 
-                // Filter by size (if needed)
-                let FilteredStars = undefined;
-                if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
-                    FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
-                // Filter by flux (if needed)
-                if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
-                    FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
-
-                this.parent.updateMainData(FilteredStars);
+                this.parent.applyFilters();
 
             } else {
                 console.criticalln("Remove filter");
