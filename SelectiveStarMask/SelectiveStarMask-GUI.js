@@ -334,7 +334,7 @@ function SelectiveStarMask_Dialog(refView) {
         toolTip = "Reset minimum size filter";
         onClick = function () {
             let def = roundDown( Engine.Stat.r_min, 2 );
-            parent.minSizeFilter_Edit.text = def.toFixed( 2 );
+            this.dialog.minSizeFilter_Edit.text = def.toFixed( 2 );
             Config.FilterSize_min = def;
             Engine.curFilterSize.min = def;
             if ( Engine.filterApplied )
@@ -380,7 +380,7 @@ function SelectiveStarMask_Dialog(refView) {
         toolTip = "Reset maximum size filter";
         onClick = function () {
             let def = roundUp( Engine.Stat.r_max, 2 );
-            parent.maxSizeFilter_Edit.text = def.toFixed( 2 );
+            this.dialog.maxSizeFilter_Edit.text = def.toFixed( 2 );
             Config.FilterSize_max = def;
             Engine.curFilterSize.max = def;
             if ( Engine.filterApplied )
@@ -443,7 +443,7 @@ function SelectiveStarMask_Dialog(refView) {
         toolTip = "Reset minimum flux filter";
         onClick = function () {
             let def = roundDown( Engine.Stat.flux_min, 3 );
-            parent.minFluxFilter_Edit.text = def.toFixed( 3 );
+            this.dialog.minFluxFilter_Edit.text = def.toFixed( 3 );
             Config.FilterFlux_min = def;
             Engine.curFilterFlux.min = def;
             if ( Engine.filterApplied )
@@ -490,7 +490,7 @@ function SelectiveStarMask_Dialog(refView) {
         toolTip = "Reset maximum flux filter";
         onClick = function () {
             let def = roundUp( Engine.Stat.flux_max, 3 );
-            parent.maxFluxFilter_Edit.text = def.toFixed( 3 );
+            this.dialog.maxFluxFilter_Edit.text = def.toFixed( 3 );
             Config.FilterFlux_max = def;
             Engine.curFilterFlux.max = def;
             if ( Engine.filterApplied )
@@ -850,45 +850,11 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-    // Reset all filters button
-    this.resetFilters_Button = new PushButton( this );
-        with ( this.resetFilters_Button ) {
-        text = "Reset";
-        toolTip = "Reset all filter values";
-        setFixedHeight( 40 );
-        onClick = function () {
-            let sizeMin = roundDown( Engine.Stat.r_min, 2 );
-            let sizeMax = roundUp( Engine.Stat.r_max, 2 );
-            let fluxMin = roundDown( Engine.Stat.flux_min, 3 );
-            let fluxMax = roundUp( Engine.Stat.flux_max, 3 );
-
-            parent.minSizeFilter_Edit.text = sizeMin.toFixed( 2 );
-            parent.maxSizeFilter_Edit.text = sizeMax.toFixed( 2 );
-            parent.minFluxFilter_Edit.text = fluxMin.toFixed( 3 );
-            parent.maxFluxFilter_Edit.text = fluxMax.toFixed( 3 );
-
-            Config.FilterSize_min = sizeMin;
-            Config.FilterSize_max = sizeMax;
-            Config.FilterFlux_min = fluxMin;
-            Config.FilterFlux_max = fluxMax;
-
-            Engine.curFilterSize.min = sizeMin;
-            Engine.curFilterSize.max = sizeMax;
-            Engine.curFilterFlux.min = fluxMin;
-            Engine.curFilterFlux.max = fluxMax;
-
-            if ( Engine.filterApplied )
-                this.dialog.applyFilters();
-            else
-                parent.updateMainData();
-        };
-    }
-
-	// Create Mask button
+        // Create Mask button
     this.mask_Button = new PushButton( this );
-	with (this.mask_Button) {
-        text = "Create Mask";
-        toolTip = "Create mask";
+        with (this.mask_Button) {
+            text = "Create Mask";
+            toolTip = "Create mask";
         enabled = false;
         icon = this.scaledResource( ":/toolbar/mask-enabled.png" );
         setFixedHeight (40);
@@ -979,7 +945,6 @@ function SelectiveStarMask_Dialog(refView) {
         addStretch();
 
         add(this.evaluate_Button);
-        add(this.resetFilters_Button);
         add(this.filter_Button);
         add(this.mask_Button);
         add(this.showDetected_Button);
