@@ -324,7 +324,7 @@ function SelectiveStarMask_Dialog(refView) {
             Engine.curFilterSize.min = Config.FilterSize_min;
             console.warningln("New min:" + Engine.curFilterSize.min);
         if (Engine.filterApplied)
-            this.parent.applyFilters();
+            this.dialog.applyFilters();
         };
     }
 
@@ -355,7 +355,7 @@ function SelectiveStarMask_Dialog(refView) {
             Config.FilterSize_max = parseFloat(this.text);
             Engine.curFilterSize.max = Config.FilterSize_max;
             if (Engine.filterApplied)
-                this.parent.applyFilters();
+                this.dialog.applyFilters();
         };
     }
 
@@ -402,8 +402,8 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterFlux_min = parseFloat(this.text);
             Engine.curFilterFlux.min = Config.FilterFlux_min;
-            if (Engine.filterApplied)
-                this.parent.applyFilters();
+        if (Engine.filterApplied)
+            this.dialog.applyFilters();
         };
     }
 
@@ -435,7 +435,7 @@ function SelectiveStarMask_Dialog(refView) {
             Config.FilterFlux_max = parseFloat(this.text);
             Engine.curFilterFlux.max = Config.FilterFlux_max;
             if (Engine.filterApplied)
-                this.parent.applyFilters();
+                this.dialog.applyFilters();
         };
     }
 
@@ -773,7 +773,7 @@ function SelectiveStarMask_Dialog(refView) {
                 this.icon = this.scaledResource( ":/icons/filter-delete.png" );
                 this.backgroundColor = 0xffffffff;
 
-                this.parent.applyFilters();
+                  this.dialog.applyFilters();
 
             } else {
                 console.criticalln("Remove filter");
