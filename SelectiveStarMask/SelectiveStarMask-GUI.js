@@ -323,6 +323,22 @@ function SelectiveStarMask_Dialog(refView) {
             Config.FilterSize_min = parseFloat(this.text);
             Engine.curFilterSize.min = Config.FilterSize_min;
             console.warningln("New min:" + Engine.curFilterSize.min);
+            if (Engine.filterApplied)
+                this.dialog.applyFilters();
+        };
+    }
+
+    this.minSizeFilter_Reset = new PushButton( this );
+    with ( this.minSizeFilter_Reset ) {
+        icon = this.scaledResource( ":/icons/reload.png" );
+        toolTip = "Reset minimum size filter";
+        onClick = function () {
+            let def = roundDown( Engine.Stat.r_min, 2 );
+            this.dialog.minSizeFilter_Edit.text = def.toFixed( 2 );
+            Config.FilterSize_min = def;
+            Engine.curFilterSize.min = def;
+            if ( Engine.filterApplied )
+                this.dialog.applyFilters();
         };
     }
 
@@ -331,6 +347,7 @@ function SelectiveStarMask_Dialog(refView) {
         spacing = 4;
         add(this.minSizeFilter_Label);
         add(this.minSizeFilter_Edit);
+        add(this.minSizeFilter_Reset);
         addStretch();
     }
 
@@ -352,6 +369,22 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterSize_max = parseFloat(this.text);
             Engine.curFilterSize.max = Config.FilterSize_max;
+            if (Engine.filterApplied)
+                this.dialog.applyFilters();
+        };
+    }
+
+    this.maxSizeFilter_Reset = new PushButton( this );
+    with ( this.maxSizeFilter_Reset ) {
+        icon = this.scaledResource( ":/icons/reload.png" );
+        toolTip = "Reset maximum size filter";
+        onClick = function () {
+            let def = roundUp( Engine.Stat.r_max, 2 );
+            this.dialog.maxSizeFilter_Edit.text = def.toFixed( 2 );
+            Config.FilterSize_max = def;
+            Engine.curFilterSize.max = def;
+            if ( Engine.filterApplied )
+                this.dialog.applyFilters();
         };
     }
 
@@ -359,10 +392,11 @@ function SelectiveStarMask_Dialog(refView) {
     with (this.maxSizeFilter_Sizer) {
         spacing = 4;
         //addUnscaledSpacing( MIN_DIALOG_WIDTH / 4);
-		//setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
+                //setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
 
         add(this.maxSizeFilter_Label);
         add(this.maxSizeFilter_Edit);
+        add(this.maxSizeFilter_Reset);
         addStretch();
     }
 
@@ -398,6 +432,22 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterFlux_min = parseFloat(this.text);
             Engine.curFilterFlux.min = Config.FilterFlux_min;
+            if (Engine.filterApplied)
+                this.dialog.applyFilters();
+        };
+    }
+
+    this.minFluxFilter_Reset = new PushButton( this );
+    with ( this.minFluxFilter_Reset ) {
+        icon = this.scaledResource( ":/icons/reload.png" );
+        toolTip = "Reset minimum flux filter";
+        onClick = function () {
+            let def = roundDown( Engine.Stat.flux_min, 3 );
+            this.dialog.minFluxFilter_Edit.text = def.toFixed( 3 );
+            Config.FilterFlux_min = def;
+            Engine.curFilterFlux.min = def;
+            if ( Engine.filterApplied )
+                this.dialog.applyFilters();
         };
     }
 
@@ -408,6 +458,7 @@ function SelectiveStarMask_Dialog(refView) {
 
         add(this.minFluxFilter_Label);
         add(this.minFluxFilter_Edit);
+        add(this.minFluxFilter_Reset);
         addStretch();
     }
 
@@ -428,6 +479,22 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterFlux_max = parseFloat(this.text);
             Engine.curFilterFlux.max = Config.FilterFlux_max;
+            if (Engine.filterApplied)
+                this.dialog.applyFilters();
+        };
+    }
+
+    this.maxFluxFilter_Reset = new PushButton( this );
+    with ( this.maxFluxFilter_Reset ) {
+        icon = this.scaledResource( ":/icons/reload.png" );
+        toolTip = "Reset maximum flux filter";
+        onClick = function () {
+            let def = roundUp( Engine.Stat.flux_max, 3 );
+            this.dialog.maxFluxFilter_Edit.text = def.toFixed( 3 );
+            Config.FilterFlux_max = def;
+            Engine.curFilterFlux.max = def;
+            if ( Engine.filterApplied )
+                this.dialog.applyFilters();
         };
     }
 
@@ -437,6 +504,7 @@ function SelectiveStarMask_Dialog(refView) {
         //addUnscaledSpacing(labelWidth1);
         add(this.maxFluxFilter_Label);
         add(this.maxFluxFilter_Edit);
+        add(this.maxFluxFilter_Reset);
         addStretch();
     }
 
@@ -730,7 +798,25 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-	// Filter stars button
+    // Apply current filters and update UI
+    this.applyFilters = function ()
+    {
+        console.noteln();
+        console.noteln("Appling filters...");
+
+        // Filter by size (if needed)
+        let FilteredStars = undefined;
+        if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
+            FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
+
+        // Filter by flux (if needed)
+        if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
+            FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+
+        this.updateMainData(FilteredStars);
+    };
+
+        // Filter stars button
     this.filter_Button = new PushButton( this );
         with (this.filter_Button) {
         text = "Filter";
@@ -743,21 +829,11 @@ function SelectiveStarMask_Dialog(refView) {
         enabled = false;
         onClick = function () {
             if ( this.backgroundColor == parent.backgroundColor ) {
-                console.noteln();
-                console.noteln("Appling filters...");
                 this.pushed = true;
                 this.icon = this.scaledResource( ":/icons/filter-delete.png" );
                 this.backgroundColor = 0xffffffff;
 
-                // Filter by size (if needed)
-                let FilteredStars = undefined;
-                if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
-                    FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
-                // Filter by flux (if needed)
-                if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
-                    FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
-
-                this.parent.updateMainData(FilteredStars);
+                  this.dialog.applyFilters();
 
             } else {
                 console.criticalln("Remove filter");
@@ -774,11 +850,11 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-	// Create Mask button
+        // Create Mask button
     this.mask_Button = new PushButton( this );
-	with (this.mask_Button) {
-        text = "Create Mask";
-        toolTip = "Create mask";
+        with (this.mask_Button) {
+            text = "Create Mask";
+            toolTip = "Create mask";
         enabled = false;
         icon = this.scaledResource( ":/toolbar/mask-enabled.png" );
         setFixedHeight (40);
