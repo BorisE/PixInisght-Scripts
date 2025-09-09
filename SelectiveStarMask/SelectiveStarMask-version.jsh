@@ -21,8 +21,8 @@
 	#define __SELECTIVESTARMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME__ "SelectiveStarMask"
-	#define __SCRIPT_VERSION__ "2.0.4"
-	#define __SCRIPT_DATE__ "20250907"
+	#define __SCRIPT_VERSION__ "2.0.5"
+	#define __SCRIPT_DATE__ "20250909"
 
 	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting"
 	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko (astromania.info)"
@@ -36,7 +36,6 @@
 /*
 ToDo
 -- GUI --
-   - filter/remove filter
    - adjustment factor
    - icon
 
@@ -51,7 +50,9 @@ ToDo
 /*
  * History
  *
-
+ 2.0.5 [2025 09 09]
+    - filter new behaviour
+ 
  2.0.4 [2025 09 07]
     - save stars data as CSV file added
     - sorting fixed

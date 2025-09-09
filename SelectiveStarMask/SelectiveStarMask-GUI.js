@@ -309,10 +309,10 @@ function SelectiveStarMask_Dialog(refView) {
     // Min size filter
     this.minSizeFilter_Label = new Label(this);
     with (this.minSizeFilter_Label) {
-        margin = 4;
+        margin = 1;
         text = "Min star size";
         textAlignment = TextAlign_Right | TextAlign_VertCenter;
-		setScaledMinWidth(7*this.font.width( 'M' ));
+		setScaledMinWidth(5*this.font.width( 'M' ));
     }
 
     this.minSizeFilter_Edit = new Edit( this );
@@ -328,10 +328,11 @@ function SelectiveStarMask_Dialog(refView) {
         };
     }
 
-    this.minSizeFilter_Reset = new PushButton( this );
+    this.minSizeFilter_Reset = new ToolButton( this );
     with ( this.minSizeFilter_Reset ) {
         icon = this.scaledResource( ":/icons/reload.png" );
         toolTip = "Reset minimum size filter";
+        setScaledMinWidth(this.font.width( 'M' ));
         onClick = function () {
             let def = roundDown( Engine.Stat.r_min, 2 );
             this.dialog.minSizeFilter_Edit.text = def.toFixed( 2 );
@@ -354,10 +355,10 @@ function SelectiveStarMask_Dialog(refView) {
     // Max size filter
     this.maxSizeFilter_Label = new Label(this);
     with (this.maxSizeFilter_Label) {
-        margin = 4;
+        margin = 1;
         text = "Max star size";
         textAlignment = TextAlign_Right | TextAlign_VertCenter;
-		setScaledMinWidth(7*this.font.width( 'M' ));
+		setScaledMinWidth(5*this.font.width( 'M' ));
     }
 
     this.maxSizeFilter_Edit = new Edit( this );
@@ -365,6 +366,7 @@ function SelectiveStarMask_Dialog(refView) {
         text = (Config.FilterSize_max ? Config.FilterSize_max : MAX_INT).toString();
         //minWidth = labelWidth1;
         //minWidth = 5*this.font.width( 'M' );
+        setScaledMinWidth(2*this.font.width( 'M' ));
         toolTip = "Maximum star Size to be included in filtered subset";
         onTextUpdated = function () {
             Config.FilterSize_max = parseFloat(this.text);
@@ -374,7 +376,7 @@ function SelectiveStarMask_Dialog(refView) {
         };
     }
 
-    this.maxSizeFilter_Reset = new PushButton( this );
+    this.maxSizeFilter_Reset = new ToolButton( this );
     with ( this.maxSizeFilter_Reset ) {
         icon = this.scaledResource( ":/icons/reload.png" );
         toolTip = "Reset maximum size filter";
@@ -392,8 +394,7 @@ function SelectiveStarMask_Dialog(refView) {
     with (this.maxSizeFilter_Sizer) {
         spacing = 4;
         //addUnscaledSpacing( MIN_DIALOG_WIDTH / 4);
-                //setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
-
+        //setScaledMinWidth( MIN_DIALOG_WIDTH / 3 );
         add(this.maxSizeFilter_Label);
         add(this.maxSizeFilter_Edit);
         add(this.maxSizeFilter_Reset);
@@ -420,7 +421,7 @@ function SelectiveStarMask_Dialog(refView) {
         margin = 4;
         text = "Min star flux";
         textAlignment = TextAlign_Right | TextAlign_VertCenter;
-		setScaledMinWidth(7*this.font.width( 'M' ));
+        setScaledMinWidth(5*this.font.width( 'M' ));
 
     }
 
@@ -437,7 +438,7 @@ function SelectiveStarMask_Dialog(refView) {
         };
     }
 
-    this.minFluxFilter_Reset = new PushButton( this );
+    this.minFluxFilter_Reset = new ToolButton( this );
     with ( this.minFluxFilter_Reset ) {
         icon = this.scaledResource( ":/icons/reload.png" );
         toolTip = "Reset minimum flux filter";
@@ -453,22 +454,22 @@ function SelectiveStarMask_Dialog(refView) {
 
     this.minFluxFilter_Sizer = new HorizontalSizer;
     with (this.minFluxFilter_Sizer) {
-        spacing = 4;
-        //addUnscaledSpacing( MIN_DIALOG_WIDTH / 3);
+      spacing = 4;
+      //addUnscaledSpacing( MIN_DIALOG_WIDTH / 3);
 
-        add(this.minFluxFilter_Label);
-        add(this.minFluxFilter_Edit);
-        add(this.minFluxFilter_Reset);
-        addStretch();
+      add(this.minFluxFilter_Label);
+      add(this.minFluxFilter_Edit);
+      add(this.minFluxFilter_Reset);
+      addStretch();
     }
 
     // Max flux filter
     this.maxFluxFilter_Label = new Label(this);
     with (this.maxFluxFilter_Label) {
-        margin = 4;
-        text = "Max star flux";
-        textAlignment = TextAlign_Right | TextAlign_VertCenter;
-		setScaledMinWidth(7*this.font.width( 'M' ));
+      margin = 4;
+      text = "Max star flux";
+      textAlignment = TextAlign_Right | TextAlign_VertCenter;
+		setScaledMinWidth(5*this.font.width( 'M' ));
     }
 
     this.maxFluxFilter_Edit = new Edit( this );
@@ -484,7 +485,7 @@ function SelectiveStarMask_Dialog(refView) {
         };
     }
 
-    this.maxFluxFilter_Reset = new PushButton( this );
+    this.maxFluxFilter_Reset = new ToolButton( this );
     with ( this.maxFluxFilter_Reset ) {
         icon = this.scaledResource( ":/icons/reload.png" );
         toolTip = "Reset maximum flux filter";
@@ -529,7 +530,7 @@ function SelectiveStarMask_Dialog(refView) {
         text = "Mask growth";
         checked = Config.maskGrowth;
         toolTip = "<p>Increase mask beyound detected star radius</p>";
-		setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+		  setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
         onClick = function (checked) {
             Config.maskGrowth = checked;
         };
@@ -539,7 +540,7 @@ function SelectiveStarMask_Dialog(refView) {
         text = "Soften mask";
         checked = Config.softenMask;
         toolTip = "<p>Soften mask after creation using Convolve.</p>";
-		setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+		  setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
         onClick = function (checked) {
             Config.softenMask = checked;
         };
@@ -549,7 +550,7 @@ function SelectiveStarMask_Dialog(refView) {
         text = "Countour mask";
         checked = Config.contourMask;
         toolTip = "<p>Create mask as a countour.</p>";
-		setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+		  setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
         onClick = function (checked) {
             Config.contourMask = checked;
         };
@@ -589,20 +590,20 @@ function SelectiveStarMask_Dialog(refView) {
 
     // -- StarSize Groups Table --
 
-	this.starsSizeGroupsTreeBox = new TreeBox( this );
-	with ( this.starsSizeGroupsTreeBox ) {
+    this.starsSizeGroupsTreeBox = new TreeBox( this );
+    with ( this.starsSizeGroupsTreeBox ) {
 		toolTip = "<p>Output of stars grouping by Size.</p>";
-        alternateRowColor = true;
+      alternateRowColor = true;
 		font = new Font( FontFamily_Monospace, 8 );
-        headerVisible = true;
-        indentSize = 0;
+      headerVisible = true;
+      indentSize = 0;
 
-        for ( let i = 0; i < this.starsSizeGroupsColumnKeys.length; ++i ) {
-            setHeaderText ( i, this.starsSizeGroupsColumnKeys[i].header );
-            //adjustColumnWidthToContents( i );
-            setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
-            setColumnWidth( i,  this.logicalPixelsToPhysical(this.starsSizeGroupsColumnKeys[i].width) );
-        }
+      for ( let i = 0; i < this.starsSizeGroupsColumnKeys.length; ++i ) {
+         setHeaderText ( i, this.starsSizeGroupsColumnKeys[i].header );
+         //adjustColumnWidthToContents( i );
+         setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
+         setColumnWidth( i,  this.logicalPixelsToPhysical(this.starsSizeGroupsColumnKeys[i].width) );
+      }
 
 		//setScaledMinSize( 400, 270 );
 		setScaledMinHeight( 100 );
@@ -615,36 +616,36 @@ function SelectiveStarMask_Dialog(refView) {
 	this.starsFluxGroupsTreeBox = new TreeBox( this );
 	with ( this.starsFluxGroupsTreeBox ) {
 		toolTip = "<p>Output of stars grouping.</p>";
-        alternateRowColor = true;
+      alternateRowColor = true;
 		font = new Font( FontFamily_Monospace, 8 );
-        headerVisible = true;
-        indentSize = 0;
+      headerVisible = true;
+      indentSize = 0;
 
-        for ( let i = 0; i < this.starsFluxGroupsColumnKeys.length; ++i ) {
+      for ( let i = 0; i < this.starsFluxGroupsColumnKeys.length; ++i ) {
             setHeaderText ( i, this.starsFluxGroupsColumnKeys[i].header );
             //adjustColumnWidthToContents( i );
             setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter);
             setColumnWidth( i,  this.logicalPixelsToPhysical(this.starsFluxGroupsColumnKeys[i].width) );
-        }
+      }
 
 		setScaledMinHeight( 100 );
 		setScaledMinWidth( MIN_DIALOG_WIDTH / 2  );
-    }
+   }
 
 	// -- sizer for Groups Table
-    this.GroupingReports_Sizer = new HorizontalSizer;
-    with (this.GroupingReports_Sizer) {
+   this.GroupingReports_Sizer = new HorizontalSizer;
+   with (this.GroupingReports_Sizer) {
         spacing = 4;
         add(this.starsSizeGroupsTreeBox, 100);
         add(this.starsFluxGroupsTreeBox, 100);
     }
 
-    this.GroupingReports_Control = new Control( this );
-    this.GroupingReports_Control.sizer = this.GroupingReports_Sizer;
+   this.GroupingReports_Control = new Control( this );
+   this.GroupingReports_Control.sizer = this.GroupingReports_Sizer;
 
-    this.GroupingReports_Section = new SectionBar( this, "Star groups" );
-    this.GroupingReports_Section.setSection( this.GroupingReports_Control );
-    this.GroupingReports_Section.onToggleSection = function ( section, beginToggle ) {
+   this.GroupingReports_Section = new SectionBar( this, "Star groups" );
+   this.GroupingReports_Section.setSection( this.GroupingReports_Control );
+   this.GroupingReports_Section.onToggleSection = function ( section, beginToggle ) {
         if ( !beginToggle ) {
             section.dialog.setVariableHeight();
             section.dialog.adjustToContents();
@@ -654,77 +655,39 @@ function SelectiveStarMask_Dialog(refView) {
     };
 
 
-    // -- StarsList Table --
+   // -- StarsList Table --
 
-        this.starsListTreeBox = new TreeBox( this );
-        with ( this.starsListTreeBox ) {
-            toolTip = "<p>Output of computed Star statistics.</p>";
-            alternateRowColor = true;
-            font = new Font( FontFamily_Monospace, 8 );
-            headerVisible = true;
-            indentSize = 0;
+   this.starsListTreeBox = new TreeBox( this );
+   with ( this.starsListTreeBox ) {
+      toolTip = "<p>Output of computed Star statistics.</p>";
+      alternateRowColor = true;
+      font = new Font( FontFamily_Monospace, 8 );
+      headerVisible = true;
+      indentSize = 0;
+      headerSorting = true;
 
-            // enable header sorting so clicks are captured, but we'll re-order
-            // rows ourselves to ensure numeric comparisons
-            headerSorting = true;
+      for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
+         setHeaderText ( i, this.starsListColumnKeys[i].header );
+         setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
+         // scale column widths so that they adapt to screen resolution
+         setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
+      }
+      setScaledMinSize( MIN_DIALOG_WIDTH+45, 270 );
+   }
 
-            for ( let i = 0; i < this.starsListColumnKeys.length; ++i ) {
-                setHeaderText ( i, this.starsListColumnKeys[i].header );
-                setHeaderAlignment( i, TextAlign_Center | TextAlign_VertCenter );
-                // scale column widths so that they adapt to screen resolution
-                setColumnWidth( i, this.logicalPixelsToPhysical( this.starsListColumnKeys[i].width ) );
-            }
+   // keep track of current sort state and data array
+   this.starsListTreeBox.sortColumn = -1;
+   this.starsListTreeBox.sortAscending = true;
 
-            setScaledMinSize( MIN_DIALOG_WIDTH+45, 270 );
-        }
-        // keep track of current sort state and data array
-        this.starsListTreeBox.sortColumn = -1;
-        this.starsListTreeBox.sortAscending = true;
+   this.StarList_Control = new Control( this )
+   this.StarList_Control.sizer = new VerticalSizer;
+   this.StarList_Control.sizer.margin = 6;
+   this.StarList_Control.sizer.add( this.starsListTreeBox );
 
- /*        var self = this;
-        this.starsListTreeBox.onHeaderClick = function( index ) {
-            // temporarily disable automatic sorting so we can sort numerically
-            // without the TreeBox reordering nodes lexicographically
-            this.headerSorting = false;
-
-            if ( this.sortColumn === index )
-                this.sortAscending = !this.sortAscending;
-            else {
-                this.sortColumn = index;
-                this.sortAscending = true;
-            }
-
-            if ( !self._starData || self._starData.length === 0 )
-                return;
-
-            let asc = this.sortAscending ? 1 : -1;
-            const extractor = self.starsListColumnKeys[index].extractor;
-            self._starData.sort( (a, b) => {
-                let va = extractor( a );
-                let vb = extractor( b );
-                let na = Number( va );
-                let nb = Number( vb );
-                if ( !isNaN( na ) && !isNaN( nb ) )
-                    return asc * ( na - nb );
-                return asc * String( va ).localeCompare( String( vb ) );
-            } );
-
-            // repopulate with the freshly sorted data
-            self.displayStarsStat( self._starData );
-
-            // re-enable header sorting so users can trigger additional sorts
-            this.headerSorting = true;
-        }; */
-
-    this.StarList_Control = new Control( this )
-    this.StarList_Control.sizer = new VerticalSizer;
-    this.StarList_Control.sizer.margin = 6;
-    this.StarList_Control.sizer.add( this.starsListTreeBox );
-
-    this.StarList_Section = new SectionBar( this, "Star list" );
-    this.StarList_Section.setSection( this.StarList_Control );
-    this.StarList_Section.onToggleSection = function (section, beginToggle)
-	{
+   this.StarList_Section = new SectionBar( this, "Star list" );
+   this.StarList_Section.setSection( this.StarList_Control );
+   this.StarList_Section.onToggleSection = function (section, beginToggle)
+   {
 		if ( !beginToggle )
 		{
 			section.dialog.setVariableHeight();
@@ -738,24 +701,23 @@ function SelectiveStarMask_Dialog(refView) {
 	};
 
 
+   // == BUTTONS ==
 
-    // == BUTTONS ==
+   //Instance button
+   this.newInstance_Button = new ToolButton(this);
+   this.newInstance_Button.icon = new Bitmap(":/process-interface/new-instance.png");
+   this.newInstance_Button.toolTip = "New Instance";
+   this.newInstance_Button.onMousePress = function () {
+      this.hasFocus = true;
+      Config.exportParameters();
+      this.pushed = false;
+      this.dialog.newInstance();
+   };
 
-    //Instance button
-    this.newInstance_Button = new ToolButton(this);
-    this.newInstance_Button.icon = new Bitmap(":/process-interface/new-instance.png");
-    this.newInstance_Button.toolTip = "New Instance";
-    this.newInstance_Button.onMousePress = function () {
-        this.hasFocus = true;
-        Config.exportParameters();
-        this.pushed = false;
-        this.dialog.newInstance();
-    };
-
-    // Dialog control buttons
+   // Dialog control buttons
 
 	// Evaluate statistics button
-    this.evaluate_Button = new PushButton( this );
+   this.evaluate_Button = new PushButton( this );
 	with(this.evaluate_Button) {
         text = "Detect stars";
         toolTip = "Evaluate stars statistics";
@@ -798,9 +760,9 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-    // Apply current filters and update UI
-    this.applyFilters = function ()
-    {
+   // Apply current filters and update UI
+   this.applyFilters = function ()
+   {
         console.noteln();
         console.noteln("Appling filters...");
 
@@ -814,11 +776,11 @@ function SelectiveStarMask_Dialog(refView) {
             FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
 
         this.updateMainData(FilteredStars);
-    };
+   };
 
-        // Filter stars button
-    this.filter_Button = new PushButton( this );
-        with (this.filter_Button) {
+   // Filter stars button
+   this.filter_Button = new PushButton( this );
+   with (this.filter_Button) {
         text = "Filter";
         toolTip = "Filter stars by flux";
         icon = this.scaledResource( ":/icons/filter.png" );
@@ -848,32 +810,32 @@ function SelectiveStarMask_Dialog(refView) {
         onRelease = function () {
             return false;
         }
-    }
+   }
 
-        // Create Mask button
-    this.mask_Button = new PushButton( this );
-        with (this.mask_Button) {
-            text = "Create Mask";
-            toolTip = "Create mask";
-        enabled = false;
-        icon = this.scaledResource( ":/toolbar/mask-enabled.png" );
-        setFixedHeight (40);
-        onClick = function () {
-            console.noteln();
-            console.noteln("Creating mask...");
-            Config.MaskName = Engine.GetMaskName();
-            if (Engine.filterApplied) {
-                parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
-            } else {
-                parent.StarMaskId = Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
-            }
-            Config.saveSettings();
-        }
-    }
+   // Create Mask button
+   this.mask_Button = new PushButton( this );
+   with (this.mask_Button) {
+      text = "Create Mask";
+      toolTip = "Create mask";
+      enabled = false;
+      icon = this.scaledResource( ":/toolbar/mask-enabled.png" );
+      setFixedHeight (40);
+      onClick = function () {
+         console.noteln();
+         console.noteln("Creating mask...");
+         Config.MaskName = Engine.GetMaskName();
+         if (Engine.filterApplied) {
+             parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+         } else {
+             parent.StarMaskId = Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+         }
+         Config.saveSettings();
+      }
+   }
 
 	// Outuput Detected stars + Mask residiul button
-    this.showDetected_Button = new PushButton( this );
-    with (this.showDetected_Button) {
+   this.showDetected_Button = new PushButton( this );
+   with (this.showDetected_Button) {
         text = "Show Detected";
         toolTip = "Output detected stars and stars residial";
         setFixedHeight (40);
@@ -891,9 +853,9 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-    // Save detected stars to CSV button
-    this.saveStars_Button = new PushButton( this );
-    with (this.saveStars_Button) {
+   // Save detected stars to CSV button
+   this.saveStars_Button = new PushButton( this );
+   with (this.saveStars_Button) {
         text = "Save CSV";
         toolTip = "Save detected stars to CSV file";
         icon = this.scaledResource( ":/icons/save.png" );
@@ -912,7 +874,7 @@ function SelectiveStarMask_Dialog(refView) {
     }
 
 	// Process all button
-    this.ok_Button = new PushButton( this );
+   this.ok_Button = new PushButton( this );
 	with(this.ok_Button) {
         text = "Create";
         toolTip = "Process everything (detected, calc stat and output mask)";
@@ -922,10 +884,10 @@ function SelectiveStarMask_Dialog(refView) {
             Config.saveSettings();
             this.dialog.ok();
         }
-    }
+   }
 
-    // CLOSE button
-    this.cancel_Button = new PushButton( this );
+   // CLOSE button
+   this.cancel_Button = new PushButton( this );
 	with(this.cancel_Button) {
         text = "Close";
         toolTip = "Close the " + __SCRIPT_NAME__ + " script.";
@@ -937,9 +899,9 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-    //Dialog control buttons sizer
-    this.buttons_Sizer = new HorizontalSizer;
-    with (this.buttons_Sizer) {
+   //Dialog control buttons sizer
+   this.buttons_Sizer = new HorizontalSizer;
+   with (this.buttons_Sizer) {
         spacing = 6;
         add(this.newInstance_Button);
         addStretch();
@@ -952,17 +914,17 @@ function SelectiveStarMask_Dialog(refView) {
         addSpacing(20);
         add(this.ok_Button);
         add(this.cancel_Button);
-    }
+   }
 
-    // == DIALOG total build ==
+   // == DIALOG total build ==
 
-    this.sizer = new VerticalSizer;
-    with (this.sizer) {
+   this.sizer = new VerticalSizer;
+   with (this.sizer) {
         margin = 8;
         spacing = 6;
         add(this.helpLabel);
         addSpacing(4);
-		add(this.InformationGroupBox);
+		  add(this.InformationGroupBox);
         addSpacing(4);
 
         add(this.Filter_Sizer);
@@ -981,16 +943,16 @@ function SelectiveStarMask_Dialog(refView) {
         //add(this.outputControls_GroupBox);
         //this.imgSetAccess_GroupBox.hide();
         add(this.buttons_Sizer);
-    }
+   }
 
-    this.windowTitle = __SCRIPT_NAME__ + " Script";
-    this.adjustToContents();
+   this.windowTitle = __SCRIPT_NAME__ + " Script";
+   this.adjustToContents();
 
 
 	// -- Handlers --
 
  	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
-    {
+   {
  		debug("<i>displayStarStat: output stars data to TreeBox. StarsArray = " + (StarsArray?StarsArray.length:StarsArray));
         if ( topRecords == 0 )
             topRecords = StarsArray.length;
@@ -1031,13 +993,13 @@ function SelectiveStarMask_Dialog(refView) {
             }
             this.starsListTreeBox.add( treeNode );
         }
-    }
+   }
 
 
  	this.displaySizeGroupsStat = function( StarsSizeGoupArr, SizeGrouping, Stat )
-    {
- 		debug("displaySizeGroupsStat: output stars size grouping data to TreeBox. StarsArray = " + (StarsSizeGoupArr ? StarsSizeGoupArr.length : StarsSizeGoupArr));
-        this.starsSizeGroupsTreeBox.clear();
+   {
+      debug("displaySizeGroupsStat: output stars size grouping data to TreeBox. StarsArray = " + (StarsSizeGoupArr ? StarsSizeGoupArr.length : StarsSizeGoupArr));
+      this.starsSizeGroupsTreeBox.clear();
 
  		for ( var i = 0; i < StarsSizeGoupArr.length; ++i ) {
  			var treeNode = new TreeBoxNode();
@@ -1070,9 +1032,9 @@ function SelectiveStarMask_Dialog(refView) {
  	}
 
  	this.displayFluxGroupsStat = function( StarsFluxGoupArr, FluxGrouping, Stat )
-    {
+   {
  		debug("displayFluxGroupsStat: output stars flux grouping data to TreeBox. StarsArray = " + (StarsFluxGoupArr ? StarsFluxGoupArr.length : StarsFluxGoupArr));
-        this.starsFluxGroupsTreeBox.clear();
+      this.starsFluxGroupsTreeBox.clear();
 
  		for ( var i = 0; i < StarsFluxGoupArr.length; ++i ) {
  			var treeNode = new TreeBoxNode();
@@ -1131,56 +1093,54 @@ function SelectiveStarMask_Dialog(refView) {
             this.StarsDetected_Label.text = "filtered " + Engine.FilteredStars.length.toString() + " out of " + Engine.Stars.length.toString();
         }
 	}
-
-
 }
 
 //main
 function mainGUI() {
-    if (!__DEBUGF__)
+   if (!__DEBUGF__)
         console.hide();
 
-    if (__DEBUGF__)
+   if (__DEBUGF__)
         console.clear();
 
-    console.noteln(__SCRIPT_NAME__, " script started. Version: ", __SCRIPT_VERSION__, " Date: ", __SCRIPT_DATE__);
-    console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
-    //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
+   console.noteln(__SCRIPT_NAME__, " script started. Version: ", __SCRIPT_VERSION__, " Date: ", __SCRIPT_DATE__);
+   console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
+   //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
 
    var refView = ImageWindow.activeWindow.currentView;
 
    console.writeln ("Working on image: <b>" + (refView.fullId == "" ? "no image" : refView.fullId) + "</b>");
    if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
 
-    Config.loadSettings();
+   Config.loadSettings();
 
-    if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
+   if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
         if (__DEBUGF__)
             console.writeln("Running script instance");
         Config.importParameters();
 
-    } else {
+   } else {
         if (__DEBUGF__)
             console.writeln("Just new script");
-    }
+   }
 
-    //just for future features(?!)
-    if (Parameters.isViewTarget) {
+   //just for future features(?!)
+   if (Parameters.isViewTarget) {
         if (__DEBUGF__)
             console.writeln("Executed on target view");
     } else {
         if (__DEBUGF__)
             console.writeln("Direct or global context");
-    }
+   }
 
 
-    // Our dialog inherits all properties and methods from the core Dialog object.
-    SelectiveStarMask_Dialog.prototype = new Dialog;
-    var dialog = new SelectiveStarMask_Dialog(refView);
+   // Our dialog inherits all properties and methods from the core Dialog object.
+   SelectiveStarMask_Dialog.prototype = new Dialog;
+   var dialog = new SelectiveStarMask_Dialog(refView);
 
-    // Show our dialog box, quit if cancelled.
-    for (; ; ) {
-        if (dialog.execute()) {
+   // Show our dialog box, quit if cancelled.
+   for (; ; ) {
+       if (dialog.execute()) {
             if (refView.fullId == "") {
                 var msgStr = "<p>There are no image specified.</p>" +
                     "<p>Do you wish to continue?</p>";
@@ -1207,9 +1167,9 @@ function mainGUI() {
 
         break;
 
-    }
+   }
 
-    //Config.saveSettings();
+   //Config.saveSettings();
 }
 
 #ifndef __SELECTIVESTARMASK_MAIN__
