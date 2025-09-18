@@ -30,6 +30,7 @@ function ConfigData() {
         console.writeln('<br/><br/>Config object created...<br/>');
 
     this.AdjFact = 0.5;
+    this.AdjFactor_countor = 0.5;
 
     //Helper functions
     function load(key, type, default_value, precision = 2) {
@@ -73,6 +74,8 @@ function ConfigData() {
 
         if ((o = load("AdjFact", DataType_Float, 0.5, 2)) != null)
             this.AdjFact = o;
+        if ((o = load("AdjFactor_countor", DataType_Float, 0.5, 2)) != null)
+            this.AdjFactor_countor = o;
 
         
         /*
@@ -101,6 +104,7 @@ function ConfigData() {
         save("FilterFlux_min", DataType_Float, this.FilterFlux_min);
         save("FilterFlux_max", DataType_Float, this.FilterFlux_max);
         save("AdjFact", DataType_Float, this.AdjFact);
+        save("AdjFactor_countor", DataType_Float, this.AdjFactor_countor);
 
         /* =
         save("NeedCalibration", DataType_Boolean, this.NeedCalibration);
@@ -129,6 +133,7 @@ function ConfigData() {
         Parameters.set("FilterFlux_min",        this.FilterFlux_min);
         Parameters.set("FilterFlux_max",        this.FilterFlux_max);
         Parameters.set("AdjFact",               this.AdjFact);
+        Parameters.set("AdjFactor_countor",     this.AdjFactor_countor);
 
         /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
@@ -160,6 +165,8 @@ function ConfigData() {
             this.FilterFlux_max = Parameters.getReal("FilterFlux_max");
         if (Parameters.has("AdjFact"))
             this.AdjFact = Parameters.getReal("AdjFact");
+        if (Parameters.has("AdjFactor_countor"))
+            this.AdjFactor_countor = Parameters.getReal("AdjFactor_countor");
 
         /*
         if (Parameters.has("NeedCalibration"))
@@ -189,6 +196,7 @@ function ConfigData() {
         console.writeln("FilterFlux_min:                 " + this.FilterFlux_min);
         console.writeln("FilterFlux_max:                 " + this.FilterFlux_max);
         console.writeln("AdjFact:                        " + this.AdjFact);
+        console.writeln("AdjFactor_countor:              " + this.AdjFactor_countor);
 
         /*
         console.writeln("InputPath:                      " + this.InputPath);
