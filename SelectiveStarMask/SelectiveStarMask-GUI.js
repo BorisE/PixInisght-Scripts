@@ -793,7 +793,12 @@ function SelectiveStarMask_Dialog(refView) {
             this.parent.displayStarsStat(Engine.Stars);
             this.parent.displaySizeGroupsStat(Engine.StarsSizeGoupCnt, Engine.SizeGrouping, Engine.Stat );
             this.parent.displayFluxGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat );
-            this.parent.filter_Button.enabled = true;
+            let hasStars = Engine.Stars && Engine.Stars.length > 0;
+            this.parent.filter_Button.enabled = hasStars;
+            if (hasStars)
+                this.parent.activateFilterMode();
+            else
+                this.parent.deactivateFilterMode();
             this.parent.mask_Button.enabled = true;
             this.parent.showDetected_Button.enabled = true;
             this.parent.saveStars_Button.enabled = true;
@@ -814,27 +819,23 @@ function SelectiveStarMask_Dialog(refView) {
         setFixedHeight (40);
         enabled = false;
         onClick = function () {
-            if ( this.backgroundColor == parent.backgroundColor ) {
-                this.pushed = true;
-                this.icon = this.scaledResource( ":/icons/filter-delete.png" );
-                this.backgroundColor = 0xffffffff;
-
-                  this.dialog.applyFilters();
-
-            } else {
-                console.criticalln("Remove filter");
-                this.pushed = false;
-                this.backgroundColor = parent.backgroundColor;
-                this.icon = this.scaledResource( ":/icons/filter.png" );
-                Engine.filterApplied = false;
-                this.parent.updateMainData();
+            if (!Engine.Stars || Engine.Stars.length === 0) {
+                this.dialog.deactivateFilterMode();
+                return;
             }
+
+            if (Engine.filterApplied)
+                this.dialog.deactivateFilterMode();
+            else
+                this.dialog.activateFilterMode();
+
             Config.saveSettings();
         }
         onRelease = function () {
             return false;
         }
    }
+   this.filter_Button_defaultColor = this.filter_Button.backgroundColor;
 
    // Create Mask button
    this.mask_Button = new PushButton( this );
@@ -975,21 +976,112 @@ function SelectiveStarMask_Dialog(refView) {
 
     // -- Handlers --
 
+    this.countFittedStars = function (stars)
+    {
+        let count = 0;
+        if (stars) {
+            for (let i = 0; i < stars.length; ++i) {
+                if (stars[i] && stars[i].PSF_flux)
+                    ++count;
+            }
+        }
+        return count;
+    };
+
+    this.activateFilterMode = function ()
+    {
+        if (!Engine.Stars || Engine.Stars.length === 0) {
+            this.deactivateFilterMode();
+            return;
+        }
+
+        this.filter_Button.pushed = true;
+        this.filter_Button.backgroundColor = 0xffffffff;
+        this.filter_Button.icon = this.filter_Button.scaledResource( ":/icons/filter-delete.png" );
+        Engine.filterApplied = true;
+        this.applyFilters();
+    };
+
+    this.deactivateFilterMode = function ()
+    {
+        this.filter_Button.pushed = false;
+        this.filter_Button.backgroundColor = this.filter_Button_defaultColor;
+        this.filter_Button.icon = this.filter_Button.scaledResource( ":/icons/filter.png" );
+        Engine.filterApplied = false;
+        Engine.FilteredStars = undefined;
+        Engine.curFilterSize.enabled = false;
+        Engine.curFilterFlux.enabled = false;
+        if (Engine.Stars && Engine.Stars.length > 0) {
+            Engine.cntFittedStars = this.countFittedStars(Engine.Stars);
+            this.updateMainData();
+            this.displayStarsStat(Engine.Stars);
+        } else {
+            Engine.cntFittedStars = 0;
+            this.StarsDetected_Label.text = "0, fitted: 0";
+            this.starsListTreeBox.clear();
+        }
+    };
+
     // Apply current filters and update UI
     this.applyFilters = function ()
     {
         debug("Appling filters...");
 
-        // Filter by size (if needed)
-        let FilteredStars = undefined;
-        if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
-            FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
+        if (!Engine.Stars) {
+            Engine.FilteredStars = [];
+            Engine.filterApplied = true;
+            Engine.cntFittedStars = 0;
+            Engine.curFilterSize.enabled = false;
+            Engine.curFilterFlux.enabled = false;
+            this.starsListTreeBox.clear();
+            this.StarsDetected_Label.text = "0, fitted: 0";
+            return;
+        }
 
-        // Filter by flux (if needed)
-        if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
-            FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+        if (Engine.Stars.length === 0 || !Engine.Stat) {
+            Engine.FilteredStars = [];
+            Engine.filterApplied = true;
+            Engine.cntFittedStars = 0;
+            Engine.curFilterSize.enabled = false;
+            Engine.curFilterFlux.enabled = false;
+            this.displayStarsStat([]);
+            if (Engine.Stat)
+                this.updateMainData([]);
+            else
+                this.StarsDetected_Label.text = "0, fitted: 0";
+            return;
+        }
 
-        this.updateMainData(FilteredStars);
+        const defaultMinSize = roundDown(Engine.Stat.r_min, 2);
+        const defaultMaxSize = roundUp(Engine.Stat.r_max, 2);
+        const defaultMinFlux = roundDown(Engine.Stat.flux_min, 3);
+        const defaultMaxFlux = roundUp(Engine.Stat.flux_max, 3);
+
+        let filtered = Engine.Stars;
+        const useSizeFilter = Config.FilterSize_min != defaultMinSize || Config.FilterSize_max != defaultMaxSize;
+        const useFluxFilter = Config.FilterFlux_min != defaultMinFlux || Config.FilterFlux_max != defaultMaxFlux;
+
+        if (!useSizeFilter)
+            Engine.curFilterSize.enabled = false;
+
+        if (!useFluxFilter)
+            Engine.curFilterFlux.enabled = false;
+
+        if (useSizeFilter)
+            filtered = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max, filtered);
+
+        if (useFluxFilter)
+            filtered = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, filtered);
+
+        if (!useSizeFilter && !useFluxFilter)
+            filtered = Engine.Stars.slice();
+
+        Engine.FilteredStars = filtered;
+        Engine.filterApplied = true;
+        Engine.cntFittedStars = this.countFittedStars(filtered);
+
+        this.displayStarsStat(filtered);
+        this.updateMainData(filtered);
     };
 
  	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
@@ -1127,6 +1219,9 @@ function SelectiveStarMask_Dialog(refView) {
 
             Config.FilterFlux_min = roundDown(Engine.Stat.flux_min,3);
             Config.FilterFlux_max = roundUp(Engine.Stat.flux_max,3);
+
+            Engine.curFilterSize.enabled = false;
+            Engine.curFilterFlux.enabled = false;
 
         } else {
             console.writeln();
