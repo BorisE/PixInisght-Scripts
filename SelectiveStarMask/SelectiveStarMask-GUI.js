@@ -303,37 +303,6 @@ function SelectiveStarMask_Dialog(refView) {
     }
 
 
-    // -- Script parameters --
-
-    this.adjustMaskSize_Control = new NumericControl(this);
-    with (this.adjustMaskSize_Control) {
-        label.text = "Adjust mask size:";
-        label.minWidth = labelWidth1;
-        label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
-        setRange(0.1, 5);
-        slider.setRange(0, 490);
-        slider.scaledMinWidth = 200;
-        setPrecision(2);
-        setValue(Config.AdjFact != undefined ? Config.AdjFact : 0.5);
-        toolTip = "<p>Star size adjustment factor from 0.1 to 5, default 0.5.</p>";
-        onValueUpdated = function (value) {
-            Config.AdjFact = value;
-            if (Engine)
-                Engine.AdjFact = value;
-        };
-    }
-
-    this.ScriptParametersGroupBox = new GroupBox(this);
-    with (this.ScriptParametersGroupBox) {
-        title = "Script paramets";
-        sizer = new VerticalSizer;
-        sizer.margin = 6;
-        sizer.spacing = 4;
-        sizer.add(this.adjustMaskSize_Control);
-        setScaledMinWidth( MIN_DIALOG_WIDTH );
-    }
-
-
     // -- Filter ---
 
 
@@ -555,6 +524,24 @@ function SelectiveStarMask_Dialog(refView) {
 
     // -- Mask Parameters --
 
+    this.adjustMaskSize_Control = new NumericControl(this);
+    with (this.adjustMaskSize_Control) {
+        label.text = "Adjust mask size:";
+        label.minWidth = labelWidth1;
+        label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        setRange(0.1, 5);
+        slider.setRange(0, 490);
+        slider.scaledMinWidth = 200;
+        setPrecision(2);
+        setValue(Config.AdjFact != undefined ? Config.AdjFact : 0.5);
+        toolTip = "<p>Star size adjustment factor from 0.1 to 5, default 0.5.</p>";
+        onValueUpdated = function (value) {
+            Config.AdjFact = value;
+            if (Engine)
+                Engine.AdjFact = value;
+        };
+    }
+
     // Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName
     this.maskGrowth_CheckBox = new CheckBox(this);
     with (this.maskGrowth_CheckBox){
@@ -603,6 +590,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
+        sizer.add(this.adjustMaskSize_Control);
         sizer.add(this.Parameters_Sizer);
         setScaledMinWidth( MIN_DIALOG_WIDTH / 3 - this.logicalPixelsToPhysical(50) );
     }
@@ -940,9 +928,6 @@ function SelectiveStarMask_Dialog(refView) {
         add(this.helpLabel);
         addSpacing(4);
         add(this.InformationGroupBox);
-        addSpacing(4);
-
-        add(this.ScriptParametersGroupBox);
         addSpacing(4);
 
         add(this.Filter_Sizer);
