@@ -34,6 +34,7 @@
 #include <pjsr/SectionBar.jsh>
 #include <pjsr/FontFamily.jsh>
 #include <pjsr/Color.jsh>
+#include <pjsr/NumericControl.jsh>
 
 /*
  * dialog
@@ -302,10 +303,41 @@ function SelectiveStarMask_Dialog(refView) {
     }
 
 
+    // -- Script parameters --
+
+    this.adjustMaskSize_Control = new NumericControl(this);
+    with (this.adjustMaskSize_Control) {
+        label.text = "Adjust mask size:";
+        label.minWidth = labelWidth1;
+        label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        setRange(0.1, 5);
+        slider.setRange(0, 490);
+        slider.scaledMinWidth = 200;
+        setPrecision(2);
+        setValue(Config.AdjFact != undefined ? Config.AdjFact : 0.5);
+        toolTip = "<p>Star size adjustment factor from 0.1 to 5, default 0.5.</p>";
+        onValueUpdated = function (value) {
+            Config.AdjFact = value;
+            if (Engine)
+                Engine.AdjFact = value;
+        };
+    }
+
+    this.ScriptParametersGroupBox = new GroupBox(this);
+    with (this.ScriptParametersGroupBox) {
+        title = "Script paramets";
+        sizer = new VerticalSizer;
+        sizer.margin = 6;
+        sizer.spacing = 4;
+        sizer.add(this.adjustMaskSize_Control);
+        setScaledMinWidth( MIN_DIALOG_WIDTH );
+    }
+
+
     // -- Filter ---
 
 
-	// -- Size filter --
+       // -- Size filter --
     // Min size filter
     this.minSizeFilter_Label = new Label(this);
     with (this.minSizeFilter_Label) {
@@ -907,7 +939,10 @@ function SelectiveStarMask_Dialog(refView) {
         spacing = 6;
         add(this.helpLabel);
         addSpacing(4);
-		  add(this.InformationGroupBox);
+        add(this.InformationGroupBox);
+        addSpacing(4);
+
+        add(this.ScriptParametersGroupBox);
         addSpacing(4);
 
         add(this.Filter_Sizer);
