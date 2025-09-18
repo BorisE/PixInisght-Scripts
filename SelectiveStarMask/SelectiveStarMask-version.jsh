@@ -21,7 +21,7 @@
 	#define __SELECTIVESTARMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME__ "SelectiveStarMask"
-	#define __SCRIPT_VERSION__ "2.2.0"
+	#define __SCRIPT_VERSION__ "2.3.0"
 	#define __SCRIPT_DATE__ "20250918"
 
 	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting"
@@ -53,6 +53,10 @@ ToDo
 /*
  * History
  *
+ 2.3.0 [2025 09 18]
+    - adjust inner part of mask size for contour mask
+    - filter UI adjusted
+    
  2.2.0 [2025 09 18]
     - adjust mask size parameter in UI
     - script icon

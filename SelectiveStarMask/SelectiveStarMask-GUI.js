@@ -576,8 +576,8 @@ function SelectiveStarMask_Dialog(refView) {
         slider.setRange(0, 490);
         slider.scaledMinWidth = 200;
         setPrecision(2);
-        setValue(Config.AdjFact != undefined ? Config.AdjFact : 0.5);
-        toolTip = "<p>Star size adjustment factor from 0.1 to 5, default 0.5.</p>";
+        setValue(Config.AdjFact != undefined ? Config.AdjFact : 1.0);
+        toolTip = "<p>Star size adjustment factor from 0.1 to 5, default 1.0. Increase above 1 to grow star mask, decrease to shirnk.</p>";
         onValueUpdated = function (value) {
             Config.AdjFact = value;
             if (Engine)
