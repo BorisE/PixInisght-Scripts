@@ -29,6 +29,8 @@ function ConfigData() {
     if (__DEBUGF__)
         console.writeln('<br/><br/>Config object created...<br/>');
 
+    this.AdjFact = 0.5;
+
     //Helper functions
     function load(key, type, default_value, precision = 2) {
         let retV = Settings.read(__SETTINGS_KEY_BASE__ + key, type);
@@ -69,6 +71,9 @@ function ConfigData() {
         if ((o = load("FilterFlux_max", DataType_Float, MAX_INT, 3)) != null)
             this.FilterFlux_max = o;
 
+        if ((o = load("AdjFact", DataType_Float, 0.5, 2)) != null)
+            this.AdjFact = o;
+
         
         /*
         if ((o = load("InputPath", DataType_String)) != null)
@@ -95,6 +100,7 @@ function ConfigData() {
         save("FilterSize_max", DataType_Float, this.FilterSize_max);
         save("FilterFlux_min", DataType_Float, this.FilterFlux_min);
         save("FilterFlux_max", DataType_Float, this.FilterFlux_max);
+        save("AdjFact", DataType_Float, this.AdjFact);
 
         /* =
         save("NeedCalibration", DataType_Boolean, this.NeedCalibration);
@@ -122,6 +128,7 @@ function ConfigData() {
         Parameters.set("FilterSize_max",        this.FilterSize_max);
         Parameters.set("FilterFlux_min",        this.FilterFlux_min);
         Parameters.set("FilterFlux_max",        this.FilterFlux_max);
+        Parameters.set("AdjFact",               this.AdjFact);
 
         /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
@@ -151,6 +158,8 @@ function ConfigData() {
             this.FilterFlux_min = Parameters.getReal("FilterFlux_min");
         if (Parameters.has("FilterFlux_max"))
             this.FilterFlux_max = Parameters.getReal("FilterFlux_max");
+        if (Parameters.has("AdjFact"))
+            this.AdjFact = Parameters.getReal("AdjFact");
 
         /*
         if (Parameters.has("NeedCalibration"))
@@ -179,6 +188,7 @@ function ConfigData() {
         console.writeln("FilterSize_max:                 " + this.FilterSize_max);
         console.writeln("FilterFlux_min:                 " + this.FilterFlux_min);
         console.writeln("FilterFlux_max:                 " + this.FilterFlux_max);
+        console.writeln("AdjFact:                        " + this.AdjFact);
 
         /*
         console.writeln("InputPath:                      " + this.InputPath);

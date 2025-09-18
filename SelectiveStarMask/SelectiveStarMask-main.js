@@ -74,11 +74,13 @@ function main() {
 
     Engine = new SelectiveStarMask_engine();
     Engine.debug = __DEBUGF__;
+    Engine.AdjFact = Config.AdjFact;
 
     if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
         if (__DEBUGF__)
             console.noteln("Running from saved script instance");
         Config.importParameters();
+        Engine.AdjFact = Config.AdjFact;
 
         // Run without GUI
         if (Parameters.isViewTarget) {
