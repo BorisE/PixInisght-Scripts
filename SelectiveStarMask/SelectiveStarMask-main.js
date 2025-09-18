@@ -21,6 +21,7 @@
     using StarDetector and PSF fitting. <br/>\
     <br/>\
     Copyright &copy; 2024-2025 Boris Emchenko (astromania.info)
+#feature-icon SelectiveStarMask-icon.svg
 
 //File id
 #define __SELECTIVESTARMASK_MAIN__
