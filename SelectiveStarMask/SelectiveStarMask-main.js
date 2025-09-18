@@ -75,12 +75,14 @@ function main() {
     Engine = new SelectiveStarMask_engine();
     Engine.debug = __DEBUGF__;
     Engine.AdjFact = Config.AdjFact;
+    Engine.AdjFactor_countor = Config.AdjFactor_countor;
 
     if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
         if (__DEBUGF__)
             console.noteln("Running from saved script instance");
         Config.importParameters();
         Engine.AdjFact = Config.AdjFact;
+        Engine.AdjFactor_countor = Config.AdjFactor_countor;
 
         // Run without GUI
         if (Parameters.isViewTarget) {

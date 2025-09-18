@@ -550,9 +550,11 @@ function SelectiveStarMask_Dialog(refView) {
         text = "Countour mask";
         checked = Config.contourMask;
         toolTip = "<p>Create mask as a countour.</p>";
-		  setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+                  setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
         onClick = function (checked) {
             Config.contourMask = checked;
+            if (this.dialog.adjustInnerSize_Control)
+                this.dialog.adjustInnerSize_Control.enabled = checked;
         };
     };
     this.Parameters_Sizer = new HorizontalSizer;
@@ -583,6 +585,24 @@ function SelectiveStarMask_Dialog(refView) {
         };
     }
 
+    this.adjustInnerSize_Control = new NumericControl(this);
+    with (this.adjustInnerSize_Control) {
+        label.text = "Adjust inner size:";
+        label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        setRange(0.01, 5);
+        slider.setRange(0, 499);
+        slider.scaledMinWidth = 200;
+        setPrecision(2);
+        setValue(Config.AdjFactor_countor != undefined ? Config.AdjFactor_countor : 0.5);
+        enabled = Config.contourMask;
+        toolTip = "<p>Inner star size adjustment factor from 0.01 to 5, default 0.5.</p>";
+        onValueUpdated = function (value) {
+            Config.AdjFactor_countor = value;
+            if (Engine)
+                Engine.AdjFactor_countor = value;
+        };
+    }
+
     // Mask Parameters groupbox
     this.MaskParametersGroupBox = new GroupBox(this);
     with (this.MaskParametersGroupBox) {
@@ -592,6 +612,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.spacing = 4;
         sizer.add(this.Parameters_Sizer);
         sizer.add(this.adjustMaskSize_Control);
+        sizer.add(this.adjustInnerSize_Control);
         setScaledMinWidth( MIN_DIALOG_WIDTH / 3 + this.logicalPixelsToPhysical(100) );
     }
 
@@ -1133,11 +1154,15 @@ function mainGUI() {
    if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
 
    Config.loadSettings();
+   Engine.AdjFact = Config.AdjFact;
+   Engine.AdjFactor_countor = Config.AdjFactor_countor;
 
    if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
         if (__DEBUGF__)
             console.writeln("Running script instance");
         Config.importParameters();
+        Engine.AdjFact = Config.AdjFact;
+        Engine.AdjFactor_countor = Config.AdjFactor_countor;
 
    } else {
         if (__DEBUGF__)
