@@ -322,7 +322,6 @@ function SelectiveStarMask_Dialog(refView) {
         onTextUpdated = function () {
             Config.FilterSize_min = parseFloat(this.text);
             Engine.curFilterSize.min = Config.FilterSize_min;
-            console.warningln("New min:" + Engine.curFilterSize.min);
             if (Engine.filterApplied)
                 this.dialog.applyFilters();
         };
@@ -743,6 +742,7 @@ function SelectiveStarMask_Dialog(refView) {
             // (3) Now can calculate star statistics
             parent.StarsDetected_Label.text = "(3) Calculating statistics..."
             Engine.calculateStarStats();
+            Engine.checkFittings();
             Engine.printStars();
             Engine.printGroupStat();
             if (!__DEBUGF__)
@@ -760,23 +760,6 @@ function SelectiveStarMask_Dialog(refView) {
         }
     }
 
-   // Apply current filters and update UI
-   this.applyFilters = function ()
-   {
-        console.noteln();
-        console.noteln("Appling filters...");
-
-        // Filter by size (if needed)
-        let FilteredStars = undefined;
-        if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
-            FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
-
-        // Filter by flux (if needed)
-        if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
-            FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
-
-        this.updateMainData(FilteredStars);
-   };
 
    // Filter stars button
    this.filter_Button = new PushButton( this );
@@ -949,10 +932,27 @@ function SelectiveStarMask_Dialog(refView) {
    this.adjustToContents();
 
 
-	// -- Handlers --
+    // -- Handlers --
+
+    // Apply current filters and update UI
+    this.applyFilters = function ()
+    {
+        debug("Appling filters...");
+
+        // Filter by size (if needed)
+        let FilteredStars = undefined;
+        if (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2))
+            FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
+
+        // Filter by flux (if needed)
+        if (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2))
+            FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+
+        this.updateMainData(FilteredStars);
+    };
 
  	this.displayStarsStat = function( StarsArray = undefined, topRecords = 0)
-   {
+    {
  		debug("<i>displayStarStat: output stars data to TreeBox. StarsArray = " + (StarsArray?StarsArray.length:StarsArray));
         if ( topRecords == 0 )
             topRecords = StarsArray.length;

@@ -115,6 +115,7 @@ function main_cli(refView)
     Engine.fitStarPSF();
     // (3) Now can calculate star statistics
     Engine.calculateStarStats();
+    Engine.checkFittings();
     Engine.printStars();
     Engine.printGroupStat();
 

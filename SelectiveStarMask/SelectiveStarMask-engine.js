@@ -29,6 +29,7 @@
 #include <pjsr/UndoFlag.jsh>
 #include <pjsr/BitmapFormat.jsh>
 #include <pjsr/ColorSpace.jsh>
+#include <pjsr/PenStyle.jsh>
 #include <pjsr/ImageOp.jsh>
 #include <pjsr/MorphOp.jsh>
 
@@ -49,13 +50,20 @@
 #define TEMP_PEDESTAL 0.0002
 #define TEMP_NOISE_PROBABILITY 0.01
 
-#define MAX_PSF_DIAG_DISCREPANCY 3
+#define MAX_PSF_FLUX_DISCREPANCY 3.0
+
+// Types of star ellipse calculations
+#define DRAW_ELLIPSE_TYPE_PSF               1
+#define DRAW_ELLIPSE_TYPE_PSFDISCREPANCY    2
+#define DRAW_ELLIPSE_TYPE_NOPSFFIT          3
+#define DRAW_ELLIPSE_TYPE_NOPSFFIT_LARGE    4
 
 /*
  * Star data object
  */
 function Star( pos, flux, bkg, rect, size, nmax )
 {
+   this.idx = -1;
    // Centroid position in pixels, image coordinates. This property is an
    // object with x and y Number properties.
    this.pos = pos;
@@ -80,6 +88,7 @@ function Star( pos, flux, bkg, rect, size, nmax )
    this.w = this.rect.x1 - this.rect.x0; 
    // Height
    this.h = this.rect.y1 - this.rect.y0; 
+   // Diagonal length (stardetector data)
    this.diag = Math.sqrt(this.w*this.w + this.h*this.h);
 
    let AdjFact = Math.min ( ( this.flux > 1 ? this.flux : 1) * 1.5, 3);
@@ -113,6 +122,11 @@ function Star( pos, flux, bkg, rect, size, nmax )
    
    this.FWHMx = undefined;
    this.FWHMy = undefined;
+   
+   this.drawEllipse_W = undefined;      // the result mask size
+   this.drawEllipse_H = undefined;      // the result mask size
+   this.drawEllipse_type = undefined;   // how the calculation was done
+   
 }
 
 /*
@@ -270,6 +284,9 @@ function SelectiveStarMask_engine()
 
     this.cntFittedStars = 0;
 
+    this.AdjFact = 0.5;
+    this.AdjFactor_countor = 0.5;
+
 
     /** 
      * Proccess source image and get all stars from it
@@ -388,6 +405,9 @@ function SelectiveStarMask_engine()
         // -- Stars for DynamicPSF process
         var stars = new Array;
         for (var i = 0; i < StarsArray.length; i++) {
+            // set idx for every star
+            StarsArray[i].idx = i;
+            // create array for PSF
             let s = StarsArray[i];
             stars.push(new Array(
                     0, 0, DynamicPSF.prototype.Star_DetectedOk,
@@ -468,6 +488,7 @@ function SelectiveStarMask_engine()
         #define DYNAMICPSF_Stars_x1 5
         #define DYNAMICPSF_Stars_y1 6
 
+        // Push data into StarsArray
         var psfTable = dynamicPSF.psf;
         var starsTable = dynamicPSF.stars;
         this.cntFittedStars = 0;
@@ -495,6 +516,10 @@ function SelectiveStarMask_engine()
 
                 StarsArray[idx].FWHMx = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sx], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
                 StarsArray[idx].FWHMy = FWHM(psfRow[DYNAMICPSF_PSF_FuncType], psfRow[DYNAMICPSF_PSF_sy], psfRow[DYNAMICPSF_PSF_beta], (dynamicPSF.variableShapePSF === true));
+        
+                StarsArray[idx].drawEllipse_W = StarsArray[idx].PSF_rect.x1 - StarsArray[idx].PSF_rect.x0;
+                StarsArray[idx].drawEllipse_H = StarsArray[idx].PSF_rect.y1 - StarsArray[idx].PSF_rect.y0;
+                StarsArray[idx].drawEllipse_type = DRAW_ELLIPSE_TYPE_PSF;
 
                 //debug(idx + ": " + psfRow[DYNAMICPSF_PSF_FuncType] + " CF:" + psfRow[DYNAMICPSF_PSF_CircularFlag] + " b:" + StarsArray[idx].PSF_b + " a:" + StarsArray[idx].PSF_a + " " + StarsArray[idx].PSF_theta);
 
@@ -503,12 +528,14 @@ function SelectiveStarMask_engine()
             }
         }
 
+        // output list of nottfitted stars
         var nonfitted = 0;
         let idx = 0;
         fitted.forEach( 
             function (fittedf) 
             {
                 if (!fittedf) {
+                // not fited
                     debug(format("Star [%d] with flux=%4.3f couldn't be fitted", idx, StarsArray[idx].flux));
                     nonfitted++;
                 }
@@ -520,9 +547,87 @@ function SelectiveStarMask_engine()
         console.writeln(nonfitted + " stas couldn't be fitted");
       
         return StarsArray;
-   }
+    }
 
+    /*
+     * Final fitttings check
+     * and interpolating wrong or missed fittings
+     */
+    this.checkFittings = function (StarsArray = undefined)
+    {
+        debug("<br>Running [" + "checkFittings( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
+      
+        if (!StarsArray)
+            StarsArray = this.Stars;
+      
+        if (!StarsArray)
+            return false;
 
+        if (!this.Stat.w_max || !this.Stat.h_max)
+            this.calculateStarStats( StarsArray );
+        
+        for ( let i = 0; i < StarsArray.length; i++ )
+        {
+            let s = StarsArray[i];
+
+            // PSF fitting
+            if (s.PSF_diag) {
+                // Check for wrong fittings (large one)
+                if (s.PSF_flux > s.flux * MAX_PSF_FLUX_DISCREPANCY) {
+
+                   debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: flux discrepancy problem. s.PSF_flux = " + s.PSF_flux.toFixed(1) + ", s.flux = " + s.flux.toFixed(1), DEBUG_COLOR_ERROR);
+
+                   let k = this.interpolateStar(i, INTERPOLATE_SEARCH_FLUX, PREFFERED_DIR_MID);
+                   
+                   let newDiag = s.flux * k;
+                   let w = newDiag / Math.sqrt( 2 );
+                   let oldDiag = StarsArray[i].PSF_diag;
+                   StarsArray[i].PSF_diag = newDiag;
+                   StarsArray[i].drawEllipse_type = DRAW_ELLIPSE_TYPE_PSFDISCREPANCY;
+                   StarsArray[i].drawEllipse_W = w;
+                   StarsArray[i].drawEllipse_H = w;
+
+                   debug("Diagonal was = " + oldDiag.toFixed(1) + ", become = " + newDiag.toFixed(1), DEBUG_COLOR_ERROR);
+
+                }
+            } else {
+            // NO PSF fitting 
+                // For largest stars
+                if ( s.fluxGroup == this.FluxGrouping.numIntervals-1 ) {
+                   debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: no PSF fitting, large star", DEBUG_COLOR_ERROR);
+
+                   let k = this.interpolateStar(i, INTERPOLATE_SEARCH_PSFFIT, PREFFERED_DIR_NEXT);
+
+                   let newDiag = s.flux * k;
+                   let w = newDiag / Math.sqrt( 2 );
+                   let oldDiag = StarsArray[i].diag;
+                   StarsArray[i].PSF_diag = newDiag;
+                   StarsArray[i].drawEllipse_type = DRAW_ELLIPSE_TYPE_NOPSFFIT_LARGE;
+                   StarsArray[i].drawEllipse_W = w;
+                   StarsArray[i].drawEllipse_H = w;
+
+                   debug("Diagonal was = " + oldDiag.toFixed(1) + ", become = " + newDiag.toFixed(1), DEBUG_COLOR_ERROR);
+                } else {
+                // For usual stars
+                    debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: no PSF fitting", DEBUG_COLOR_ERROR);
+            
+                    let k = this.interpolateStar(i, INTERPOLATE_SEARCH_PSFFIT, PREFFERED_DIR_MID);
+                   
+                    let newDiag = s.flux * k;
+                    let w = newDiag / Math.sqrt( 2 );
+                    let oldDiag = StarsArray[i].diag;
+                    StarsArray[i].PSF_diag = newDiag;
+                    StarsArray[i].drawEllipse_type = DRAW_ELLIPSE_TYPE_NOPSFFIT;
+                    StarsArray[i].drawEllipse_W = w;
+                    StarsArray[i].drawEllipse_H = w;
+ 
+                    debug("Diagonal was = " + oldDiag.toFixed(1) + ", become = " + newDiag.toFixed(1), DEBUG_COLOR_ERROR);
+                }
+            }
+        }
+        
+        return StarsArray;
+    }
 
     /** 
      * Check if Pedestal need to be added.
@@ -623,9 +728,9 @@ function SelectiveStarMask_engine()
 
 
 
-/*
- * Calculate Stars statistics
- */
+   /*
+    * Calculate Stars statistics
+    */
    this.calculateStarStats = function (StarsArray = undefined)
    {
       debug("<br>Running [" + "calculateStarStats( StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )]");
@@ -1074,7 +1179,8 @@ function SelectiveStarMask_engine()
          
          var header = [ "i", "x", "y", "flux", "bckgrnd", "w", "h", "size", "Rsize", "nmax", "SizeGroup", "FluxGroup" ];
          header.push( "RA", "Dec" );
-         header.push( "psf_F", "psf_B", "psf_A", "Angle", "FHWHx", "FHWHy", "psfRect_w", "psfRect_h", "res" );
+         header.push( "psf_F", "psf_B", "psf_A", "Angle", "FHWHx", "FHWHy", "psfRect_w", "psfRect_h", "res", "PSF_diag" );
+         header.push( "drawEllipse_W", "drawEllipse_H", "drawEllipse_type" );
          
          f.outTextLn( header.join ( csvSeparator + " " ) );
 
@@ -1093,7 +1199,11 @@ function SelectiveStarMask_engine()
                data.push ("", "");
 
             if (s.PSF_rect)
-               data.push( s.PSF_flux, s.PSF_b, s.PSF_a, s.PSF_theta, s.FWHMx, s.FWHMy, s.PSF_rect.x1 - s.PSF_rect.x0, s.PSF_rect.y1 - s.PSF_rect.y0, s.PSF_residual );
+                data.push( s.PSF_flux, s.PSF_b, s.PSF_a, s.PSF_theta, s.FWHMx, s.FWHMy, s.PSF_rect.x1 - s.PSF_rect.x0, s.PSF_rect.y1 - s.PSF_rect.y0, s.PSF_residual, s.PSF_diag );
+            else
+                data.push( "", "", "", "", "", "", "", "", "" , "");
+            
+            data.push( s.drawEllipse_W, s.drawEllipse_H, s.drawEllipse_type );
             
             f.outTextLn( data.join( csvSeparator + " " ) ) ;
          }
@@ -1108,6 +1218,7 @@ function SelectiveStarMask_engine()
       
       return true;
    }
+   
 
     
   /*****************************************************************************************************************************************
@@ -1140,63 +1251,79 @@ function SelectiveStarMask_engine()
       G.antialiasing = true;
       G.pen = new Pen( 0xffffffff );
 
-      var AdjF = 5;
 
       for ( let i = 0; i < StarsArray.length; i++ )
       {
          let s = StarsArray[i];
+         let AdjF = this.AdjFact;
+         let AdjF_countor = this.AdjFactor_countor;
 
          // PSF fitting
-         if (s.PSF_diag)
+         if (s.PSF_cx)
          {
-            // Check for wrong (large) fittings
-            if (s.PSF_diag > s.diag * MAX_PSF_DIAG_DISCREPANCY) {
-               G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
-               debug("For a star [" +  s.pos.x + ", " + s.pos.y + "] s.PSF_diag=" + s.PSF_diag + ", while s.diag="+ s.diag);
-            }
             
-            
+            // If Mask Growth increase AdjFact
             if (maskGrowth) {
                //AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
                let diagonal = s.PSF_diag;
                AdjF = diagonal / Math.max( s.FWHMx, s.FWHMy );
                //debug("AdjF="+AdjF+", diagonal="+diagonal+", Math.max(s.FWHMx, s.FWHMy)="+Math.max(s.FWHMx, s.FWHMy));
             }
-            G.translateTransformation( s.PSF_cx, s.PSF_cy );
-            G.rotateTransformation( s.PSF_theta * Math.PI / 180 );            
-            G.fillEllipse( - s.FWHMx  * AdjF / 2.0, - s.FWHMy * AdjF / 2.0,  s.FWHMx  * AdjF/ 2.0, s.FWHMy  * AdjF / 2.0, new Brush(0xFFFFFFFF) );
-            //G.fillEllipse( - s.FWHMx  , - s.FWHMy ,  s.FWHMx  , s.FWHMy  , new Brush(0xFFFFFFFF) );
-            //let w = s.PSF_rect.x1 - s.PSF_rect.x0;
-            //let h = s.PSF_rect.y1 - s.PSF_rect.y0;
-            //G.drawRect( - w/2, -h/2, w/2, h/2);
-            G.resetTransformation();            
+
+
+            // Check for wrong fittings (large one)
+            if (s.PSF_diag > s.diag * MAX_PSF_FLUX_DISCREPANCY) {
+               debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: diag discrepancy problem. s.PSF_diag = " + s.PSF_diag.toFixed(1) + ", s.diag = " + s.diag.toFixed(1), DEBUG_COLOR_ERROR);
+              
+               G.translateTransformation( s.pos.x, s.pos.y );
+               G.fillEllipse( - s.drawEllipse_W * 0.5 * AdjF, - s.drawEllipse_H * 0.5 * AdjF,  s.drawEllipse_W * 0.5 * AdjF, s.drawEllipse_H * 0.5 * AdjF, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+               G.resetTransformation();
+            
+            } else {
+            // normal fitted stars
+                debug("star idx = " + i + ": s.PSF_cx - " + s.PSF_cx + ", s.PSF_cy=" + s.PSF_cy)
+                G.translateTransformation( s.PSF_cx, s.PSF_cy );
+                G.rotateTransformation( s.PSF_theta * Math.PI / 180 );            
+                G.fillEllipse( - s.drawEllipse_W * 0.5 * AdjF, - s.drawEllipse_H * 0.5 * AdjF,  s.drawEllipse_W * 0.5 * AdjF, s.drawEllipse_H * 0.5 * AdjF, new Brush(0xFFFFFFFF) );
+                G.resetTransformation();
+            }
          }
          else
          {
-            // NO PSF fitting for largest stars
+            // NO PSF fitting 
+            
+            // For largest stars
             if ( s.fluxGroup == this.FluxGrouping.numIntervals-1 )
             {
-               this.prevPSFfitted(i)
-               var prev = this.prevPSFfitted(i);
-               var next = this.nextPSFfitted(i);
-               debug("idx = " + i + ", prev = " + prev.PSF_flux + ", next = " + next.PSF_flux);
-               let diagonal = next.PSF_diag;
-               let k = diagonal / next.flux;
-               let newDiag = s.flux * k;
-               StarsArray[i].PSF_diag = newDiag;
-               debug("s.flux = " + s.flux + ", next.psfRect_w = " + next.psfRect_w + ", s.PSF_diag = " + s.PSF_diag);
-               // G.fillEllipse( - s.FWHMx  * AdjF / 2.0, - s.FWHMy * AdjF / 2.0,  s.FWHMx  * AdjF/ 2.0, s.FWHMy  * AdjF / 2.0, new Brush(0xFFFFFFFF) );
+               debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: no PSF fitting, large star", DEBUG_COLOR_ERROR);
+
+               G.translateTransformation( s.pos.x, s.pos.y );
+               G.fillEllipse( - s.drawEllipse_W * 0.5 * AdjF, - s.drawEllipse_H * 0.5 * AdjF,  s.drawEllipse_W * 0.5 * AdjF, s.drawEllipse_H * 0.5 * AdjF, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+               G.resetTransformation();
+            } else {
+            // For usual stars
+                
+                debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: no PSF fitting", DEBUG_COLOR_ERROR);
                
-               let w = newDiag / Math.sqrt( 2 );
-               G.fillEllipse( s.pos.x - w/2, s.pos.y - w/2, s.pos.x + w/2, s.pos.y + w/2, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+                //debug("No PSF Rect for " + i);
+                // and still draw the non fitted star? 
+                G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
             }
-            
-            //debug("No PSF Rect for " + i);
-            G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
          }
 
-         if (contourMask) 
-            G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
+         if (contourMask) {
+            G.translateTransformation( s.pos.x, s.pos.y );
+            G.fillEllipse( - s.w * 0.5 * AdjF_countor, - s.h * 0.5 * AdjF_countor,  s.w * 0.5 * AdjF_countor, s.h * 0.5 * AdjF_countor, new Brush( 0xFF000000 ) );
+            G.resetTransformation();
+
+            //G.fillEllipse( s.rect.x0 , s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
+         }
+        
+         if (__DEBUGF__) {
+             // just detected star
+             //G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFBBBBBB:0xFFFFFFFF ) );
+         }
+        
          
          //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
       }
@@ -1261,17 +1388,58 @@ function SelectiveStarMask_engine()
       //G.pen = new Pen( 0xffffffff );
       G.pen = new Pen(0xffff00ff, 1); //   g.pen= new Pen(0xff32CD32, 2);
 
-      var PensArr = [new Pen(0xff001177, 1), new Pen(0xff009900, 1), new Pen(0xff990099, 1), new Pen(0xffffff00, 1), new Pen(0xffff0000, 1)];
+      var PensArr = [new Pen(0xff002288, 1), new Pen(0xff009900, 1), new Pen(0xff990099, 1), new Pen(0xffffff00, 1), new Pen(0xffff0000, 1)];
+      var PensArr_dot = [new Pen(0xff002288, 1, PenStyle_Dot), new Pen(0xff009900, 1, PenStyle_Dot), new Pen(0xff990099, 1, PenStyle_Dot), new Pen(0xffffff00, 1, PenStyle_Dot), new Pen(0xffff0000, 1, PenStyle_Dot)];
 
       //G.pen = new Pen( 0xff000000 );
+
+      let font = new Font( "Open Sans" );
+      font.pixelSize = 20;
+      G.font = font;
 
       for ( let i = 0, n = StarsArray.length ; i < n; ++i )
       {
          let s = StarsArray[i];
+         let AdjF = this.AdjFact;
+         
+         // StarDetector res
          G.strokeEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, PensArr[s.fluxGroup] );
-         //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
-         if (s.PSF_rect)
-            G.strokeRect( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, PensArr[s.fluxGroup]);
+         //G.strokeRect( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, PensArr[s.fluxGroup] );
+         
+         // PSF
+         if (s.PSF_rect) {
+            // original
+            if ( Math.abs(s.drawEllipse_W / (s.PSF_rect.x1 - s.PSF_rect.x0) - 1) > 0.05) {
+                //recalculated
+                G.strokeRect( s.PSF_cx - s.drawEllipse_W * 0.5 * AdjF, s.PSF_cy - s.drawEllipse_H * 0.5 * AdjF,  s.PSF_cx + s.drawEllipse_W * 0.5 * AdjF, s.PSF_cy + s.drawEllipse_H * 0.5 * AdjF, PensArr[s.fluxGroup] );
+                if (__DEBUGF__) {
+                    G.strokeRect( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, PensArr_dot[s.fluxGroup]);
+                }
+            } else {
+                G.strokeRect( s.PSF_rect.x0, s.PSF_rect.y0, s.PSF_rect.x1, s.PSF_rect.y1, PensArr[s.fluxGroup]);
+            }
+         // NO PSF
+         } else  {
+            G.strokeRect( s.pos.x - s.drawEllipse_W * 0.5 * AdjF, s.pos.y - s.drawEllipse_H * 0.5 * AdjF,  s.pos.x + s.drawEllipse_W * 0.5 * AdjF, s.pos.y + s.drawEllipse_H * 0.5 * AdjF, PensArr[s.fluxGroup] );
+         }
+         
+         // DrawType
+         if (__DEBUGF__) {
+             if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_PSF) {
+                //G.pen = new Pen(0xff505050);
+                //G.drawText( s.PSF_rect.x0, s.PSF_rect.y0 + 0, s.drawEllipse_type.toString());
+             } else if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_PSFDISCREPANCY) {
+                G.pen = new Pen(0xffff0000);
+                G.drawText( s.PSF_rect.x0, s.PSF_rect.y0 + 0, s.drawEllipse_type.toString());
+             } else if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_NOPSFFIT) {
+                G.pen = new Pen(0xff00ff00);
+                G.drawText( s.rect.x0, s.rect.y0 + 0, s.drawEllipse_type.toString());
+             } else if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_NOPSFFIT_LARGE) {
+                G.pen = new Pen(0xffff00ff);
+                G.drawText( s.rect.x0, s.rect.y0 + 0, s.drawEllipse_type.toString());
+             }
+             //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
+         }
       }
       G.end();
 
@@ -1466,10 +1634,51 @@ function SelectiveStarMask_engine()
 
       return true;
    }
+
+
+    #define INTERPOLATE_SEARCH_PSFFIT 1
+    #define INTERPOLATE_SEARCH_FLUX 2
    
-   this.prevPSFfitted = function( idx, StarsArray = undefined )
+    #define PREFFERED_DIR_NEXT   1
+    #define PREFFERED_DIR_PREV   2
+    #define PREFFERED_DIR_MID    3
+    this.interpolateStar = function( idx, SearchType = INTERPOLATE_SEARCH_PSFFIT, PreferredDir = PREFFERED_DIR_MID, StarsArray = undefined )
+    {
+       debug("<br>Running [" + "interpolateStar( idx = '" + idx + "', SearchType = " + SearchType + ", PreferredDir = " + PreferredDir + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+       
+       // find nearest next and prev fitted star
+       var prev = this.prevPSFfitted(idx, SearchType);
+       var next = this.nextPSFfitted(idx, SearchType);
+       debug("idx = " + idx + ", prev [" + prev.idx + "] diag/flux = " + prev.PSF_diag + " / " + prev.flux + ", next [" + next.idx + "] diag/flux = " + next.PSF_diag + " / "+  next.flux);
+       
+       // calc factor between flux and fitted rect diagonal
+       let k_next = next.PSF_diag / next.flux;
+       let k_prev = prev.PSF_diag / prev.flux;
+       let k = undefined;
+       // use next
+       
+       if (next && prev) {
+           if (PreferredDir == PREFFERED_DIR_NEXT) {
+                k = k_next;
+           } else if (PreferredDir == PREFFERED_DIR_PREV) {
+                k = k_prev;
+           } else {
+                k = (k_next + k_prev) / 2.0;
+           }
+       } else {
+            if (next) {
+                k = k_next;
+            } else if (prev) {
+                k = k_prev;
+            }
+       }
+       
+       return k;
+   }
+   
+   this.prevPSFfitted = function( idx, SearchType = INTERPOLATE_SEARCH_PSFFIT, StarsArray = undefined )
    {
-      debug("<br>Running [" + "prevPSFfitted( idx = '" + idx + "', StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+      debug("<br>Running [" + "prevPSFfitted( idx = '" + idx + "', SearchType = " + SearchType + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
       
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -1478,12 +1687,20 @@ function SelectiveStarMask_engine()
          return false;
       
       var fndidx = -1;
-      for( let i=idx; i>=0; i--)
+      for( let i=idx-1; i>=0; i--)
       {
-         if (StarsArray[i].PSF_rect)
-         {
-            fndidx = i;
-            break;
+         if (SearchType == INTERPOLATE_SEARCH_PSFFIT) {
+             if (StarsArray[i].PSF_rect)
+             {
+                fndidx = i;
+                break;
+             }
+         } else if (SearchType == INTERPOLATE_SEARCH_FLUX) {
+             if (StarsArray[i].PSF_flux < StarsArray[i].flux * MAX_PSF_FLUX_DISCREPANCY)
+             {
+                fndidx = i;
+                break;
+             }
          }
       }
       
@@ -1493,9 +1710,9 @@ function SelectiveStarMask_engine()
          return false;
    }
    
-   this.nextPSFfitted = function( idx, StarsArray = undefined )
+   this.nextPSFfitted = function( idx, SearchType = INTERPOLATE_SEARCH_PSFFIT, StarsArray = undefined )
    {
-      debug("<br>Running [" + "nextPSFfitted( idx = '" + idx + "', StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
+      debug("<br>Running [" + "nextPSFfitted( idx = '" + idx + "', SearchType = " + SearchType + ", StarsArray = " + (StarsArray?StarsArray.length:StarsArray) + " )" + "]");
       
       if (!StarsArray)
          StarsArray = this.Stars;
@@ -1504,12 +1721,20 @@ function SelectiveStarMask_engine()
          return false;
       
       var fndidx = -1;
-      for( let i=idx; i<StarsArray.length; i++)
+      for( let i=idx+1; i<StarsArray.length; i++)
       {
-         if (StarsArray[i].PSF_rect)
-         {
-            fndidx = i;
-            break;
+         if (SearchType == INTERPOLATE_SEARCH_PSFFIT) {
+             if (StarsArray[i].PSF_rect)
+             {
+                fndidx = i;
+                break;
+             }
+         } else if (SearchType == INTERPOLATE_SEARCH_FLUX) {
+             if (StarsArray[i].PSF_flux < StarsArray[i].flux * MAX_PSF_FLUX_DISCREPANCY)
+             {
+                fndidx = i;
+                break;
+             }
          }
       }
       
@@ -1664,12 +1889,6 @@ function SelectiveStarMask_engine()
    
 };
 
-
-function debug(st)
-{
-   if (__DEBUGF__)
-      console.writeln("<i>" + st + "</i>");
-}
 
 /* 
  * FHWH algorithm taken from StarUtils - A PixInsight Script that allow star fixing and easy mask creation
