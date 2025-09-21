@@ -524,7 +524,12 @@ function SelectiveStarMask_Dialog(refView) {
 
     // -- Mask Parameters --
 
-    // Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName
+    // Config.softenMask, Config.maskGrowth, Config.specialMaskType, Config.MaskName
+    this.specialMaskTypeOptions = [
+        "Normal",
+        "Star cores",
+        "Contour mask"
+    ];
     this.maskGrowth_CheckBox = new CheckBox(this);
     with (this.maskGrowth_CheckBox){
         text = "Mask growth";
@@ -545,25 +550,43 @@ function SelectiveStarMask_Dialog(refView) {
             Config.softenMask = checked;
         };
     };
-    this.contourMask_CheckBox = new CheckBox(this);
-    with (this.contourMask_CheckBox){
-        text = "Countour mask";
-        checked = Config.contourMask;
-        toolTip = "<p>Create mask as a countour.</p>";
-                  setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
-        onClick = function (checked) {
-            Config.contourMask = checked;
+    this.specialMaskType_Label = new Label(this);
+    with (this.specialMaskType_Label) {
+        text = "Special mask type:";
+        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+    }
+
+    this.specialMaskType_ComboBox = new ComboBox(this);
+    with (this.specialMaskType_ComboBox) {
+        editEnabled = false;
+        for (let i = 0; i < this.dialog.specialMaskTypeOptions.length; ++i)
+            addItem(this.dialog.specialMaskTypeOptions[i]);
+        let idx = this.dialog.specialMaskTypeOptions.indexOf(Config.specialMaskType);
+        currentItem = idx >= 0 ? idx : 0;
+        toolTip = "<p>Select a special mask rendering mode.</p>";
+        setScaledMinWidth(MIN_DIALOG_WIDTH / 6 - 6);
+        onItemSelected = function (index) {
+            let value = this.itemText(index);
+            Config.specialMaskType = value;
             if (this.dialog.adjustInnerSize_Control)
-                this.dialog.adjustInnerSize_Control.enabled = checked;
+                this.dialog.adjustInnerSize_Control.enabled = value === "Contour mask";
         };
-    };
+    }
+
+    this.specialMaskType_Sizer = new HorizontalSizer;
+    with (this.specialMaskType_Sizer) {
+        spacing = 4;
+        add(this.specialMaskType_Label);
+        add(this.specialMaskType_ComboBox, 100);
+        addStretch();
+    }
     this.Parameters_Sizer = new HorizontalSizer;
     with (this.Parameters_Sizer) {
         spacing = 4;
 
         add(this.maskGrowth_CheckBox);
         add(this.softenMask_CheckBox);
-        add(this.contourMask_CheckBox);
         addStretch();
     }
 
@@ -594,7 +617,7 @@ function SelectiveStarMask_Dialog(refView) {
         slider.scaledMinWidth = 200;
         setPrecision(2);
         setValue(Config.AdjFactor_countor != undefined ? Config.AdjFactor_countor : 0.5);
-        enabled = Config.contourMask;
+        enabled = Config.specialMaskType === "Contour mask";
         toolTip = "<p>Inner star size adjustment factor from 0.01 to 5, default 0.5.</p>";
         onValueUpdated = function (value) {
             Config.AdjFactor_countor = value;
@@ -611,6 +634,7 @@ function SelectiveStarMask_Dialog(refView) {
         sizer.margin = 6;
         sizer.spacing = 4;
         sizer.add(this.Parameters_Sizer);
+        sizer.add(this.specialMaskType_Sizer);
         sizer.add(this.adjustMaskSize_Control);
         sizer.add(this.adjustInnerSize_Control);
         setScaledMinWidth( MIN_DIALOG_WIDTH / 3 + this.logicalPixelsToPhysical(100) );
@@ -849,10 +873,17 @@ function SelectiveStarMask_Dialog(refView) {
          console.noteln();
          console.noteln("Creating mask...");
          Config.MaskName = Engine.GetMaskName();
+         let maskType = Config.specialMaskType || "Normal";
          if (Engine.filterApplied) {
-             parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+             if (maskType === "Star cores")
+                 parent.StarMaskId = Engine.createStarCoresMask(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.MaskName);
+             else
+                 parent.StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, maskType === "Contour mask", Config.MaskName);
          } else {
-             parent.StarMaskId = Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+             if (maskType === "Star cores")
+                 parent.StarMaskId = Engine.createStarCoresMask(undefined, Config.softenMask, Config.maskGrowth, Config.MaskName);
+             else
+                 parent.StarMaskId = Engine.createMaskAngle(undefined, Config.softenMask, Config.maskGrowth, maskType === "Contour mask", Config.MaskName);
          }
          Config.saveSettings();
       }
