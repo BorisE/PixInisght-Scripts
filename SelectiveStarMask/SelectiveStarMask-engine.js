@@ -182,9 +182,15 @@ function Star( pos, flux, bkg, rect, size, nmax )
    
    createMask (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
       /create StarMask from image array/
-      softenMask - 
+      softenMask -
       maskGrowth - use to increase stars ellipses
       contourMask - use to make contour mask (donut)
+      maskName - image id for StarMask
+
+   createStarCoresMask (StarsArray=undefined, softenMask = true, maskGrowth = true, maskName = "StarCores")
+      /create StarMask using star cores/
+      softenMask -
+      maskGrowth - use to increase core ellipses
       maskName - image id for StarMask
 
    markStars (StarsArray=undefined, imageName = "DetectedStars")      
@@ -1360,6 +1366,114 @@ function SelectiveStarMask_engine()
       }
 
       console.writeln("StarMask [" + w.mainView.id + "] based on " + StarsArray.length + " stars was created" + (contourMask?" [contour mode]":""));
+
+      return w.mainView.fullId;
+   }
+
+
+   /******************************************************************************************************************************
+    * Create StarMask using star cores
+    *
+    * Parameters:
+    *    - StarsArray: array of (filtered if needed) stars
+    *    - softenMask = true: convolve mask after Creating
+    *    - maskGrowth = true: increase mask over detected and fitted PSF
+    *    - maskName = "StarCores": mask name
+    *
+    * Returns:
+    *    w.mainView.fullId - mask image id
+    ******************************************************************************************************************************/
+   this.createStarCoresMask = function (StarsArray = undefined, softenMask = true, maskGrowth = true, maskName = "StarCores")
+   {
+      debug("<br>Running [" + "createStarCoresMask( StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + ", softenMask = " + softenMask + ", maskGrowth = " + maskGrowth + ", maskName = '" + maskName + "' )" + "]");
+
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+
+      let bmp = new Bitmap( this.sourceImage.width, this.sourceImage.height );
+      bmp.fill( 0x0 );
+
+      let G = new VectorGraphics( bmp );
+      G.antialiasing = true;
+      G.pen = new Pen( 0xffffffff );
+
+      for ( let i = 0; i < StarsArray.length; ++i )
+      {
+         let s = StarsArray[i];
+         let AdjF = this.AdjFact;
+
+         let width = (s.FWHMx != undefined && s.FWHMx > 0) ? s.FWHMx : (s.drawEllipse_W != undefined ? s.drawEllipse_W : s.w);
+         let height = (s.FWHMy != undefined && s.FWHMy > 0) ? s.FWHMy : (s.drawEllipse_H != undefined ? s.drawEllipse_H : s.h);
+
+         if (!isFinite(width) || width <= 0)
+            width = s.w > 0 ? s.w : 1;
+         if (!isFinite(height) || height <= 0)
+            height = s.h > 0 ? s.h : 1;
+
+         if (s.PSF_cx)
+         {
+            if (maskGrowth && s.PSF_diag && isFinite(s.PSF_diag))
+            {
+               let base = Math.max(width, height);
+               if (base > 0)
+                  AdjF = s.PSF_diag / base;
+            }
+
+            G.translateTransformation( s.PSF_cx, s.PSF_cy );
+            G.rotateTransformation( s.PSF_theta * Math.PI / 180 );
+            G.fillEllipse( - width * 0.5 * AdjF, - height * 0.5 * AdjF,  width * 0.5 * AdjF, height * 0.5 * AdjF, new Brush(0xFFFFFFFF) );
+            G.resetTransformation();
+         }
+         else
+         {
+            if (maskGrowth && s.diag && isFinite(s.diag))
+            {
+               let base = Math.max(width, height);
+               if (base > 0)
+                  AdjF = s.diag / base;
+            }
+
+            G.translateTransformation( s.pos.x, s.pos.y );
+            G.fillEllipse( - width * 0.5 * AdjF, - height * 0.5 * AdjF,  width * 0.5 * AdjF, height * 0.5 * AdjF, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+            G.resetTransformation();
+         }
+      }
+      G.end();
+
+      let w = new ImageWindow( bmp.width, bmp.height,
+            1,      // numberOfChannels
+            8,      // bitsPerSample
+            false,  // floatSample
+            false,  // color
+            maskName );
+      w.mainView.beginProcess( UndoFlag_NoSwapFile );
+      w.mainView.image.blend( bmp );
+      w.mainView.endProcess();
+      w.show();
+      w.zoomToFit();
+
+      this.addFITSData( w, StarsArray );
+
+      console.writeln();
+      console.writeln("Mask was created");
+      console.writeln();
+
+      if (softenMask)
+      {
+         var P = new Convolution;
+         P.mode = Convolution.prototype.Parametric;
+         P.sigma = 2.00;
+         P.shape = 2.00;
+         P.aspectRatio = 1.00;
+         P.rotationAngle = 0.00;
+
+         P.executeOn(w.mainView);
+      }
+
+      console.writeln("StarMask [" + w.mainView.id + "] based on " + StarsArray.length + " stars was created [core mode]");
 
       return w.mainView.fullId;
    }
