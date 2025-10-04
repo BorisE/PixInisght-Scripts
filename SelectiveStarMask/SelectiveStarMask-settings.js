@@ -1,10 +1,11 @@
 #ifndef __SELECTIVESTARMASK_SETTINGS__
-    #define __SELECTIVESTARMASK_SETTINGS__
-    #include <pjsr/DataType.jsh>
+#define __SELECTIVESTARMASK_SETTINGS__
+#include <pjsr/DataType.jsh>
+
 #endif
 
 #ifndef __DEBUGF__
-	#define __DEBUGF__ true  /*or false*/
+#define __DEBUGF__ true /*or false*/
 #endif
 
 
@@ -21,7 +22,7 @@
 */
 
 #ifndef MAX_INT
-    #define MAX_INT 10000
+#define MAX_INT 10000
 #endif
 
 function ConfigData() {
@@ -35,8 +36,8 @@ function ConfigData() {
     this.contourMask = false; // kept for backward compatibility with previous versions
 
     const validMaskTypes = ["Normal", "Star cores", "Contour mask"];
-    function sanitizeMaskType(value)
-    {
+
+    function sanitizeMaskType(value) {
         if (validMaskTypes.indexOf(value) === -1)
             return "Normal";
         return value;
@@ -45,17 +46,20 @@ function ConfigData() {
     //Helper functions
     function load(key, type, default_value, precision = 2) {
         let retV = Settings.read(__SETTINGS_KEY_BASE__ + key, type);
-        if  (retV == null) retV = default_value;
+        if (retV == null) retV = default_value;
         // Need to round float to give precision, because it seems that arbitrary numbers can be added to lower decimals (like 3.2100000000012)
         if (type == DataType_Float) retV = round(retV, precision);
         return retV;
     }
+
     function loadIndexed(key, index, type) {
         return load(key + '_' + index.toString(), type);
     }
+
     function save(key, type, value) {
         Settings.write(__SETTINGS_KEY_BASE__ + key, type, value);
     }
+
     function saveIndexed(key, index, type, value) {
         save(key + '_' + index.toString(), type, value);
     }
@@ -63,7 +67,7 @@ function ConfigData() {
     /*
      * Load / Save from Settings Storage
      */
-    this.loadSettings = function () {
+    this.loadSettings = function() {
         var o;
 
         if ((o = load("softenMask", DataType_Boolean, true)) != null)
@@ -78,7 +82,7 @@ function ConfigData() {
             this.contourMask = this.specialMaskType === "Contour mask";
         if ((o = load("maskGrowth", DataType_Boolean, true)) != null)
             this.maskGrowth = o;
-        
+
         if ((o = load("FilterSize_min", DataType_Float, 0, 2)) != null)
             this.FilterSize_min = o;
         if ((o = load("FilterSize_max", DataType_Float, MAX_INT, 2)) != null)
@@ -93,7 +97,7 @@ function ConfigData() {
         if ((o = load("AdjFactor_countor", DataType_Float, 0.5, 2)) != null)
             this.AdjFactor_countor = o;
 
-        
+
         /*
         if ((o = load("InputPath", DataType_String)) != null)
             this.InputPath = o;
@@ -110,7 +114,7 @@ function ConfigData() {
         };
     }
 
-    this.saveSettings = function () {
+    this.saveSettings = function() {
         save("softenMask", DataType_Boolean, this.softenMask);
         this.contourMask = this.specialMaskType === "Contour mask";
         save("contourMask", DataType_Boolean, this.contourMask);
@@ -140,20 +144,20 @@ function ConfigData() {
     /*
      * Import / Export script parameters (global or target View run)
      */
-    this.exportParameters = function () {
+    this.exportParameters = function() {
 
-        Parameters.set("softenMask", 			this.softenMask);
+        Parameters.set("softenMask", this.softenMask);
         this.contourMask = this.specialMaskType === "Contour mask";
-        Parameters.set("contourMask", 			this.contourMask);
-        Parameters.set("specialMaskType", 			this.specialMaskType);
-        Parameters.set("maskGrowth", 			this.maskGrowth);
-        
-        Parameters.set("FilterSize_min",        this.FilterSize_min);
-        Parameters.set("FilterSize_max",        this.FilterSize_max);
-        Parameters.set("FilterFlux_min",        this.FilterFlux_min);
-        Parameters.set("FilterFlux_max",        this.FilterFlux_max);
-        Parameters.set("AdjFact",               this.AdjFact);
-        Parameters.set("AdjFactor_countor",     this.AdjFactor_countor);
+        Parameters.set("contourMask", this.contourMask);
+        Parameters.set("specialMaskType", this.specialMaskType);
+        Parameters.set("maskGrowth", this.maskGrowth);
+
+        Parameters.set("FilterSize_min", this.FilterSize_min);
+        Parameters.set("FilterSize_max", this.FilterSize_max);
+        Parameters.set("FilterFlux_min", this.FilterFlux_min);
+        Parameters.set("FilterFlux_max", this.FilterFlux_max);
+        Parameters.set("AdjFact", this.AdjFact);
+        Parameters.set("AdjFactor_countor", this.AdjFactor_countor);
 
         /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
@@ -167,7 +171,7 @@ function ConfigData() {
         };
     }
 
-    this.importParameters = function () {
+    this.importParameters = function() {
         if (Parameters.has("softenMask"))
             this.softenMask = Parameters.getBoolean("softenMask");
         if (Parameters.has("specialMaskType"))
@@ -208,8 +212,8 @@ function ConfigData() {
         };
     }
 
-    this.printParameters = function () {
-        
+    this.printParameters = function() {
+
         console.writeln("softenMask:                     " + this.softenMask);
         console.writeln("contourMask:                    " + this.contourMask);
         console.writeln("specialMaskType:                " + this.specialMaskType);
@@ -245,9 +249,9 @@ function ConfigData() {
         */
     }
 
-    this.checkPathValidity = function () {
+    this.checkPathValidity = function() {
         return true;
     }
 
-    this.loadDefaultValues = function () {}
+    this.loadDefaultValues = function() {}
 }
