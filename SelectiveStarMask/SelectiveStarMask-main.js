@@ -44,6 +44,7 @@ let Config = new ConfigData();
 #ifndef __SELECTIVESTARMASK_GUI__
 	#include "SelectiveStarMask-GUI.js" // GUI
 #endif
+
 #ifndef __SELECTIVESTARMASK_ENGINE__
 	#include "SelectiveStarMask-engine.js" // Engine
 #endif
@@ -133,7 +134,12 @@ function main_cli(refView)
 
     // (5) Create StarMask
     Config.MaskName = Engine.GetMaskName();
-    let StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.contourMask, Config.MaskName);
+    let maskType = Config.specialMaskType || "Normal";
+    let StarMaskId;
+    if (maskType === "Star cores")
+        StarMaskId = Engine.createStarCoresMask(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.MaskName);
+    else
+        StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, maskType === "Contour mask", Config.MaskName);
 
     // (6) Create residuals
     //Engine.makeResidual(mask);

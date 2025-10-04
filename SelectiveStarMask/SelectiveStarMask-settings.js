@@ -31,6 +31,16 @@ function ConfigData() {
 
     this.AdjFact = 0.5;
     this.AdjFactor_countor = 0.5;
+    this.specialMaskType = "Normal";
+    this.contourMask = false; // kept for backward compatibility with previous versions
+
+    const validMaskTypes = ["Normal", "Star cores", "Contour mask"];
+    function sanitizeMaskType(value)
+    {
+        if (validMaskTypes.indexOf(value) === -1)
+            return "Normal";
+        return value;
+    }
 
     //Helper functions
     function load(key, type, default_value, precision = 2) {
@@ -60,6 +70,12 @@ function ConfigData() {
             this.softenMask = o;
         if ((o = load("contourMask", DataType_Boolean, false)) != null)
             this.contourMask = o;
+        if ((o = load("specialMaskType", DataType_String, "Normal")) != null)
+            this.specialMaskType = sanitizeMaskType(o);
+        if (this.contourMask)
+            this.specialMaskType = "Contour mask";
+        else
+            this.contourMask = this.specialMaskType === "Contour mask";
         if ((o = load("maskGrowth", DataType_Boolean, true)) != null)
             this.maskGrowth = o;
         
@@ -96,7 +112,9 @@ function ConfigData() {
 
     this.saveSettings = function () {
         save("softenMask", DataType_Boolean, this.softenMask);
+        this.contourMask = this.specialMaskType === "Contour mask";
         save("contourMask", DataType_Boolean, this.contourMask);
+        save("specialMaskType", DataType_String, this.specialMaskType);
         save("maskGrowth", DataType_Boolean, this.maskGrowth);
 
         save("FilterSize_min", DataType_Float, this.FilterSize_min);
@@ -125,7 +143,9 @@ function ConfigData() {
     this.exportParameters = function () {
 
         Parameters.set("softenMask", 			this.softenMask);
+        this.contourMask = this.specialMaskType === "Contour mask";
         Parameters.set("contourMask", 			this.contourMask);
+        Parameters.set("specialMaskType", 			this.specialMaskType);
         Parameters.set("maskGrowth", 			this.maskGrowth);
         
         Parameters.set("FilterSize_min",        this.FilterSize_min);
@@ -150,8 +170,11 @@ function ConfigData() {
     this.importParameters = function () {
         if (Parameters.has("softenMask"))
             this.softenMask = Parameters.getBoolean("softenMask");
-        if (Parameters.has("contourMask"))
-            this.contourMask = Parameters.getBoolean("contourMask");
+        if (Parameters.has("specialMaskType"))
+            this.specialMaskType = sanitizeMaskType(Parameters.getString("specialMaskType"));
+        else if (Parameters.has("contourMask"))
+            this.specialMaskType = Parameters.getBoolean("contourMask") ? "Contour mask" : this.specialMaskType;
+        this.contourMask = this.specialMaskType === "Contour mask";
         if (Parameters.has("maskGrowth"))
             this.maskGrowth = Parameters.getBoolean("maskGrowth");
 
@@ -189,6 +212,7 @@ function ConfigData() {
         
         console.writeln("softenMask:                     " + this.softenMask);
         console.writeln("contourMask:                    " + this.contourMask);
+        console.writeln("specialMaskType:                " + this.specialMaskType);
         console.writeln("maskGrowth:                     " + this.maskGrowth);
 
         console.writeln("FilterSize_min:                 " + this.FilterSize_min);

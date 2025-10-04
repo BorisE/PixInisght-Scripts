@@ -43,6 +43,10 @@
 	#define __DEBUGF__ true  /*or false*/
 #endif
 
+#ifndef __DRAWFLUX__
+	#define __DRAWFLUX__ true  /*or false*/
+#endif
+
 #define csvSeparator ","
 
 #define ADDPEDESTAL_MIN_THRESHOLD 0.0001
@@ -51,6 +55,8 @@
 #define TEMP_NOISE_PROBABILITY 0.01
 
 #define MAX_PSF_FLUX_DISCREPANCY 3.0
+
+#define MIN_COUNTOUR_MARGIN 1.0
 
 // Types of star ellipse calculations
 #define DRAW_ELLIPSE_TYPE_PSF               1
@@ -90,9 +96,6 @@ function Star( pos, flux, bkg, rect, size, nmax )
    this.h = this.rect.y1 - this.rect.y0; 
    // Diagonal length (stardetector data)
    this.diag = Math.sqrt(this.w*this.w + this.h*this.h);
-
-   let AdjFact = Math.min ( ( this.flux > 1 ? this.flux : 1) * 1.5, 3);
-   this.rectEx = new Rect (this.pos.x - this.w * AdjFact * 0.5, this.pos.y - this.h * AdjFact * 0.5, this.pos.x + this.w * AdjFact * 0.5, this.pos.y + this.h * AdjFact * 0.5);
 
    // Size grouping 
    // calculated latter on the whole array
@@ -182,9 +185,15 @@ function Star( pos, flux, bkg, rect, size, nmax )
    
    createMask (StarsArray=undefined, softenMask = true, maskGrowth = true,  contourMask = false, maskName = "stars")
       /create StarMask from image array/
-      softenMask - 
+      softenMask -
       maskGrowth - use to increase stars ellipses
       contourMask - use to make contour mask (donut)
+      maskName - image id for StarMask
+
+   createStarCoresMask (StarsArray=undefined, softenMask = true, maskGrowth = true, maskName = "StarCores")
+      /create StarMask using star cores/
+      softenMask -
+      maskGrowth - use to increase core ellipses
       maskName - image id for StarMask
 
    markStars (StarsArray=undefined, imageName = "DetectedStars")      
@@ -1257,19 +1266,19 @@ function SelectiveStarMask_engine()
          let s = StarsArray[i];
          let AdjF = this.AdjFact;
          let AdjF_countor = this.AdjFactor_countor;
+         let StarWidth = s.drawEllipse_W * AdjF;
+         let StarHeight = s.drawEllipse_H * AdjF;
 
          // PSF fitting
          if (s.PSF_cx)
          {
-            
-            // If Mask Growth increase AdjFact
+                        // If Mask Growth increase AdjFact
             if (maskGrowth) {
                //AdjF = ( (s.fluxGroup ? s.fluxGroup : 0) + 1) * 2 + 2;
-               let diagonal = s.PSF_diag;
-               AdjF = diagonal / Math.max( s.FWHMx, s.FWHMy );
+               //let diagonal = s.PSF_diag;
+               //AdjF = diagonal / Math.max( s.FWHMx, s.FWHMy );
                //debug("AdjF="+AdjF+", diagonal="+diagonal+", Math.max(s.FWHMx, s.FWHMy)="+Math.max(s.FWHMx, s.FWHMy));
             }
-
 
             // Check for wrong fittings (large one)
             if (s.PSF_diag > s.diag * MAX_PSF_FLUX_DISCREPANCY) {
@@ -1278,10 +1287,12 @@ function SelectiveStarMask_engine()
                G.translateTransformation( s.pos.x, s.pos.y );
                G.fillEllipse( - s.drawEllipse_W * 0.5 * AdjF, - s.drawEllipse_H * 0.5 * AdjF,  s.drawEllipse_W * 0.5 * AdjF, s.drawEllipse_H * 0.5 * AdjF, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
                G.resetTransformation();
-            
-            } else {
+            } 
+            else 
+            {
             // normal fitted stars
                 debug("star idx = " + i + ": s.PSF_cx - " + s.PSF_cx + ", s.PSF_cy=" + s.PSF_cy)
+
                 G.translateTransformation( s.PSF_cx, s.PSF_cy );
                 G.rotateTransformation( s.PSF_theta * Math.PI / 180 );            
                 G.fillEllipse( - s.drawEllipse_W * 0.5 * AdjF, - s.drawEllipse_H * 0.5 * AdjF,  s.drawEllipse_W * 0.5 * AdjF, s.drawEllipse_H * 0.5 * AdjF, new Brush(0xFFFFFFFF) );
@@ -1300,20 +1311,32 @@ function SelectiveStarMask_engine()
                G.translateTransformation( s.pos.x, s.pos.y );
                G.fillEllipse( - s.drawEllipse_W * 0.5 * AdjF, - s.drawEllipse_H * 0.5 * AdjF,  s.drawEllipse_W * 0.5 * AdjF, s.drawEllipse_H * 0.5 * AdjF, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
                G.resetTransformation();
-            } else {
+            } 
+            else 
+            {
             // For usual stars
                 
                 debug("start idx = " + i + " [" +  s.pos.x.toFixed(0) + ", " + s.pos.y.toFixed(0) + "]: no PSF fitting", DEBUG_COLOR_ERROR);
                
                 //debug("No PSF Rect for " + i);
                 // and still draw the non fitted star? 
-                G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+                //G.fillEllipse( s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+
+               G.translateTransformation( s.pos.x, s.pos.y );
+               G.fillEllipse( - s.w * 0.5 * AdjF, - s.h * 0.5 * AdjF,  s.w * 0.5 * AdjF, s.h * 0.5 * AdjF, new Brush( __DEBUGF__?0xFFAAAAAA:0xFFFFFFFF ) );
+               G.resetTransformation();
+                
+               StarWidth = s.w * AdjF;
+               StarHeight = s.h * AdjF;
             }
          }
 
          if (contourMask) {
+            let innerW = Math.min ( s.w * AdjF_countor, StarWidth - MIN_COUNTOUR_MARGIN);
+            let innerH = Math.min ( s.h * AdjF_countor, StarWidth - MIN_COUNTOUR_MARGIN);
+            
             G.translateTransformation( s.pos.x, s.pos.y );
-            G.fillEllipse( - s.w * 0.5 * AdjF_countor, - s.h * 0.5 * AdjF_countor,  s.w * 0.5 * AdjF_countor, s.h * 0.5 * AdjF_countor, new Brush( 0xFF000000 ) );
+            G.fillEllipse( - innerW * 0.5 , - innerH * 0.5,  innerW * 0.5, innerH * 0.5 , new Brush( 0xFF000000 ) );
             G.resetTransformation();
 
             //G.fillEllipse( s.rect.x0 , s.rect.y0, s.rect.x1, s.rect.y1, new Brush(0xFF111111) );
@@ -1365,6 +1388,83 @@ function SelectiveStarMask_engine()
    }
 
 
+   /******************************************************************************************************************************
+    * Create StarMask using star cores
+    *
+    * Parameters:
+    *    - StarsArray: array of (filtered if needed) stars
+    *    - softenMask = true: convolve mask after Creating
+    *    - maskGrowth = true: increase mask over detected and fitted PSF
+    *    - maskName = "StarCores": mask name
+    *
+    * Returns:
+    *    w.mainView.fullId - mask image id
+    ******************************************************************************************************************************/
+   this.createStarCoresMask = function (StarsArray = undefined, softenMask = true, maskGrowth = true, maskName = "StarCores")
+   {
+      debug("<br>Running [" + "createStarCoresMask( StarsArray=" + (StarsArray?StarsArray.length:StarsArray) + ", softenMask = " + softenMask + ", maskGrowth = " + maskGrowth + ", maskName = '" + maskName + "' )" + "]");
+
+      if (!StarsArray)
+         StarsArray = this.Stars;
+
+      if (!StarsArray)
+         return false;
+
+      let bmp = new Bitmap( this.sourceImage.width, this.sourceImage.height );
+      bmp.fill( 0x0 );
+
+      let G = new VectorGraphics( bmp );
+      G.antialiasing = true;
+      G.pen = new Pen( 0xffffffff );
+
+      for ( let i = 0; i < StarsArray.length; ++i )
+      {
+         let s = StarsArray[i];
+         let AdjF = this.AdjFact * 0.5; // 0.5 from the start
+
+
+        G.translateTransformation( s.pos.x, s.pos.y );
+        G.fillEllipse( - s.w * 0.5 * AdjF, - s.h * 0.5 * AdjF,  s.w * 0.5 * AdjF, s.h * 0.5 * AdjF, new Brush(0xFFFFFFFF ) );
+        G.resetTransformation();
+      }
+      G.end();
+
+      let w = new ImageWindow( bmp.width, bmp.height,
+            1,      // numberOfChannels
+            8,      // bitsPerSample
+            false,  // floatSample
+            false,  // color
+            maskName );
+      w.mainView.beginProcess( UndoFlag_NoSwapFile );
+      w.mainView.image.blend( bmp );
+      w.mainView.endProcess();
+      w.show();
+      w.zoomToFit();
+
+      this.addFITSData( w, StarsArray );
+
+      console.writeln();
+      console.writeln("Mask was created");
+      console.writeln();
+
+      if (softenMask)
+      {
+         var P = new Convolution;
+         P.mode = Convolution.prototype.Parametric;
+         P.sigma = 2.00;
+         P.shape = 2.00;
+         P.aspectRatio = 1.00;
+         P.rotationAngle = 0.00;
+
+         P.executeOn(w.mainView);
+      }
+
+      console.writeln("StarMask [" + w.mainView.id + "] based on " + StarsArray.length + " stars was created [core mode]");
+
+      return w.mainView.fullId;
+   }
+
+
    /******************************************************************************************************************************************
     * Create Image with detected stars marked
     *
@@ -1394,7 +1494,11 @@ function SelectiveStarMask_engine()
       //G.pen = new Pen( 0xff000000 );
 
       let font = new Font( "Open Sans" );
-      font.pixelSize = 20;
+      if (__DEBUGF__ && ! __DRAWFLUX__) {
+        font.pixelSize = 20;
+      } else  if (__DEBUGF__ && __DRAWFLUX__) {
+        font.pixelSize = 10;
+      }
       G.font = font;
 
       for ( let i = 0, n = StarsArray.length ; i < n; ++i )
@@ -1424,7 +1528,7 @@ function SelectiveStarMask_engine()
          }
          
          // DrawType
-         if (__DEBUGF__) {
+         if (__DEBUGF__ && ! __DRAWFLUX__) {
              if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_PSF) {
                 //G.pen = new Pen(0xff505050);
                 //G.drawText( s.PSF_rect.x0, s.PSF_rect.y0 + 0, s.drawEllipse_type.toString());
@@ -1437,6 +1541,15 @@ function SelectiveStarMask_engine()
              } else if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_NOPSFFIT_LARGE) {
                 G.pen = new Pen(0xffff00ff);
                 G.drawText( s.rect.x0, s.rect.y0 + 0, s.drawEllipse_type.toString());
+             }
+             //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
+         } else if (__DEBUGF__ && __DRAWFLUX__) {
+             if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_PSF) {
+                G.pen = new Pen(0xffff0000);
+                G.drawText( s.PSF_rect.x0, s.PSF_rect.y0 + 0, s.flux.toFixed(2));
+             } else if ( s.drawEllipse_type == DRAW_ELLIPSE_TYPE_NOPSFFIT_LARGE) {
+                G.pen = new Pen(0xffff00ff);
+                G.drawText( s.rect.x0, s.rect.y0 + 0, s.flux.toFixed(2));
              }
              //G.strokeRect( s.pos.x-0.5, s.pos.y-0.5, s.pos.x+0.5, s.pos.y+0.5 );
          }
@@ -1466,7 +1579,6 @@ function SelectiveStarMask_engine()
 
       return w.mainView.fullId;
    }
-
 
 
    /******************************************************************************************************************************************
@@ -1744,9 +1856,19 @@ function SelectiveStarMask_engine()
          return false;
    } 
 
-    this.GetMaskName = function ()
+   /*
+    * Return mask name
+    */
+    this.GetMaskName = function (masktype = "")
     {
         let MN = __DEFAULT_MASK_NAME__;
+        
+        if (masktype === "Star cores") {
+            MN = MN + "_cores"
+        } else if (masktype === "Contour mask") {
+            MN = MN + "_contour"
+        }
+        
         if (this.curFilterSize.enabled){
             MN = MN + "_size_" + this.curFilterSize.min.toString().replace(".","_") + "_" + this.curFilterSize.max.toString().replace(".","_")
         }
