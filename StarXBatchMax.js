@@ -18,6 +18,7 @@
 #include <pjsr/StdButton.jsh>
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/FrameStyle.jsh>
+#include <pjsr/Color.jsh>
 
 // ---------------------------------------------------------------------------
 // Global overlap parameters
