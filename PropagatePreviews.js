@@ -14,6 +14,7 @@
    1.0.0: First release in PixInsight Forum
    1.1.0: GUI, previews selection list, target selection list, preserve previews option
    1.1.0b1: Boris Emchenko edit based on 1.1.0: only visible windows are included, and default check off
+   1.1.0b2 [2025-11-16]: Boris Emchenko edit: copy preview name also
 */
 
 /*
@@ -39,11 +40,12 @@ TODO
 
 function pp_engine() {
 
-   this.imgIDs           = new Array;
-   this.tarIDs           = new Array;
-   this.views            = new Array;
-   this.targets          = new Array;
-   this.previews_to_copy = new Array;
+   this.imgIDs                  = new Array;
+   this.tarIDs                  = new Array;
+   this.views                   = new Array;
+   this.targets                 = new Array;
+   this.previews_id_to_copy     = new Array;
+   this.previews_rect_to_copy   = new Array;
    this.preservePreview  = PRESERVE_PREVIEWS;
 
    // Populates the previews/targets array
@@ -68,13 +70,15 @@ function pp_engine() {
       var pwindow = ImageWindow.activeWindow;
       var pwview  = pwindow.mainView;
       var previews = pwindow.previews;
-      var previews_to_copy = new Array();
+      var previews_rect_to_copy = new Array();
+      var previews_id_to_copy = new Array();
 
       for ( var j = 0; j < previews.length; ++j ) {
          var pview = pwindow.previews[j];
          var prect = pwindow.previewRect( pview );
          if( this.views.indexOf( pview.id ) != -1 ) {
-            this.previews_to_copy[k] = prect;
+            this.previews_rect_to_copy[k] = prect;
+            this.previews_id_to_copy[k] = pview.id;
             k++;
          };
       };
@@ -95,10 +99,10 @@ function pp_engine() {
          };
          // --
          // Create each new preview
-         for( var h = 0; h < this.previews_to_copy.length; h++ ) {
+         for( var h = 0; h < this.previews_rect_to_copy.length; h++ ) {
             if( this.targets.indexOf( image_list_view.id ) != -1) {
-               image_list[i].createPreview( this.previews_to_copy[h] );
-               console.writeln( " Preview Rect " + r + ": " + this.previews_to_copy[h] )
+               image_list[i].createPreview( this.previews_rect_to_copy[h], this.previews_id_to_copy[h] );
+               console.writeln( " Preview [" + this.previews_id_to_copy[h] + "]: " + this.previews_rect_to_copy[h] )
                r++;
             };
          };
