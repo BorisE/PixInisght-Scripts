@@ -23,53 +23,70 @@
     Copyright &copy; 2024-2025 Boris Emchenko (astromania.info)
 #feature-icon SelectiveStarMask-icon.svg
 
-//File id
+// File id
 #define __SELECTIVESTARMASK_MAIN__
 
 // Run Debug mode
-#define __DEBUGF__ false  /*or false*/
+#define __DEBUGF__ false /*or false*/
 
 // Need to be in front of other declarations
 #ifndef __SELECTIVESTARMASK_VERSION_JSH__
-	#include "SelectiveStarMask-version.jsh"	// Version
-    #include "SelectiveStarMask-lib.js"
+#include "SelectiveStarMask-version.jsh" // Version
+#include "SelectiveStarMask-lib.js"
+
 #endif
 // Need to be a second
 #ifndef __STARMASKSIZE_SETTINGS__
-	#include "SelectiveStarMask-settings.js" // Settings object
+#include "SelectiveStarMask-settings.js" // Settings object
+
 #endif
 // Variable for global access to script data
 let Config = new ConfigData();
 
 #ifndef __SELECTIVESTARMASK_GUI__
-	#include "SelectiveStarMask-GUI.js" // GUI
+#include "SelectiveStarMask-GUI.js" // GUI
+
 #endif
 
 #ifndef __SELECTIVESTARMASK_ENGINE__
-	#include "SelectiveStarMask-engine.js" // Engine
+#include "SelectiveStarMask-engine.js" // Engine
+
 #endif
 
 let Engine;
 
-
-//main
+// main
 function main() {
-    if (!__DEBUGF__)
+    if (!__DEBUGF__) {
         console.hide();
+    }
 
-    if (__DEBUGF__)
+    if (__DEBUGF__) {
         console.clear();
+    }
 
-    console.noteln(__SCRIPT_NAME__, ". Version: ", __SCRIPT_VERSION__, " Date: ", __SCRIPT_DATE__);
+    console.noteln(
+        __SCRIPT_NAME__,
+        ". Version: ",
+        __SCRIPT_VERSION__,
+        " Date: ",
+        __SCRIPT_DATE__
+    );
 
-    if (__DEBUGF__)
-    console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
-    //console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor, ".", coreVersionRelease, ")");
+    if (__DEBUGF__) {
+        console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild);
+    }
+    // console.noteln("PixInsight Version: ", coreId, " build ", coreVersionBuild, " (", coreVersionMajor, ".", coreVersionMinor,
+    // ".", coreVersionRelease, ")");
 
     var refView = ImageWindow.activeWindow.currentView;
 
-    console.writeln ("Working on image: <b>" + (refView.fullId == "" ? "no image" : refView.fullId) + "</b>");
-    if (refView.window.filePath) console.writeln ("ImagePath: " + refView.window.filePath + "");
+    console.writeln(
+        "Working on image: <b>" + (refView.fullId == "" ? "no image" : refView.fullId) + "</b>"
+    );
+    if (refView.window.filePath) {
+        console.writeln("ImagePath: " + refView.window.filePath + "");
+    }
 
     Config.loadSettings();
 
@@ -79,27 +96,28 @@ function main() {
     Engine.AdjFactor_countor = Config.AdjFactor_countor;
 
     if (Parameters.isGlobalTarget || Parameters.isViewTarget) {
-        if (__DEBUGF__)
+        if (__DEBUGF__) {
             console.noteln("Running from saved script instance");
+        }
         Config.importParameters();
         Engine.AdjFact = Config.AdjFact;
         Engine.AdjFactor_countor = Config.AdjFactor_countor;
 
         // Run without GUI
         if (Parameters.isViewTarget) {
-            console.noteln("Executed on target view, created StarMask based on saved parameters without GUI");
+            console.noteln(
+                "Executed on target view, created StarMask based on saved parameters without GUI"
+            );
             main_cli(refView);
             return true;
         }
-    } else {
-        if (__DEBUGF__)
-            console.writeln("Started as a new script");
+    } else if (__DEBUGF__) {
+        console.writeln("Started as a new script");
     }
 
     // For future use
-    if (!Parameters.isViewTarget) {
-        if (__DEBUGF__)
-            console.noteln("Global context");
+    if (!Parameters.isViewTarget && __DEBUGF__) {
+        console.noteln("Global context");
     }
 
     main_gui(refView);
@@ -107,16 +125,13 @@ function main() {
     return true;
 }
 
-
-function main_cli(refView)
-{
+function main_cli(refView) {
     console.abortEnabled = true;
 
     let T = new ElapsedTime;
 
-
     // (1) Detect stars in the image (calls StarsDetector object)
-    var AllStars = Engine.getStars( refView );
+    var AllStars = Engine.getStars(refView);
     // (2) Make PSF fitting for all detected stars (calls DynamicPSF process)
     Engine.fitStarPSF();
     // (3) Now can calculate star statistics
@@ -127,73 +142,95 @@ function main_cli(refView)
 
     // (4) Filter stars based on saved parameters
     let FilteredStars = undefined;
-    if ( (Config.FilterSize_min != roundDown(Engine.Stat.r_min,2) || Config.FilterSize_max != roundUp(Engine.Stat.r_max,2)) && ( Config.FilterSize_min != 0 || Config.FilterSize_max != MAX_INT))
+    if (
+        (Config.FilterSize_min != roundDown(Engine.Stat.r_min, 2) ||
+            Config.FilterSize_max != roundUp(Engine.Stat.r_max, 2)) &&
+        (Config.FilterSize_min != 0 || Config.FilterSize_max != MAX_INT)
+    ) {
         FilteredStars = Engine.filterStarsBySize(Config.FilterSize_min, Config.FilterSize_max);
-    if ((Config.FilterFlux_min != roundDown(Engine.Stat.flux_min,2) || Config.FilterFlux_max != roundUp(Engine.Stat.flux_max,2)) && ( Config.FilterFlux_min != 0 || Config.FilterFlux_max != MAX_INT))
-        FilteredStars = Engine.filterStarsByFlux(Config.FilterFlux_min, Config.FilterFlux_max, FilteredStars);
+    }
+    if (
+        (Config.FilterFlux_min != roundDown(Engine.Stat.flux_min, 2) ||
+            Config.FilterFlux_max != roundUp(Engine.Stat.flux_max, 2)) &&
+        (Config.FilterFlux_min != 0 || Config.FilterFlux_max != MAX_INT)
+    ) {
+        FilteredStars = Engine.filterStarsByFlux(
+            Config.FilterFlux_min,
+            Config.FilterFlux_max,
+            FilteredStars
+        );
+    }
 
     // (5) Create StarMask
     Config.MaskName = Engine.GetMaskName();
     let maskType = Config.specialMaskType || "Normal";
     let StarMaskId;
-    if (maskType === "Star cores")
-        StarMaskId = Engine.createStarCoresMask(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, Config.MaskName);
-    else
-        StarMaskId = Engine.createMaskAngle(Engine.FilteredStars, Config.softenMask, Config.maskGrowth, maskType === "Contour mask", Config.MaskName);
+    if (maskType === "Star cores") {
+        StarMaskId = Engine.createStarCoresMask(
+            Engine.FilteredStars,
+            Config.softenMask,
+            Config.maskGrowth,
+            Config.MaskName
+        );
+    } else {
+        StarMaskId = Engine.createMaskAngle(
+            Engine.FilteredStars,
+            Config.softenMask,
+            Config.maskGrowth,
+            maskType === "Contour mask",
+            Config.MaskName
+        );
+    }
 
     // (6) Create residuals
-    //Engine.makeResidual(mask);
-    //Engine.markStars(AllStars);
+    // Engine.makeResidual(mask);
+    // Engine.markStars(AllStars);
 
-
-    if (!__DEBUGF__)
+    if (!__DEBUGF__) {
         Engine.closeTempImages();
+    }
 
-    console.writeln( "Runtime: " + T.text );
+    console.writeln("Runtime: " + T.text);
     return true;
 }
 
-
-function main_gui(refView)
-{
+function main_gui(refView) {
     // Our dialog inherits all properties and methods from the core Dialog object.
     SelectiveStarMask_Dialog.prototype = new Dialog;
     var dialog = new SelectiveStarMask_Dialog(refView);
 
     // Show our dialog box, quit if cancelled.
-    for (; ; ) {
+    for (;;) {
         if (dialog.execute()) {
             if (refView.fullId == "") {
                 console.criticalln("There is no active image to work on");
                 return false;
-            } else {
-                if (__DEBUGF__)
-                    console.noteln("Ok pressed and dialog was closed");
-                console.show();
-                processEvents();
-                return main_cli(refView);
             }
-        } else {
-            /*
-            if (__DEBUGF__)
-                console.warningln("Cancel was pressed");
-            var msgStr = "<p>All infromation would be lost.</p>" +
-                "<p>Are you sure?</p>";
-            var msgBox = new MessageBox(msgStr, __SCRIPT_NAME__, StdIcon_Error, StdButton_Yes, StdButton_No);
-            if (msgBox.execute() == StdButton_Yes)
-                break;
-            else
-                continue;
-            */
-            break; // instead of asking loop
+
+            if (__DEBUGF__) {
+                console.noteln("Ok pressed and dialog was closed");
+            }
+            console.show();
+            processEvents();
+            return main_cli(refView);
         }
-        break;
+
+        /*
+        if (__DEBUGF__)
+            console.warningln("Cancel was pressed");
+        var msgStr = "<p>All infromation would be lost.</p>" +
+            "<p>Are you sure?</p>";
+        var msgBox = new MessageBox(msgStr, __SCRIPT_NAME__, StdIcon_Error, StdButton_Yes, StdButton_No);
+        if (msgBox.execute() == StdButton_Yes)
+            break;
+        else
+            continue;
+        */
+        break; // instead of asking loop
     }
     return true;
 }
 
-
 // --  Run main function
 
 main();
-
