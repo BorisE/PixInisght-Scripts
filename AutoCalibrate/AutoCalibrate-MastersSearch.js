@@ -75,7 +75,7 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	}
 	pathMasterLib = pathMasterLib + "/" + templib_dirname_nearest
 	// bias - date search
-	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
+	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date, false)
 	if (!datelib_dirname_nearest) {
 		console.criticalln("Master calibration suitable datepack dir for BIAS couldn't be found");
 		return false;
@@ -103,7 +103,7 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	}
 	pathMasterLib = pathMasterLib + "/" + templib_dirname_nearest
 	// darks - date search
-	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
+	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date, false)
 	if (!datelib_dirname_nearest) {
 		console.criticalln("Master calibration suitable datepack dir for DARKS couldn't be found");
 		return false;
@@ -124,7 +124,7 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	}
 	pathMasterLib = flatsCalibrationSearchBasePath;
 	// flats - date search
-	datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date)
+	datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date, true)
 	if (!datelib_dirname_nearest) {
 		console.criticalln("Master calibration suitable datepack dir for FLATS couldn't be found");
 		return false;
@@ -218,7 +218,7 @@ function SearchSuitabeFileByTemperature (pathMasterLib, targetTemp) {
 
 		}
 	}
-	debug("Nearest found temperature for a given image (" + targetTemp + "deg) is <b>" + nearest_temp + "deg</font></b> (difference = " + mindiff + ", matching folder = <b>" + templib_dirname_nearest + "</b>)", dbgNotice);
+	debug("Nearest temperature found for a given image (" + targetTemp + "deg) is <b>" + nearest_temp + "deg</font></b> (difference = " + mindiff + ", matching folder = <b>" + templib_dirname_nearest + "</b>)", dbgNotice);
 	CosmeticsIconTemperature = nearest_temp;
 	if (nearest_temp == 100) {
 		Console.criticalln("Matching temperature wasn't found! Check dark library folder names and availability for given CCD-TEMP: " + targetTemp + "deg");
@@ -235,7 +235,7 @@ function SearchSuitabeFileByTemperature (pathMasterLib, targetTemp) {
  * @param targetTemp 	float 	целевая температура, ближайшую к которой необходимо найти
  **********************************************************
  */
-function SearchSuitabeFileByDate (pathMasterLib, targetDate) {
+function SearchSuitabeFileByDate (pathMasterLib, targetDate, strictlyAfter=true) {
 
 	var objFileFind = new FileFind;
 	debug("* SearchSuitabeFileByDate *", dbgNotice);
@@ -286,19 +286,21 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate) {
 
 	// 2.2. Match folder that is earlier than FITS
 	var filedateint = parseInt(targetDate.substr(0, 4) + targetDate.substr(5, 2) + targetDate.substr(8, 2));
-	debug("Matching date for for FITS's date (<b>" + targetDate + "</b>) in library through " + datepacklist_date.length + " values", dbgNotice);
-	var mindiff = 30000000;
+   debug("Matching sutable masters date for for FITS's date (<b>" + targetDate + "</b>) in library through " + datepacklist_date.length + " values" + (strictlyAfter? ". Stricly after the masters date" : ""), dbgNotice);
+	var mindiff = 30000000; //huge initial value
 	var datepacklist_date_nearest = 0, datepacklist_dirname_nearest = "";
-	for (i = 0; i < datepacklist_date.length; i++) {
+	for (i = 0; i < datepacklist_date.length; i++) 
+   {
 		debug(datepacklist_date[i], dbgNotice);
-		if ((datepacklist_date[i] <= filedateint) && (mindiff > Math.abs(datepacklist_date[i] - filedateint))) {
-			datepacklist_date_nearest = datepacklist_date[i];
-			datepacklist_dirname_nearest = datepacklist_dirname[i];
-			mindiff = Math.abs(datepacklist_date[i] - filedateint);
-
-		}
+      if ( !strictlyAfter || (strictlyAfter && datepacklist_date[i] <= filedateint)) {
+         if (mindiff > Math.abs(datepacklist_date[i] - filedateint)) {
+            datepacklist_date_nearest = datepacklist_date[i];
+            datepacklist_dirname_nearest = datepacklist_dirname[i];
+            mindiff = Math.abs(datepacklist_date[i] - filedateint);
+         }
+      }
 	}
-	debug("Suitable date pack for target date [<b>" + targetDate + "</b>] is <b>[" + datepacklist_date_nearest + "]</b> (differenceInt = " + mindiff + ", folder = " + datepacklist_dirname_nearest + ")",dbgNotice);
+	debug("Suitable date pack for target date [<b>" + targetDate + "</b>] is <b>[" + datepacklist_date_nearest + "]</b> (differenceInt = " + mindiff + ", folder = " + datepacklist_dirname_nearest + (strictlyAfter? ", stricly after the masters date" : "") + ")",dbgNotice);
 	if (datepacklist_date_nearest == 0) {
 		Console.criticalln("Matching datepack wasn't found! Check library folder names and availability for given date: " + targetDate + "");
 		return false;
