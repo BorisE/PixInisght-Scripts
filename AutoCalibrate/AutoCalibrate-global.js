@@ -27,7 +27,7 @@ TODO:
 - проверить, что дебайрезиация тоже работает
 
 v 6.4.3 [2026/02/28]
-- new parameter for SearchSuitabeFileByDate() strictlyAfter - so bias and darks masters are now sought just as nearest day even it is after FITS date; flats are still strictly after just to avoid using bad flats
+- new parameter for SearchSuitabeFileByDate() strictlyBefore - so bias and darks masters are now sought just as nearest day even it is after FITS date; flats are still strictly before just to avoid using bad flats
 
 v 6.4.2 [2025/05/31]
 - new presets for QHY added

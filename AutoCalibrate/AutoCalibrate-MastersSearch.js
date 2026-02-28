@@ -231,11 +231,12 @@ function SearchSuitabeFileByTemperature (pathMasterLib, targetTemp) {
 /*********************************************************
  * Поиск ближайшего калибровочного по дате библиотеки
  *
- * @param pathMasterLib string 	путь, где искать
- * @param targetTemp 	float 	целевая температура, ближайшую к которой необходимо найти
+ * @param pathMasterLib    string 	путь, где искать
+ * @param targetDate 	   float 	дата FITS файла, для которого ищутся соответсвующие masters
+ * @param strictlyBefore   bool 	   если true то дата мастера должна быть до даты FITS; иначе ищется просто ближайший по дате (может быть как до, так и после FITS date)
  **********************************************************
  */
-function SearchSuitabeFileByDate (pathMasterLib, targetDate, strictlyAfter=true) {
+function SearchSuitabeFileByDate (pathMasterLib, targetDate, strictlyBefore=true) {
 
 	var objFileFind = new FileFind;
 	debug("* SearchSuitabeFileByDate *", dbgNotice);
@@ -286,13 +287,13 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate, strictlyAfter=true)
 
 	// 2.2. Match folder that is earlier than FITS
 	var filedateint = parseInt(targetDate.substr(0, 4) + targetDate.substr(5, 2) + targetDate.substr(8, 2));
-   debug("Matching sutable masters date for for FITS's date (<b>" + targetDate + "</b>) in library through " + datepacklist_date.length + " values" + (strictlyAfter? ". Stricly after the masters date" : ""), dbgNotice);
+   debug("Matching sutable masters date for for FITS's date (<b>" + targetDate + "</b>) in library through " + datepacklist_date.length + " values" + (strictlyBefore? ". Stricly before FITS date" : ""), dbgNotice);
 	var mindiff = 30000000; //huge initial value
 	var datepacklist_date_nearest = 0, datepacklist_dirname_nearest = "";
 	for (i = 0; i < datepacklist_date.length; i++) 
    {
 		debug(datepacklist_date[i], dbgNotice);
-      if ( !strictlyAfter || (strictlyAfter && datepacklist_date[i] <= filedateint)) {
+      if ( !strictlyBefore || (strictlyBefore && datepacklist_date[i] <= filedateint)) {
          if (mindiff > Math.abs(datepacklist_date[i] - filedateint)) {
             datepacklist_date_nearest = datepacklist_date[i];
             datepacklist_dirname_nearest = datepacklist_dirname[i];
@@ -300,7 +301,7 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate, strictlyAfter=true)
          }
       }
 	}
-	debug("Suitable date pack for target date [<b>" + targetDate + "</b>] is <b>[" + datepacklist_date_nearest + "]</b> (differenceInt = " + mindiff + ", folder = " + datepacklist_dirname_nearest + (strictlyAfter? ", stricly after the masters date" : "") + ")",dbgNotice);
+	debug("Suitable date pack for target date [<b>" + targetDate + "</b>] is <b>[" + datepacklist_date_nearest + "]</b> (differenceInt = " + mindiff + ", folder = " + datepacklist_dirname_nearest + (strictlyBefore? ", stricly before FITS date" : "") + ")",dbgNotice);
 	if (datepacklist_date_nearest == 0) {
 		Console.criticalln("Matching datepack wasn't found! Check library folder names and availability for given date: " + targetDate + "");
 		return false;
