@@ -151,7 +151,7 @@ function ConfigData() {
                 encodeValue(s.drawEllipse_type)
             ].join("|");
         }
-        return rows.join("\n");
+        return rows.join("~");
     }
 
     function deserializeStarData(serializedStars) {
@@ -165,7 +165,7 @@ function ConfigData() {
             return isNaN(n) ? undefined : n;
         }
 
-        let rows = serializedStars.split("\n");
+        let rows = serializedStars.split("~");
         if (rows.length === 0 || rows[0] !== "SSMSTARV1")
             throw new Error("Unsupported or corrupted stars data format");
 
