@@ -65,7 +65,7 @@ function ConfigData() {
     }
 
     function setLongParameter(key, value) {
-        const chunkSize = 60000;
+        const chunkSize = 8000;
         let chunks = 0;
 
         if (value == null || value.length === 0) {
@@ -99,70 +99,128 @@ function ConfigData() {
 
     function serializeStarData(stars) {
         if (!stars || stars.length === 0)
-            return "[]";
+            return "";
 
-        let payload = new Array(stars.length);
+        function encodeValue(v) {
+            return v == null || v === undefined ? "" : v.toString();
+        }
+
+        let rows = new Array(stars.length + 1);
+        rows[0] = "SSMSTARV1";
         for (let i = 0; i < stars.length; ++i) {
             let s = stars[i];
-            payload[i] = {
-                idx: s.idx,
-                pos: s.pos ? { x: s.pos.x, y: s.pos.y } : null,
-                flux: s.flux,
-                bkg: s.bkg,
-                rect: s.rect ? { x0: s.rect.x0, y0: s.rect.y0, x1: s.rect.x1, y1: s.rect.y1 } : null,
-                size: s.size,
-                nmax: s.nmax,
-                sizeRadius: s.sizeRadius,
-                w: s.w,
-                h: s.h,
-                diag: s.diag,
-                sizeGroup: s.sizeGroup,
-                fluxGroup: s.fluxGroup,
-                fluxLog: s.fluxLog,
-                PSF_StarIndex: s.PSF_StarIndex,
-                PSF_Status: s.PSF_Status,
-                PSF_b: s.PSF_b,
-                PSF_a: s.PSF_a,
-                PSF_cx: s.PSF_cx,
-                PSF_cy: s.PSF_cy,
-                PSF_sx: s.PSF_sx,
-                PSF_sy: s.PSF_sy,
-                PSF_theta: s.PSF_theta,
-                PSF_residual: s.PSF_residual,
-                PSF_flux: s.PSF_flux,
-                PSF_rect: s.PSF_rect ? { x0: s.PSF_rect.x0, y0: s.PSF_rect.y0, x1: s.PSF_rect.x1, y1: s.PSF_rect.y1 } : null,
-                PSF_diag: s.PSF_diag,
-                FWHMx: s.FWHMx,
-                FWHMy: s.FWHMy,
-                drawEllipse_W: s.drawEllipse_W,
-                drawEllipse_H: s.drawEllipse_H,
-                drawEllipse_type: s.drawEllipse_type
-            };
+            rows[i + 1] = [
+                encodeValue(s.idx),
+                encodeValue(s.pos ? s.pos.x : undefined),
+                encodeValue(s.pos ? s.pos.y : undefined),
+                encodeValue(s.flux),
+                encodeValue(s.bkg),
+                encodeValue(s.rect ? s.rect.x0 : undefined),
+                encodeValue(s.rect ? s.rect.y0 : undefined),
+                encodeValue(s.rect ? s.rect.x1 : undefined),
+                encodeValue(s.rect ? s.rect.y1 : undefined),
+                encodeValue(s.size),
+                encodeValue(s.nmax),
+                encodeValue(s.sizeRadius),
+                encodeValue(s.w),
+                encodeValue(s.h),
+                encodeValue(s.diag),
+                encodeValue(s.sizeGroup),
+                encodeValue(s.fluxGroup),
+                encodeValue(s.fluxLog),
+                encodeValue(s.PSF_StarIndex),
+                encodeValue(s.PSF_Status),
+                encodeValue(s.PSF_b),
+                encodeValue(s.PSF_a),
+                encodeValue(s.PSF_cx),
+                encodeValue(s.PSF_cy),
+                encodeValue(s.PSF_sx),
+                encodeValue(s.PSF_sy),
+                encodeValue(s.PSF_theta),
+                encodeValue(s.PSF_residual),
+                encodeValue(s.PSF_flux),
+                encodeValue(s.PSF_rect ? s.PSF_rect.x0 : undefined),
+                encodeValue(s.PSF_rect ? s.PSF_rect.y0 : undefined),
+                encodeValue(s.PSF_rect ? s.PSF_rect.x1 : undefined),
+                encodeValue(s.PSF_rect ? s.PSF_rect.y1 : undefined),
+                encodeValue(s.PSF_diag),
+                encodeValue(s.FWHMx),
+                encodeValue(s.FWHMy),
+                encodeValue(s.drawEllipse_W),
+                encodeValue(s.drawEllipse_H),
+                encodeValue(s.drawEllipse_type)
+            ].join("|");
         }
-        return JSON.stringify(payload);
+        return rows.join("\n");
     }
 
     function deserializeStarData(serializedStars) {
         if (!serializedStars)
             return [];
 
-        let parsed = JSON.parse(serializedStars);
-        if (!parsed || !parsed.length)
-            return [];
+        function parseNumber(v) {
+            if (v == null || v === "")
+                return undefined;
+            let n = Number(v);
+            return isNaN(n) ? undefined : n;
+        }
 
-        let stars = new Array(parsed.length);
-        for (let i = 0; i < parsed.length; ++i) {
-            let item = parsed[i];
-            let star = {};
-            for (let key in item)
-                star[key] = item[key];
-            if (item.pos)
-                star.pos = new Point(item.pos.x, item.pos.y);
-            if (item.rect)
-                star.rect = new Rect(item.rect.x0, item.rect.y0, item.rect.x1, item.rect.y1);
-            if (item.PSF_rect)
-                star.PSF_rect = new Rect(item.PSF_rect.x0, item.PSF_rect.y0, item.PSF_rect.x1, item.PSF_rect.y1);
-            stars[i] = star;
+        let rows = serializedStars.split("\n");
+        if (rows.length === 0 || rows[0] !== "SSMSTARV1")
+            throw new Error("Unsupported or corrupted stars data format");
+
+        let stars = [];
+        for (let i = 1; i < rows.length; ++i) {
+            if (!rows[i])
+                continue;
+            let f = rows[i].split("|");
+            if (f.length < 39)
+                continue;
+
+            let rectX0 = parseNumber(f[5]);
+            let rectY0 = parseNumber(f[6]);
+            let rectX1 = parseNumber(f[7]);
+            let rectY1 = parseNumber(f[8]);
+
+            let psfRectX0 = parseNumber(f[29]);
+            let psfRectY0 = parseNumber(f[30]);
+            let psfRectX1 = parseNumber(f[31]);
+            let psfRectY1 = parseNumber(f[32]);
+
+            stars.push({
+                idx: parseNumber(f[0]),
+                pos: parseNumber(f[1]) !== undefined && parseNumber(f[2]) !== undefined ? new Point(parseNumber(f[1]), parseNumber(f[2])) : undefined,
+                flux: parseNumber(f[3]),
+                bkg: parseNumber(f[4]),
+                rect: rectX0 !== undefined && rectY0 !== undefined && rectX1 !== undefined && rectY1 !== undefined ? new Rect(rectX0, rectY0, rectX1, rectY1) : undefined,
+                size: parseNumber(f[9]),
+                nmax: parseNumber(f[10]),
+                sizeRadius: parseNumber(f[11]),
+                w: parseNumber(f[12]),
+                h: parseNumber(f[13]),
+                diag: parseNumber(f[14]),
+                sizeGroup: parseNumber(f[15]),
+                fluxGroup: parseNumber(f[16]),
+                fluxLog: parseNumber(f[17]),
+                PSF_StarIndex: parseNumber(f[18]),
+                PSF_Status: parseNumber(f[19]),
+                PSF_b: parseNumber(f[20]),
+                PSF_a: parseNumber(f[21]),
+                PSF_cx: parseNumber(f[22]),
+                PSF_cy: parseNumber(f[23]),
+                PSF_sx: parseNumber(f[24]),
+                PSF_sy: parseNumber(f[25]),
+                PSF_theta: parseNumber(f[26]),
+                PSF_residual: parseNumber(f[27]),
+                PSF_flux: parseNumber(f[28]),
+                PSF_rect: psfRectX0 !== undefined && psfRectY0 !== undefined && psfRectX1 !== undefined && psfRectY1 !== undefined ? new Rect(psfRectX0, psfRectY0, psfRectX1, psfRectY1) : undefined,
+                PSF_diag: parseNumber(f[33]),
+                FWHMx: parseNumber(f[34]),
+                FWHMy: parseNumber(f[35]),
+                drawEllipse_W: parseNumber(f[36]),
+                drawEllipse_H: parseNumber(f[37]),
+                drawEllipse_type: parseNumber(f[38])
+            });
         }
         return stars;
     }
