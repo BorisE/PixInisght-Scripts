@@ -1418,6 +1418,17 @@ function SelectiveStarMask_engine() {
         if (!StarsArray)
             return false;
 
+        if (!this.sourceImage) {
+            if (this.sourceView && this.sourceView.image) {
+                this.sourceImage = this.sourceView.image;
+            } else if (ImageWindow.activeWindow && !ImageWindow.activeWindow.isNull && ImageWindow.activeWindow.currentView) {
+                this.sourceView = ImageWindow.activeWindow.currentView;
+                this.sourceImage = this.sourceView.image;
+            } else {
+                throw new Error("Source image is undefined. Reopen the source image or run star detection again.");
+            }
+        }
+
         let bmp = new Bitmap(this.sourceImage.width, this.sourceImage.height);
         bmp.fill(0x0);
 

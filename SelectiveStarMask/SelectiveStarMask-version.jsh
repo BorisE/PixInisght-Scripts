@@ -21,8 +21,8 @@
 	#define __SELECTIVESTARMASK_VERSION_JSH__
 
 	#define __SCRIPT_NAME__ "SelectiveStarMask"
-	#define __SCRIPT_VERSION__ "2.4.0"
-	#define __SCRIPT_DATE__ "20251004"
+	#define __SCRIPT_VERSION__ "2.5.0 beta1"
+	#define __SCRIPT_DATE__ "20260423"
 
 	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting"
 	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko (astromania.info)"
@@ -48,6 +48,10 @@ ToDo
 /*
  * History
  *
+ 2.5.0 beta1 [2026 04 23]
+    - save and restore star data in process icons
+    - restore source image reference for post-detection actions after reload
+
  2.4.0 [2025 10 04]
     - star cores mask tuned
     - growth mask option disabled

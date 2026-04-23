@@ -228,12 +228,38 @@ function ConfigData() {
     function exportEngineState() {
         if (typeof Engine === "undefined" || !Engine || !Engine.Stars || Engine.Stars.length === 0) {
             Parameters.set("hasStarsData", false);
+            Parameters.set("sourceViewId", "");
             setLongParameter("StarsDataJson", "");
             return;
         }
 
         Parameters.set("hasStarsData", true);
+        Parameters.set("sourceViewId", Engine.sourceView ? Engine.sourceView.fullId : "");
         setLongParameter("StarsDataJson", serializeStarData(Engine.Stars));
+    }
+
+    function findViewById(viewId) {
+        if (!viewId || viewId.length === 0)
+            return null;
+
+        if (typeof View !== "undefined" && View.viewById) {
+            let v = View.viewById(viewId);
+            if (v && !v.isNull)
+                return v;
+        }
+
+        if (typeof ImageWindow !== "undefined" && ImageWindow.windows) {
+            let windows = ImageWindow.windows;
+            for (let i = 0; i < windows.length; ++i) {
+                let w = windows[i];
+                if (!w || w.isNull || !w.mainView)
+                    continue;
+                if (w.mainView.fullId === viewId || w.mainView.id === viewId)
+                    return w.mainView;
+            }
+        }
+
+        return null;
     }
 
     function importEngineState() {
@@ -256,10 +282,20 @@ function ConfigData() {
         if (!stars || stars.length === 0)
             return;
 
+        let sourceViewId = Parameters.has("sourceViewId") ? Parameters.getString("sourceViewId") : "";
+        let sourceView = findViewById(sourceViewId);
+        if (!sourceView && typeof ImageWindow !== "undefined" && ImageWindow.activeWindow && !ImageWindow.activeWindow.isNull)
+            sourceView = ImageWindow.activeWindow.currentView;
+
         Engine.Stars = stars;
         Engine.FilteredStars = undefined;
         Engine.filterApplied = false;
         Engine.cntFittedStars = 0;
+        Engine.sourceViewId = sourceViewId;
+        Engine.sourceView = sourceView;
+        Engine.sourceImage = sourceView ? sourceView.image : undefined;
+        Engine.workingView = Engine.sourceView;
+        Engine.workingImage = Engine.sourceImage;
         Engine.calculateStarStats(Engine.Stars);
         Engine.hasImportedStarsData = true;
     }
