@@ -1265,6 +1265,30 @@ function SelectiveStarMask_Dialog(refView) {
             this.StarsDetected_Label.text = "filtered " + Engine.FilteredStars.length.toString() + " out of " + Engine.Stars.length.toString();
         }
     }
+
+    this.restoreDetectedStarsState = function() {
+        if (!Engine.Stars || Engine.Stars.length === 0 || !Engine.Stat)
+            return;
+
+        Engine.cntFittedStars = this.countFittedStars(Engine.Stars);
+        this.updateMainData();
+        this.displayStarsStat(Engine.Stars);
+        this.displaySizeGroupsStat(Engine.StarsSizeGoupCnt, Engine.SizeGrouping, Engine.Stat);
+        this.displayFluxGroupsStat(Engine.StarsFluxGoupCnt, Engine.FluxGrouping, Engine.Stat);
+
+        this.filter_Button.enabled = true;
+        this.mask_Button.enabled = true;
+        this.showDetected_Button.enabled = true;
+        this.saveStars_Button.enabled = true;
+
+        if (Config.FilterSize_min != roundDown(Engine.Stat.r_min, 2) ||
+            Config.FilterSize_max != roundUp(Engine.Stat.r_max, 2) ||
+            Config.FilterFlux_min != roundDown(Engine.Stat.flux_min, 3) ||
+            Config.FilterFlux_max != roundUp(Engine.Stat.flux_max, 3))
+            this.activateFilterMode();
+    };
+
+    this.restoreDetectedStarsState();
 }
 
 //main

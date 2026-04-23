@@ -64,6 +64,148 @@ function ConfigData() {
         save(key + '_' + index.toString(), type, value);
     }
 
+    function setLongParameter(key, value) {
+        const chunkSize = 60000;
+        let chunks = 0;
+
+        if (value == null || value.length === 0) {
+            Parameters.set(key + "_chunks", 0);
+            return;
+        }
+
+        for (let i = 0; i < value.length; i += chunkSize) {
+            Parameters.set(key + "_" + chunks, value.substr(i, chunkSize));
+            ++chunks;
+        }
+        Parameters.set(key + "_chunks", chunks);
+    }
+
+    function getLongParameter(key) {
+        if (!Parameters.has(key + "_chunks"))
+            return "";
+
+        const chunks = Parameters.getInteger(key + "_chunks");
+        if (chunks <= 0)
+            return "";
+
+        let value = "";
+        for (let i = 0; i < chunks; ++i) {
+            const chunkKey = key + "_" + i;
+            if (Parameters.has(chunkKey))
+                value += Parameters.getString(chunkKey);
+        }
+        return value;
+    }
+
+    function serializeStarData(stars) {
+        if (!stars || stars.length === 0)
+            return "[]";
+
+        let payload = new Array(stars.length);
+        for (let i = 0; i < stars.length; ++i) {
+            let s = stars[i];
+            payload[i] = {
+                idx: s.idx,
+                pos: s.pos ? { x: s.pos.x, y: s.pos.y } : null,
+                flux: s.flux,
+                bkg: s.bkg,
+                rect: s.rect ? { x0: s.rect.x0, y0: s.rect.y0, x1: s.rect.x1, y1: s.rect.y1 } : null,
+                size: s.size,
+                nmax: s.nmax,
+                sizeRadius: s.sizeRadius,
+                w: s.w,
+                h: s.h,
+                diag: s.diag,
+                sizeGroup: s.sizeGroup,
+                fluxGroup: s.fluxGroup,
+                fluxLog: s.fluxLog,
+                PSF_StarIndex: s.PSF_StarIndex,
+                PSF_Status: s.PSF_Status,
+                PSF_b: s.PSF_b,
+                PSF_a: s.PSF_a,
+                PSF_cx: s.PSF_cx,
+                PSF_cy: s.PSF_cy,
+                PSF_sx: s.PSF_sx,
+                PSF_sy: s.PSF_sy,
+                PSF_theta: s.PSF_theta,
+                PSF_residual: s.PSF_residual,
+                PSF_flux: s.PSF_flux,
+                PSF_rect: s.PSF_rect ? { x0: s.PSF_rect.x0, y0: s.PSF_rect.y0, x1: s.PSF_rect.x1, y1: s.PSF_rect.y1 } : null,
+                PSF_diag: s.PSF_diag,
+                FWHMx: s.FWHMx,
+                FWHMy: s.FWHMy,
+                drawEllipse_W: s.drawEllipse_W,
+                drawEllipse_H: s.drawEllipse_H,
+                drawEllipse_type: s.drawEllipse_type
+            };
+        }
+        return JSON.stringify(payload);
+    }
+
+    function deserializeStarData(serializedStars) {
+        if (!serializedStars)
+            return [];
+
+        let parsed = JSON.parse(serializedStars);
+        if (!parsed || !parsed.length)
+            return [];
+
+        let stars = new Array(parsed.length);
+        for (let i = 0; i < parsed.length; ++i) {
+            let item = parsed[i];
+            let star = {};
+            for (let key in item)
+                star[key] = item[key];
+            if (item.pos)
+                star.pos = new Point(item.pos.x, item.pos.y);
+            if (item.rect)
+                star.rect = new Rect(item.rect.x0, item.rect.y0, item.rect.x1, item.rect.y1);
+            if (item.PSF_rect)
+                star.PSF_rect = new Rect(item.PSF_rect.x0, item.PSF_rect.y0, item.PSF_rect.x1, item.PSF_rect.y1);
+            stars[i] = star;
+        }
+        return stars;
+    }
+
+    function exportEngineState() {
+        if (typeof Engine === "undefined" || !Engine || !Engine.Stars || Engine.Stars.length === 0) {
+            Parameters.set("hasStarsData", false);
+            setLongParameter("StarsDataJson", "");
+            return;
+        }
+
+        Parameters.set("hasStarsData", true);
+        setLongParameter("StarsDataJson", serializeStarData(Engine.Stars));
+    }
+
+    function importEngineState() {
+        if (typeof Engine === "undefined" || !Engine)
+            return;
+
+        Engine.hasImportedStarsData = false;
+
+        if (!Parameters.has("hasStarsData") || !Parameters.getBoolean("hasStarsData"))
+            return;
+
+        let stars = [];
+        try {
+            stars = deserializeStarData(getLongParameter("StarsDataJson"));
+        } catch (e) {
+            console.warningln("Unable to restore stars data from instance: " + e);
+            stars = [];
+        }
+
+        if (!stars || stars.length === 0)
+            return;
+
+        Engine.Stars = stars;
+        Engine.FilteredStars = undefined;
+        Engine.filterApplied = false;
+        Engine.cntFittedStars = 0;
+        Engine.calculateStarStats(Engine.Stars);
+        Engine.hasImportedStarsData = true;
+    }
+
     /*
      * Load / Save from Settings Storage
      */
@@ -158,6 +300,7 @@ function ConfigData() {
         Parameters.set("FilterFlux_max", this.FilterFlux_max);
         Parameters.set("AdjFact", this.AdjFact);
         Parameters.set("AdjFactor_countor", this.AdjFactor_countor);
+        exportEngineState();
 
         /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
@@ -194,6 +337,7 @@ function ConfigData() {
             this.AdjFact = Parameters.getReal("AdjFact");
         if (Parameters.has("AdjFactor_countor"))
             this.AdjFactor_countor = Parameters.getReal("AdjFactor_countor");
+        importEngineState();
 
         /*
         if (Parameters.has("NeedCalibration"))
