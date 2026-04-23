@@ -20,7 +20,7 @@
 #feature-info A script for generating precise star masks filtered by size and brightness \
     using StarDetector and PSF fitting. <br/>\
     <br/>\
-    Copyright &copy; 2024-2025 Boris Emchenko (astromania.info)
+    Copyright &copy; 2024-2026 Boris Emchenko (astromania.info)
 #feature-icon SelectiveStarMask-icon.svg
 
 // File id

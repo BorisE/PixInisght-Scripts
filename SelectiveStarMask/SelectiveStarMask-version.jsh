@@ -25,7 +25,7 @@
 	#define __SCRIPT_DATE__ "20260423"
 
 	#define __INFO_STRING__ "A PixInsight script for generating precise star masks filtered by size and brightness using StarDetector and PSF fitting"
-	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2025 by Boris Emchenko (astromania.info)"
+	#define __COPYRIGHT_STRING__ "Copyright &copy; 2024 - 2026 by Boris Emchenko (astromania.info)"
 
 	#define __SETTINGS_KEY_BASE__ "SelectiveStarMask/"
     #define __DEFAULT_MASK_NAME__ "SelectiveStarMask"
