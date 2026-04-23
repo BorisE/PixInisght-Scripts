@@ -1,10 +1,11 @@
 #ifndef __SELECTIVESTARMASK_SETTINGS__
-    #define __SELECTIVESTARMASK_SETTINGS__
-    #include <pjsr/DataType.jsh>
+#define __SELECTIVESTARMASK_SETTINGS__
+#include <pjsr/DataType.jsh>
+
 #endif
 
 #ifndef __DEBUGF__
-	#define __DEBUGF__ true  /*or false*/
+#define __DEBUGF__ true /*or false*/
 #endif
 
 
@@ -21,7 +22,7 @@
 */
 
 #ifndef MAX_INT
-    #define MAX_INT 10000
+#define MAX_INT 10000
 #endif
 
 function ConfigData() {
@@ -35,8 +36,8 @@ function ConfigData() {
     this.contourMask = false; // kept for backward compatibility with previous versions
 
     const validMaskTypes = ["Normal", "Star cores", "Contour mask"];
-    function sanitizeMaskType(value)
-    {
+
+    function sanitizeMaskType(value) {
         if (validMaskTypes.indexOf(value) === -1)
             return "Normal";
         return value;
@@ -45,25 +46,264 @@ function ConfigData() {
     //Helper functions
     function load(key, type, default_value, precision = 2) {
         let retV = Settings.read(__SETTINGS_KEY_BASE__ + key, type);
-        if  (retV == null) retV = default_value;
+        if (retV == null) retV = default_value;
         // Need to round float to give precision, because it seems that arbitrary numbers can be added to lower decimals (like 3.2100000000012)
         if (type == DataType_Float) retV = round(retV, precision);
         return retV;
     }
+
     function loadIndexed(key, index, type) {
         return load(key + '_' + index.toString(), type);
     }
+
     function save(key, type, value) {
         Settings.write(__SETTINGS_KEY_BASE__ + key, type, value);
     }
+
     function saveIndexed(key, index, type, value) {
         save(key + '_' + index.toString(), type, value);
+    }
+
+    function setLongParameter(key, value) {
+        const chunkSize = 8000;
+        let chunks = 0;
+
+        if (value == null || value.length === 0) {
+            Parameters.set(key + "_chunks", 0);
+            return;
+        }
+
+        for (let i = 0; i < value.length; i += chunkSize) {
+            Parameters.set(key + "_" + chunks, value.substr(i, chunkSize));
+            ++chunks;
+        }
+        Parameters.set(key + "_chunks", chunks);
+    }
+
+    function getLongParameter(key) {
+        if (!Parameters.has(key + "_chunks"))
+            return "";
+
+        const chunks = Parameters.getInteger(key + "_chunks");
+        if (chunks <= 0)
+            return "";
+
+        let value = "";
+        for (let i = 0; i < chunks; ++i) {
+            const chunkKey = key + "_" + i;
+            if (Parameters.has(chunkKey))
+                value += Parameters.getString(chunkKey);
+        }
+        return value;
+    }
+
+    function serializeStarData(stars) {
+        if (!stars || stars.length === 0)
+            return "";
+
+        function encodeValue(v) {
+            return v == null || v === undefined ? "" : v.toString();
+        }
+
+        let rows = new Array(stars.length + 1);
+        rows[0] = "SSMSTARV1";
+        for (let i = 0; i < stars.length; ++i) {
+            let s = stars[i];
+            rows[i + 1] = [
+                encodeValue(s.idx),
+                encodeValue(s.pos ? s.pos.x : undefined),
+                encodeValue(s.pos ? s.pos.y : undefined),
+                encodeValue(s.flux),
+                encodeValue(s.bkg),
+                encodeValue(s.rect ? s.rect.x0 : undefined),
+                encodeValue(s.rect ? s.rect.y0 : undefined),
+                encodeValue(s.rect ? s.rect.x1 : undefined),
+                encodeValue(s.rect ? s.rect.y1 : undefined),
+                encodeValue(s.size),
+                encodeValue(s.nmax),
+                encodeValue(s.sizeRadius),
+                encodeValue(s.w),
+                encodeValue(s.h),
+                encodeValue(s.diag),
+                encodeValue(s.sizeGroup),
+                encodeValue(s.fluxGroup),
+                encodeValue(s.fluxLog),
+                encodeValue(s.PSF_StarIndex),
+                encodeValue(s.PSF_Status),
+                encodeValue(s.PSF_b),
+                encodeValue(s.PSF_a),
+                encodeValue(s.PSF_cx),
+                encodeValue(s.PSF_cy),
+                encodeValue(s.PSF_sx),
+                encodeValue(s.PSF_sy),
+                encodeValue(s.PSF_theta),
+                encodeValue(s.PSF_residual),
+                encodeValue(s.PSF_flux),
+                encodeValue(s.PSF_rect ? s.PSF_rect.x0 : undefined),
+                encodeValue(s.PSF_rect ? s.PSF_rect.y0 : undefined),
+                encodeValue(s.PSF_rect ? s.PSF_rect.x1 : undefined),
+                encodeValue(s.PSF_rect ? s.PSF_rect.y1 : undefined),
+                encodeValue(s.PSF_diag),
+                encodeValue(s.FWHMx),
+                encodeValue(s.FWHMy),
+                encodeValue(s.drawEllipse_W),
+                encodeValue(s.drawEllipse_H),
+                encodeValue(s.drawEllipse_type)
+            ].join("|");
+        }
+        return rows.join("~");
+    }
+
+    function deserializeStarData(serializedStars) {
+        if (!serializedStars)
+            return [];
+
+        function parseNumber(v) {
+            if (v == null || v === "")
+                return undefined;
+            let n = Number(v);
+            return isNaN(n) ? undefined : n;
+        }
+
+        let rows = serializedStars.split("~");
+        if (rows.length === 0 || rows[0] !== "SSMSTARV1")
+            throw new Error("Unsupported or corrupted stars data format");
+
+        let stars = [];
+        for (let i = 1; i < rows.length; ++i) {
+            if (!rows[i])
+                continue;
+            let f = rows[i].split("|");
+            if (f.length < 39)
+                continue;
+
+            let rectX0 = parseNumber(f[5]);
+            let rectY0 = parseNumber(f[6]);
+            let rectX1 = parseNumber(f[7]);
+            let rectY1 = parseNumber(f[8]);
+
+            let psfRectX0 = parseNumber(f[29]);
+            let psfRectY0 = parseNumber(f[30]);
+            let psfRectX1 = parseNumber(f[31]);
+            let psfRectY1 = parseNumber(f[32]);
+
+            stars.push({
+                idx: parseNumber(f[0]),
+                pos: parseNumber(f[1]) !== undefined && parseNumber(f[2]) !== undefined ? new Point(parseNumber(f[1]), parseNumber(f[2])) : undefined,
+                flux: parseNumber(f[3]),
+                bkg: parseNumber(f[4]),
+                rect: rectX0 !== undefined && rectY0 !== undefined && rectX1 !== undefined && rectY1 !== undefined ? new Rect(rectX0, rectY0, rectX1, rectY1) : undefined,
+                size: parseNumber(f[9]),
+                nmax: parseNumber(f[10]),
+                sizeRadius: parseNumber(f[11]),
+                w: parseNumber(f[12]),
+                h: parseNumber(f[13]),
+                diag: parseNumber(f[14]),
+                sizeGroup: parseNumber(f[15]),
+                fluxGroup: parseNumber(f[16]),
+                fluxLog: parseNumber(f[17]),
+                PSF_StarIndex: parseNumber(f[18]),
+                PSF_Status: parseNumber(f[19]),
+                PSF_b: parseNumber(f[20]),
+                PSF_a: parseNumber(f[21]),
+                PSF_cx: parseNumber(f[22]),
+                PSF_cy: parseNumber(f[23]),
+                PSF_sx: parseNumber(f[24]),
+                PSF_sy: parseNumber(f[25]),
+                PSF_theta: parseNumber(f[26]),
+                PSF_residual: parseNumber(f[27]),
+                PSF_flux: parseNumber(f[28]),
+                PSF_rect: psfRectX0 !== undefined && psfRectY0 !== undefined && psfRectX1 !== undefined && psfRectY1 !== undefined ? new Rect(psfRectX0, psfRectY0, psfRectX1, psfRectY1) : undefined,
+                PSF_diag: parseNumber(f[33]),
+                FWHMx: parseNumber(f[34]),
+                FWHMy: parseNumber(f[35]),
+                drawEllipse_W: parseNumber(f[36]),
+                drawEllipse_H: parseNumber(f[37]),
+                drawEllipse_type: parseNumber(f[38])
+            });
+        }
+        return stars;
+    }
+
+    function exportEngineState() {
+        if (typeof Engine === "undefined" || !Engine || !Engine.Stars || Engine.Stars.length === 0) {
+            Parameters.set("hasStarsData", false);
+            Parameters.set("sourceViewId", "");
+            setLongParameter("StarsDataJson", "");
+            return;
+        }
+
+        Parameters.set("hasStarsData", true);
+        Parameters.set("sourceViewId", Engine.sourceView ? Engine.sourceView.fullId : "");
+        setLongParameter("StarsDataJson", serializeStarData(Engine.Stars));
+    }
+
+    function findViewById(viewId) {
+        if (!viewId || viewId.length === 0)
+            return null;
+
+        if (typeof View !== "undefined" && View.viewById) {
+            let v = View.viewById(viewId);
+            if (v && !v.isNull)
+                return v;
+        }
+
+        if (typeof ImageWindow !== "undefined" && ImageWindow.windows) {
+            let windows = ImageWindow.windows;
+            for (let i = 0; i < windows.length; ++i) {
+                let w = windows[i];
+                if (!w || w.isNull || !w.mainView)
+                    continue;
+                if (w.mainView.fullId === viewId || w.mainView.id === viewId)
+                    return w.mainView;
+            }
+        }
+
+        return null;
+    }
+
+    function importEngineState() {
+        if (typeof Engine === "undefined" || !Engine)
+            return;
+
+        Engine.hasImportedStarsData = false;
+
+        if (!Parameters.has("hasStarsData") || !Parameters.getBoolean("hasStarsData"))
+            return;
+
+        let stars = [];
+        try {
+            stars = deserializeStarData(getLongParameter("StarsDataJson"));
+        } catch (e) {
+            console.warningln("Unable to restore stars data from instance: " + e);
+            stars = [];
+        }
+
+        if (!stars || stars.length === 0)
+            return;
+
+        let sourceViewId = Parameters.has("sourceViewId") ? Parameters.getString("sourceViewId") : "";
+        let sourceView = findViewById(sourceViewId);
+        if (!sourceView && typeof ImageWindow !== "undefined" && ImageWindow.activeWindow && !ImageWindow.activeWindow.isNull)
+            sourceView = ImageWindow.activeWindow.currentView;
+
+        Engine.Stars = stars;
+        Engine.FilteredStars = undefined;
+        Engine.filterApplied = false;
+        Engine.cntFittedStars = 0;
+        Engine.sourceViewId = sourceViewId;
+        Engine.sourceView = sourceView;
+        Engine.sourceImage = sourceView ? sourceView.image : undefined;
+        Engine.workingView = Engine.sourceView;
+        Engine.workingImage = Engine.sourceImage;
+        Engine.calculateStarStats(Engine.Stars);
+        Engine.hasImportedStarsData = true;
     }
 
     /*
      * Load / Save from Settings Storage
      */
-    this.loadSettings = function () {
+    this.loadSettings = function() {
         var o;
 
         if ((o = load("softenMask", DataType_Boolean, true)) != null)
@@ -78,7 +318,7 @@ function ConfigData() {
             this.contourMask = this.specialMaskType === "Contour mask";
         if ((o = load("maskGrowth", DataType_Boolean, true)) != null)
             this.maskGrowth = o;
-        
+
         if ((o = load("FilterSize_min", DataType_Float, 0, 2)) != null)
             this.FilterSize_min = o;
         if ((o = load("FilterSize_max", DataType_Float, MAX_INT, 2)) != null)
@@ -93,7 +333,7 @@ function ConfigData() {
         if ((o = load("AdjFactor_countor", DataType_Float, 0.5, 2)) != null)
             this.AdjFactor_countor = o;
 
-        
+
         /*
         if ((o = load("InputPath", DataType_String)) != null)
             this.InputPath = o;
@@ -110,7 +350,7 @@ function ConfigData() {
         };
     }
 
-    this.saveSettings = function () {
+    this.saveSettings = function() {
         save("softenMask", DataType_Boolean, this.softenMask);
         this.contourMask = this.specialMaskType === "Contour mask";
         save("contourMask", DataType_Boolean, this.contourMask);
@@ -140,20 +380,21 @@ function ConfigData() {
     /*
      * Import / Export script parameters (global or target View run)
      */
-    this.exportParameters = function () {
+    this.exportParameters = function() {
 
-        Parameters.set("softenMask", 			this.softenMask);
+        Parameters.set("softenMask", this.softenMask);
         this.contourMask = this.specialMaskType === "Contour mask";
-        Parameters.set("contourMask", 			this.contourMask);
-        Parameters.set("specialMaskType", 			this.specialMaskType);
-        Parameters.set("maskGrowth", 			this.maskGrowth);
-        
-        Parameters.set("FilterSize_min",        this.FilterSize_min);
-        Parameters.set("FilterSize_max",        this.FilterSize_max);
-        Parameters.set("FilterFlux_min",        this.FilterFlux_min);
-        Parameters.set("FilterFlux_max",        this.FilterFlux_max);
-        Parameters.set("AdjFact",               this.AdjFact);
-        Parameters.set("AdjFactor_countor",     this.AdjFactor_countor);
+        Parameters.set("contourMask", this.contourMask);
+        Parameters.set("specialMaskType", this.specialMaskType);
+        Parameters.set("maskGrowth", this.maskGrowth);
+
+        Parameters.set("FilterSize_min", this.FilterSize_min);
+        Parameters.set("FilterSize_max", this.FilterSize_max);
+        Parameters.set("FilterFlux_min", this.FilterFlux_min);
+        Parameters.set("FilterFlux_max", this.FilterFlux_max);
+        Parameters.set("AdjFact", this.AdjFact);
+        Parameters.set("AdjFactor_countor", this.AdjFactor_countor);
+        exportEngineState();
 
         /*
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
@@ -167,7 +408,7 @@ function ConfigData() {
         };
     }
 
-    this.importParameters = function () {
+    this.importParameters = function() {
         if (Parameters.has("softenMask"))
             this.softenMask = Parameters.getBoolean("softenMask");
         if (Parameters.has("specialMaskType"))
@@ -190,6 +431,7 @@ function ConfigData() {
             this.AdjFact = Parameters.getReal("AdjFact");
         if (Parameters.has("AdjFactor_countor"))
             this.AdjFactor_countor = Parameters.getReal("AdjFactor_countor");
+        importEngineState();
 
         /*
         if (Parameters.has("NeedCalibration"))
@@ -208,8 +450,8 @@ function ConfigData() {
         };
     }
 
-    this.printParameters = function () {
-        
+    this.printParameters = function() {
+
         console.writeln("softenMask:                     " + this.softenMask);
         console.writeln("contourMask:                    " + this.contourMask);
         console.writeln("specialMaskType:                " + this.specialMaskType);
@@ -245,9 +487,9 @@ function ConfigData() {
         */
     }
 
-    this.checkPathValidity = function () {
+    this.checkPathValidity = function() {
         return true;
     }
 
-    this.loadDefaultValues = function () {}
+    this.loadDefaultValues = function() {}
 }
