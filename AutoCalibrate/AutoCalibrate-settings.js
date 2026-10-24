@@ -21,6 +21,8 @@
 
 
 function ConfigData() {
+    this.NeedDebayer = false;
+    this.SplitChannels = false;
     //temp
     this.outputExtension = "fits";
     this.outputHints = "";
@@ -59,6 +61,10 @@ function ConfigData() {
             this.NeedCalibration = o;
         if ((o = load("NeedCosmeticCorrection", DataType_Boolean)) != null)
             this.NeedCosmeticCorrection = o;
+        if ((o = load("NeedDebayer", DataType_Boolean)) != null)
+            this.NeedDebayer = o;
+        if ((o = load("SplitChannels", DataType_Boolean)) != null)
+            this.SplitChannels = o;
         if ((o = load("NeedABE", DataType_Boolean)) != null)
             this.NeedABE = o;
         if ((o = load("NeedRegister", DataType_Boolean)) != null)
@@ -92,6 +98,8 @@ function ConfigData() {
 
         save("NeedCalibration", DataType_Boolean, this.NeedCalibration);
         save("NeedCosmeticCorrection", DataType_Boolean, this.NeedCosmeticCorrection);
+        save("NeedDebayer", DataType_Boolean, this.NeedDebayer);
+        save("SplitChannels", DataType_Boolean, this.SplitChannels);
         save("NeedABE", DataType_Boolean, this.NeedABE);
         save("NeedRegister", DataType_Boolean, this.NeedRegister);
         save("NeedNormalization", DataType_Boolean, this.NeedNormalization);
@@ -126,6 +134,8 @@ function ConfigData() {
 
         Parameters.set("NeedCalibration", 			this.NeedCalibration);
         Parameters.set("NeedCosmeticCorrection", 	this.NeedCosmeticCorrection);
+        Parameters.set("NeedDebayer", this.NeedDebayer);
+        Parameters.set("SplitChannels", this.SplitChannels);
         Parameters.set("NeedABE", 					this.NeedABE);
         Parameters.set("NeedRegister", 				this.NeedRegister);
         Parameters.set("NeedNormalization", 		this.NeedNormalization);
@@ -162,6 +172,10 @@ function ConfigData() {
             this.NeedCalibration = Parameters.getBoolean("NeedCalibration");
         if (Parameters.has("NeedCosmeticCorrection"))
             this.NeedCosmeticCorrection = Parameters.getBoolean("NeedCosmeticCorrection");
+        if (Parameters.has("NeedDebayer"))
+            this.NeedDebayer = Parameters.getBoolean("NeedDebayer");
+        if (Parameters.has("SplitChannels"))
+            this.SplitChannels = Parameters.getBoolean("SplitChannels");
         if (Parameters.has("NeedABE"))
             this.NeedABE = Parameters.getBoolean("NeedABE");
         if (Parameters.has("NeedRegister"))
@@ -200,6 +214,8 @@ function ConfigData() {
 
         console.writeln("NeedCalibration:                " + this.NeedCalibration);
         console.writeln("NeedCosmeticCorrection:         " + this.NeedCosmeticCorrection);
+        console.writeln("NeedDebayer: " + this.NeedDebayer);
+        console.writeln("SplitChannels: " + this.SplitChannels);
         console.writeln("NeedABE:                        " + this.NeedABE);
         console.writeln("NeedRegister:                   " + this.NeedRegister);
         console.writeln("NeedNormalization:              " + this.NeedNormalization);

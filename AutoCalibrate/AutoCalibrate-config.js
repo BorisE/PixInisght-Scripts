@@ -9,6 +9,8 @@ Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;       //КАКОЙ СПОСО�
 
 Config.NeedCalibration = true;                           	// КАЛИБРОВАТЬ?
 Config.NeedCosmeticCorrection = true;                   	// КОСМЕТИКА?
+Config.NeedDebayer = false;                             // VNG demosaicing after cosmetic correction
+Config.SplitChannels = false;                           // Continue with separate R, G and B images
 Config.NeedABE = false;                                  	// РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = true;                             	// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
 Config.NeedNormalization = true;                        	// НОРМАЛИЗОВАТЬ ФОН?

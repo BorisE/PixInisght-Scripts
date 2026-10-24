@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.4.3"
- #define COMPILE_DATE "2026/02/28"
+ #define VERSION "7.0.0"
+ #define COMPILE_DATE "2026/10/24"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2026 Boris Emchenko<br/>"
@@ -25,6 +25,10 @@ TODO:
 - Добавить автозапуск NSG
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 7.0.0beta1 [2026/10/24]
+- debayer added
+- seestar params
 
 v 6.4.3 [2026/02/28]
 - new parameter for SearchSuitabeFileByDate() strictlyBefore - so bias and darks masters are now sought just as nearest day even it is after FITS date; flats are still strictly before just to avoid using bad flats
