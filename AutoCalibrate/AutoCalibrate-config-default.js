@@ -17,6 +17,8 @@ Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;       //КАКОЙ СПОСО�
 
 Config.NeedCalibration = true;                           // КАЛИБРОВАТЬ?
 Config.NeedCosmeticCorrection = false;                   // КОСМЕТИКА?
+Config.NeedDebayer = false;                             // VNG demosaicing after cosmetic correction
+Config.SplitChannels = false;                           // Continue with separate R, G and B images
 Config.NeedABE = false;                                  // РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = false;                             // ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
 Config.NeedNormalization = false;                        // НОРМАЛИЗОВАТЬ ФОН?
@@ -164,7 +166,7 @@ var CAMERA_DICTIONARY = {
 
 var TELESCOP_DICTIONARY = {
     'EQMOD ASCOM HEQ5/6': 'EQ8',
-
+    'S50 Pro_3eb4c642': 'SeestarS50pro',
 };
 
 
@@ -295,9 +297,9 @@ var FLATS_FILE_PATTERN_BINNING_POS  = 5;																				// pattern id (regex
 // for FITS HEADER parsing
 var headers = {
     'XBINNING': null,
-    'OBSERVER': null,
+    'OBSERVER': null,   /*not defined for SeestarS50pro*/
     'TELESCOP': null,
-    'INSTRUME': null,
+    'INSTRUME': null,   /*not defined for SeestarS50pro*/
     'DATE-OBS': null,
     'EXPTIME': null,
     'CCD-TEMP': null,
@@ -307,13 +309,14 @@ var headers = {
     'OBJECT': null,
     'OBJCTRA': null,
     'OBJCTDEC': null,
-    'READOUTM': null,
+    'READOUTM': null,   /* QHY600 */
     'GAIN': null,
-	'EGAIN': null,
+	'EGAIN': null,      /* QHY600 */
     'OFFSET': null,
-    'QOVERSCN': null,
-    'USBLIMIT': null,
-    'QPRESET': null
+    'QOVERSCN': null,   /* QHY600 */
+    'USBLIMIT': null,   /* QHY600 */
+    'QPRESET': null,    /* QHY600 */
+    'WIDECAM': null     /*SeestarS50pro*/
 
 };
 

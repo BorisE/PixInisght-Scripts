@@ -26,6 +26,10 @@ TODO:
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
 
+v 7.0.0alpha1 [2026/10/24]
+- seestar support
+- debayering
+
 v 6.4.3 [2026/02/28]
 - new parameter for SearchSuitabeFileByDate() strictlyBefore - so bias and darks masters are now sought just as nearest day even it is after FITS date; flats are still strictly before just to avoid using bad flats
 

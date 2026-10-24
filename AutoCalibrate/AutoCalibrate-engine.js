@@ -2237,7 +2237,7 @@ function AutoCalibrateEngine() {
 				console.criticalln('Can`t find Observer');
 				return false;
 			} else {
-				console.warningln('Can`t find Observer');
+				// console.warningln('Can`t find Observer');
 			}
         }
 
@@ -2281,6 +2281,10 @@ function AutoCalibrateEngine() {
         if (typeof TELESCOP_DICTIONARY[headers.TELESCOP] != 'undefined') {
             telescope = TELESCOP_DICTIONARY[headers.TELESCOP];
         }
+
+        // Integrated cameras such as Seestar may omit INSTRUME.
+        if (!headers.INSTRUME)
+            camera = telescope;
 
 		// Сохраним геометрию
 		var Width = image.mainView.image.width;
