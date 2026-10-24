@@ -235,7 +235,8 @@ var CAMERA_OVERSCAN_MAIN_RECTANGLE = {
 var BIAS_DIR_NAME = "bias";
 var DARKS_DIR_NAME = "darks";
 var FLATS_DIR_NAME = "flats";
-var DIR_TEMPERATURE_PATTERN = new RegExp('-(\\d)+', 'gmi');
+// Signed or unsigned temperature: -30, 0, 30, +30, 28.3 (e.g. master 30deg).
+var DIR_TEMPERATURE_PATTERN = new RegExp('[+-]?\\d+(?:\\.\\d+)?', 'gmi');
 var DIR_DATE_PATTERN = new RegExp('((\\d+)+)', 'gmi');
 
 

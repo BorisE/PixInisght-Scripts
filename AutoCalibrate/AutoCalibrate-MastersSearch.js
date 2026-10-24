@@ -29,7 +29,8 @@ var CameraHeaders = new ProcessCameraHeaders();
  *
  * @param pathMasterLib string  путь к библиотеке мастеров
  * @param fileData object  данные по текущему файлу, полученные из его заголовка в функции getFileHeaderData
- * @return object имена калибровачных мастер файлов для текущего файла
+ * @return {Object|Boolean} Available master paths (empty string for a missing type),
+ * or false when no masters match or the library base directory is unavailable.
  */
 function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	console.writeln();
@@ -58,112 +59,50 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	pathMasterLib = calibrationSearchBasePath;
 
 
-	// == BIAS
-	debug("==============<br>BIAS<br>==============", dbgNotice);
-	var biasCalibrationSearchBasePath = calibrationSearchBasePath + "/" + BIAS_DIR_NAME;
-	debug("Searching BIAS in path: " + biasCalibrationSearchBasePath, dbgNotice);
-	if (!File.directoryExists( biasCalibrationSearchBasePath)) {
-		console.criticalln("Master BIAS serach path [" + biasCalibrationSearchBasePath + "] couldn't be found");
-		return false;
-	}
-	pathMasterLib = biasCalibrationSearchBasePath;
-	// bias - temp search
-	var templib_dirname_nearest = SearchSuitabeFileByTemperature (pathMasterLib, fileData.temp)
-	if (!templib_dirname_nearest) {
-		console.criticalln("Master calibration suitable temperature dir for BIAS couldn't be found");
-		return false;
-	}
-	pathMasterLib = pathMasterLib + "/" + templib_dirname_nearest
-	// bias - date search
-	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date, false)
-	if (!datelib_dirname_nearest) {
-		console.criticalln("Master calibration suitable datepack dir for BIAS couldn't be found");
-		return false;
-	}
-	pathMasterLib = pathMasterLib + "/" + datelib_dirname_nearest;
-	// bias - file search
-	var bias_file_name = SearchForBIAS (pathMasterLib, fileData);
-	var bias_full_file_name = pathMasterLib + "/" + bias_file_name;
-	
-	
-	// == DARKS
-	debug("==============<br>DARK<br>==============", dbgNotice);
-	var darksCalibrationSearchBasePath = calibrationSearchBasePath + "/" + DARKS_DIR_NAME;
-	debug("Searching DARKS in path: " + darksCalibrationSearchBasePath, dbgNotice);
-	if (!File.directoryExists( darksCalibrationSearchBasePath)) {
-		console.criticalln("Master DARKS serach path [" + darksCalibrationSearchBasePath + "] couldn't be found");
-		return false;
-	}
-	pathMasterLib = darksCalibrationSearchBasePath;
-	// darks - temp search
-	var templib_dirname_nearest = SearchSuitabeFileByTemperature (pathMasterLib, fileData.temp)
-	if (!templib_dirname_nearest) {
-		console.criticalln("Master calibration suitable temperature dir for DARKS couldn't be found");
-		return false;
-	}
-	pathMasterLib = pathMasterLib + "/" + templib_dirname_nearest
-	// darks - date search
-	var datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date, false)
-	if (!datelib_dirname_nearest) {
-		console.criticalln("Master calibration suitable datepack dir for DARKS couldn't be found");
-		return false;
-	}
-	pathMasterLib = pathMasterLib + "/" + datelib_dirname_nearest;
-	// darks - file search
-	var dark_file_name = SearchForDARK (pathMasterLib, fileData);
-	var dark_full_file_name = pathMasterLib + "/" + dark_file_name;
-
-
-	// == FLATS
-	debug("==============<br>FLATS<br>==============", dbgNotice);
-	var flatsCalibrationSearchBasePath = calibrationSearchBasePath + "/" + FLATS_DIR_NAME;
-	debug("Searching FLATS in path: " + flatsCalibrationSearchBasePath, dbgNotice);
-	if (!File.directoryExists( flatsCalibrationSearchBasePath)) {
-		console.criticalln("Master FLATS serach path [" + flatsCalibrationSearchBasePath + "] couldn't be found");
-		return false;
-	}
-	pathMasterLib = flatsCalibrationSearchBasePath;
-	// flats - date search
-	datelib_dirname_nearest = SearchSuitabeFileByDate (pathMasterLib, fileData.date, true)
-	if (!datelib_dirname_nearest) {
-		console.criticalln("Master calibration suitable datepack dir for FLATS couldn't be found");
-		return false;
-	}
-	pathMasterLib = pathMasterLib + "/" + datelib_dirname_nearest;
-	// flats - file search
-	var flat_file_name = SearchForFLAT (pathMasterLib, fileData);
-	var flat_full_file_name = pathMasterLib + "/" + flat_file_name;
-
-
-
-	// Check if all needed masters found
-	if (bias_file_name == "") {
-		Console.criticalln("Matching bias wasn't found! Check dark library for availability for FITS CCD-TEMP values");
-		return false;
+	/**
+	 * Find one optional master using the existing temperature/date/file rules.
+	 * @param {String} label Master type for log messages.
+	 * @param {String} folder Type subdirectory below calibrationSearchBasePath.
+	 * @param {Function} findFile Existing matcher accepting a path and fileData.
+	 * @param {Boolean} useTemperature Whether to select a temperature directory.
+	 * @return {String} Existing master path, or an empty string if none matches.
+	 * Reads the library and logs missing matches; does not modify files.
+	 */
+	function findAvailableMaster(label, folder, findFile, useTemperature) {
+		var directory = calibrationSearchBasePath + "/" + folder;
+		var temperature = "", date = "", name = "";
+		if (File.directoryExists(directory)) {
+			if (useTemperature) {
+				temperature = SearchSuitabeFileByTemperature(directory, fileData.temp);
+				if (temperature) directory += "/" + temperature;
+			}
+			if (!useTemperature || temperature) {
+				date = SearchSuitabeFileByDate(directory, fileData.date, !useTemperature);
+				if (date) {
+					directory += "/" + date;
+					name = findFile(directory, fileData);
+					if (name && File.exists(directory + "/" + name))
+						return directory + "/" + name;
+				}
+			}
+		}
+		Console.warningln("No matching master " + label + "; this calibration component is disabled.");
+		return "";
 	}
 
-	if (dark_file_name == "") {
-		Console.criticalln("Matching dark wasn't found! Check dark library for availability for FITS CCD-TEMP and exposure values");
-		return false;
-	}
-
-	if (flat_file_name == "") {
-		Console.criticalln("Matching flat wasn't found! Check flat packs availability for FITS date and filter values");
-		return false;
-	}
-
-
-	Console.writeln();
-	Console.writeln("Materbias filename: <b>" + bias_full_file_name + "</b>");
-	Console.writeln("Masterdark filename: <b>" + dark_full_file_name + "</b>");
-	Console.writeln("Masterflat filename: <b>" + flat_full_file_name + "</b>");
-	Console.writeln();
-
-	return {
-		masterbias: bias_full_file_name,
-		masterdark: dark_full_file_name,
-		masterflat: flat_full_file_name,
+	// A missing type must not prevent searching for the other master types.
+	var masters = {
+		masterbias: findAvailableMaster("BIAS", BIAS_DIR_NAME, SearchForBIAS, true),
+		masterdark: findAvailableMaster("DARK", DARKS_DIR_NAME, SearchForDARK, true),
+		masterflat: findAvailableMaster("FLAT", FLATS_DIR_NAME, SearchForFLAT, false)
 	};
+	if (!masters.masterbias && !masters.masterdark && !masters.masterflat)
+		return false;
+
+	Console.writeln("Master bias: " + (masters.masterbias || "disabled"));
+	Console.writeln("Master dark: " + (masters.masterdark || "disabled"));
+	Console.writeln("Master flat: " + (masters.masterflat || "disabled"));
+	return masters;
 }
 
 /*********************************************************

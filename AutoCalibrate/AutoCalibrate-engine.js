@@ -653,7 +653,8 @@ function AutoCalibrateEngine() {
     }
 
     /************************************************************************************************************
-     * Калибровка фита
+     * Калибровка фита с доступными мастерами bias, dark и flat.
+     * Отсутствующие типы отключаются; если нет ни одного мастера, возвращается исходный файл.
      *
      * @param fileName string  полное имя файла.fit включая путь
      * @return string          полное имя файла_c.fit включая путь
@@ -717,7 +718,7 @@ function AutoCalibrateEngine() {
                         , fileData);
 
             if (!mastersFiles) {
-                Console.warningln("*** Skipping calibration because master calibration file(s) was not found ***");
+                Console.warningln("*** Skipping calibration because no matching calibration masters were found ***");
 				if (this.progressDialog) { this.progressDialog.updateBar_Error("master calibration file(s) was not found", fileName); }
                 return fileName;
             }
@@ -759,20 +760,22 @@ function AutoCalibrateEngine() {
                 [false, 0, 0, 0, 0, 0, 0, 0, 0]
             ];
 
-            P.masterBiasEnabled = true;
-            P.masterBiasPath = mastersFiles.masterbias;
+            P.masterBiasEnabled = !!mastersFiles.masterbias;
+            P.masterBiasPath = mastersFiles.masterbias || "";
 
-            P.masterDarkEnabled = true;
-            P.masterDarkPath = mastersFiles.masterdark;
+            P.masterDarkEnabled = !!mastersFiles.masterdark;
+            P.masterDarkPath = mastersFiles.masterdark || "";
 
-            P.masterFlatEnabled = true;
-            P.masterFlatPath = mastersFiles.masterflat;
+            P.masterFlatEnabled = !!mastersFiles.masterflat;
+            P.masterFlatPath = mastersFiles.masterflat || "";
 
             P.calibrateBias = false;
-            P.calibrateDark = true; // понять бы - нужно или нет?!
-            P.calibrateFlat = false; // понять бы - нужно или нет?!
+            // With no bias master, subtract the dark including its bias offset.
+            P.calibrateDark = P.masterDarkEnabled && P.masterBiasEnabled;
+            P.calibrateFlat = false; // Master flats are already calibrated.
 
-            P.optimizeDarks = true;
+            // Scaling a dark containing a bias offset would also scale that offset.
+            P.optimizeDarks = P.masterDarkEnabled && P.masterBiasEnabled;
             P.darkOptimizationThreshold = 0.00000;
             P.darkOptimizationLow = 3.0000;
             P.darkOptimizationWindow = 1024;
