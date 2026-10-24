@@ -124,15 +124,6 @@ function AutoCalibrateEngine() {
 		
 		if (this.abortRequested) return false;
 
-        /* **************************************************************************************************************
-        * Run SubframeSelector measurements (if needed)
-        **************************************************************************************************************/
-		this.runSubframeSelector();
-
-
-        if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
-            this.MoveMostAdvanced();
-
         //Finish 1st pass
         console.noteln("<end><cbr><br>",
             "************************************************************");
@@ -170,6 +161,9 @@ function AutoCalibrateEngine() {
             console.noteln("************************************************************");
 
         }
+        this.runSubframeSelector();
+        if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+            this.MoveMostAdvanced();
         //sleep(10);
 		return true;
     }
@@ -292,7 +286,7 @@ function AutoCalibrateEngine() {
 
                                     this.NeedToCopyToFinalDirFlag = true;
 
-									if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+									if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 										console.criticalln("Abort requsted, breaking ...");
 										this.abortRequested = true;
 										return false;
@@ -303,13 +297,8 @@ function AutoCalibrateEngine() {
 									}
 
                                     //Process by full pipeline
-                                    this.addFileForApproving(
-                                        this.localNormalization(
-                                            this.registerFits(
-                                                this.ABEprocess(
-                                                    debayerSplitFit(
-                                                        this.cosmeticFit(
-                                                            this.calibrateFITSFile(searchPath + '/' + objFileFind.name)))))));
+                                    this.processAfterCosmetic(
+                                        this.cosmeticFit(this.calibrateFITSFile(searchPath + '/' + objFileFind.name)));
 															
                                 }
                                 else
@@ -338,6 +327,8 @@ function AutoCalibrateEngine() {
      * @return object
      */
     this.ScanArray = function () {
+        if (Config.NeedDebayer)
+            return this.scanDebayerArray();
 
         console.noteln("<end><cbr><br>",
             "************************************************************");
@@ -583,62 +574,18 @@ function AutoCalibrateEngine() {
         //debug("file :" + file);
         //debug("test: " + (file.match(/_c_cc.fit(s){0,1}$/) != null));
 
-        // Проверим, на входе файл на какой стадии? (оригинальный, калиброванный, косметизированный, .... )
-        var fn = "";
-        if ((fn = file.match(/(.+)\/(.+)_c((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is calibrated of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.CALIBRATED, file, fn[2], fn[1]); //type, full name, signature, path
+        var stage = file.match(/(.+)\/(.+?)_c(_cc)?(_b)?(_r)?(_n)?(_a)?\.(fit|fits|xisf)$/i);
+        if (stage) {
+            var type = stage[7] ? FITS.APPROVED : stage[6] ? FITS.NORMALIZED :
+                stage[5] ? FITS.REGISTERED : stage[4] ? FITS.ABED :
+                stage[3] ? FITS.COSMETIZED : FITS.CALIBRATED;
+            AddFileToArray(type, file, stage[2], stage[1]);
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is cosmetized of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.COSMETIZED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is abed of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.ABED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is registered of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.REGISTERED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r_n((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is normalized of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.NORMALIZED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r_a((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is approved of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.APPROVED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else {
-            fn = file.match(/(.+)\/(.+)((\.fit|\.fits|\.xisf){1})$/i);
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.ORIGINAL, file, fn[2], fn[1]); //type, full name, signature, path
-            return true;
         }
+        var fn = file.match(/(.+)\/(.+)\.(fit|fits|xisf)$/i);
+        if (!fn) return false;
+        AddFileToArray(FITS.ORIGINAL, file, fn[2], fn[1]);
+        return true;
 
         /*
         // Проверим, а нет ли уже такого откалиброванного файла?
@@ -669,7 +616,7 @@ function AutoCalibrateEngine() {
             return fileName;
         }
 		
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -872,7 +819,7 @@ function AutoCalibrateEngine() {
             return fileName;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1002,7 +949,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1035,9 +982,7 @@ function AutoCalibrateEngine() {
         for (var i = 0; i < files.length; i++) {
             // return new file name
             var FileNameOnly = File.extractName(files[i]);
-            var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_b');
-            if (FileNameOnly === newFileNameOnly)
-                var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_b'); //if СС was not run before
+            var newFileNameOnly = FileNameOnly + '_b';
             newFiles[i] = ABEOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1110,11 +1055,17 @@ function AutoCalibrateEngine() {
 
                 //Запустить
                 with (ABEproc) {
-                    executeOn(w.mainView);
+                    if (!executeOn(w.mainView)) {
+                        w.forceClose();
+                        return false;
+                    }
                     //
                     // save
                     //
-                    w.saveAs(newFiles[i], false, false, true, !Config.OverwriteAllFiles);
+                    if (!w.saveAs(newFiles[i], false, false, true, !Config.OverwriteAllFiles)) {
+                        w.forceClose();
+                        return false;
+                    }
                 }
                 w.purge();
                 w.forceClose(); //w.close();
@@ -1173,7 +1124,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1223,8 +1174,7 @@ function AutoCalibrateEngine() {
                 Console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
             } else {
                 // Search for reference file
-                if (!fileData)
-                    var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
+                var fileData = getFileHeaderData(files[i]); // Each channel has its own FILTER.
                 if (!fileData) {
                     console.criticalln("Can't get File Header for Registration for " + files[i] + "!");
                     return false;
@@ -1292,7 +1242,7 @@ function AutoCalibrateEngine() {
                 ];
 
                 P.outputDirectory = RegisteredOutputPath;
-                P.outputExtension = ".fit";
+                P.outputExtension = "." + getCorrectExtension(files[i]);
                 P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
                 P.onError = StarAlignment.prototype.Continue;
                 P.overwriteExistingFiles = Config.OverwriteAllFiles;
@@ -1427,7 +1377,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1476,13 +1426,12 @@ function AutoCalibrateEngine() {
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileName + ' already exists, skipping normalization');
+                Console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
             } else {
                 // Search for reference file
-                if (!fileData)
-                    var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
+                var fileData = getFileHeaderData(files[i]); // Each channel has its own FILTER.
                 if (!fileData) {
-                    console.criticalln("Can't get File Header for Normalization for " + fileName + "!");
+                    console.criticalln("Can't get File Header for Normalization for " + files[i] + "!");
                     return false;
                 }
 
@@ -1566,11 +1515,13 @@ function AutoCalibrateEngine() {
 				P.referenceIsView = false;
 				P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_GlobalExecutionOnly;
 				P.outputDirectory = NormalizedOutputPath;
-				P.outputExtension = ".fit";
+                P.outputExtension = "." + getCorrectExtension(files[i]);
+                P.overwriteExistingFiles = Config.OverwriteAllFiles;
 				P.outputPrefix = "";
 				P.outputPostfix = "_n";
 
                 var status = P.executeGlobal();
+                if (!status || !File.exists(newFiles[i])) return false;
                 this.ProcessesCompleted++;
                 this.NormalizedCount++;
 
@@ -1598,7 +1549,7 @@ function AutoCalibrateEngine() {
             this.NeedToCopyToFinalDirFlag = false; //Normalization is final
         }
 
-        return false;
+        return newFiles;
     }
 
     /************************************************************************************************************
@@ -1620,7 +1571,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1634,7 +1585,8 @@ function AutoCalibrateEngine() {
 
         // Start registration for all files
         for (var i = 0; i < files.length; i++) {
-			this.approveFileList.push(files[i]);
+			if (this.approveFileList.indexOf(files[i]) < 0)
+                this.approveFileList.push(files[i]);
 			debug("Added to approve list <b>" + files[i] + "</b>", dbgNormal);
 		}
 		return true;
@@ -1655,7 +1607,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1770,12 +1722,8 @@ function AutoCalibrateEngine() {
 		debug("SF execute status: " + status, dbgNotice);
 
 		// Get Icon Name based on received file
-		let iconName = "";
-        if (file.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i) != null || file.match(/(.+)\/(.+)_c_cc\.(fit|fits|xisf)$/i) != null) {
-			iconName = Config.SF_IconName_beforeRegistration;
-		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r\.(fit|fits|xisf)$/i) != null || file.match(/(.+)\/(.+)_c_cc_r\.(fit|fits|xisf)$/i) != null) {
-			iconName = Config.SF_IconName_afterRegistration;
-        }
+        var iconName = /_r(?:_n)?\.(fit|fits|xisf)$/i.test(file)
+            ? Config.SF_IconName_afterRegistration : Config.SF_IconName_beforeRegistration;
 
 		// Save result in text file (just in case not to loose measurement results)
 		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement_source.src", P.toSource());
@@ -1808,7 +1756,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1841,7 +1789,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1915,131 +1863,176 @@ function AutoCalibrateEngine() {
 		return status;
     }
 
-    /************************************************************************************************************
-     * Debayer files
-     *
-     * WARNING Не тестировал работоспособность; не менял под конфигуратор, процедура осталась в оригинале
-     *
-     */
-    function debayerSplitFit(file) {
-        //return file; // @todo
+    this.handledDebayerSignatures = {};
 
-        if (!file.cfa) {
-            Console.writeln("File is not CFA, skipping debayering");
-            return [file];
-        } else {
-            //ЗАГЛУШКА!!!
-            Console.criticalln("File is CFA, but debayering wasn't tested, sorry!");
-            return [file];
-        }
+    this.imageSignature = function (file) {
+        return File.extractName(file).replace(/_c(?:_cc)?(?:_b)?(?:_r)?(?:_n)?(?:_a)?$/, "");
+    };
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
+    this.processAfterCosmetic = function (file) {
+        if (!file) return false;
+        this.handledDebayerSignatures[this.imageSignature(file)] = true;
+        var files = this.debayerSplitFit(file);
+        if (!files) return false;
+        for (var i = 0; i < files.length; ++i)
+            this.handledDebayerSignatures[this.imageSignature(files[i])] = true;
+        return this.addFileForApproving(this.localNormalization(this.registerFits(this.ABEprocess(files))));
+    };
 
-        console.writeln('start to debayer fit: ' + file.dst);
-
-        var P = new Debayer;
-
-        switch (file.filter) {
-        case 'RGGB':
-            P.bayerPattern = Debayer.prototype.RGGB;
-            break;
-
-        case 'BGGR':
-            P.bayerPattern = Debayer.prototype.BGGR;
-            break;
-
-        case 'GBRG':
-            P.bayerPattern = Debayer.prototype.GBRG;
-            break;
-
-        case 'GRBG':
-            P.bayerPattern = Debayer.prototype.GRBG;
-            break;
-
-        default:
-            return false;
-        }
-
-        P.debayerMethod = Debayer.prototype.VNG;
-        P.evaluateNoise = false;
-        P.noiseEvaluationAlgorithm = Debayer.prototype.NoiseEvaluation_MRS;
-        P.showImages = true;
-
-        var inputImageWindow = ImageWindow.open(
-                Config.OutputPath + '/' + file.object + '/' + file.filter + '/cc/' + file.dst + '_c_cc.fit');
-        var sourceView = inputImageWindow[0].mainView;
-
-        var status = P.executeOn(sourceView);
-
-        inputImageWindow[0].close();
-
-        var resultView = View.viewById(P.outputImage);
-
-        // / debayer
-
-
-        // splitRGB
-
-        if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/R/cc'))
-            File.createDirectory(Config.OutputPath + '/' + file.object + '/R/cc', true);
-        if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/G/cc'))
-            File.createDirectory(Config.OutputPath + '/' + file.object + '/G/cc', true);
-        if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/B/cc'))
-            File.createDirectory(Config.OutputPath + '/' + file.object + '/B/cc', true);
-
-        var imgW = resultView.image.width;
-        var imgH = resultView.image.height;
-
-        var red = new ImageWindow(imgW, imgH, 1, 16, false, false, "");
-        var green = new ImageWindow(imgW, imgH, 1, 16, false, false, "");
-        var blue = new ImageWindow(imgW, imgH, 1, 16, false, false, "");
-
-        resultView.image.selectedChannel = 0;
-        red.mainView.beginProcess(UndoFlag_NoSwapFile);
-        red.mainView.image.assign(resultView.image);
-        red.mainView.endProcess();
-        red.saveAs(
-            Config.OutputPath + '/' + file.object + '/R/cc/debayer_' + file.dst + '_R_c_cc.fit', false, false, false, false);
-
-        resultView.image.selectedChannel = 1;
-        green.mainView.beginProcess(UndoFlag_NoSwapFile);
-        green.mainView.image.assign(resultView.image);
-        green.mainView.endProcess();
-        green.saveAs(
-            Config.OutputPath + '/' + file.object + '/G/cc/debayer_' + file.dst + '_G_c_cc.fit', false, false, false, false);
-
-        resultView.image.selectedChannel = 2;
-        blue.mainView.beginProcess(UndoFlag_NoSwapFile);
-        blue.mainView.image.assign(resultView.image);
-        blue.mainView.endProcess();
-        blue.saveAs(
-            Config.OutputPath + '/' + file.object + '/B/cc/debayer_' + file.dst + '_B_c_cc.fit', false, false, false, false);
-
-        //   resultView.window.saveAs(
-        //      Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/cc/deb_'+ file.dst +'_c_cc.fit'
-        //      , false, false, false, false );
-
-        resultView.window.forceClose();
-
-        return [{
-                object: file.object,
-                filter: 'R',
-                dst: 'debayer_' + file.dst + '_R',
-            }, {
-                object: file.object,
-                filter: 'G',
-                dst: 'debayer_' + file.dst + '_G',
-            }, {
-                object: file.object,
-                filter: 'B',
-                dst: 'debayer_' + file.dst + '_B',
+    // The old second pass assumes one output per exposure. Demosaicing can
+    // produce three independent signatures, so resume each source only once.
+    this.scanDebayerArray = function () {
+        var records = FILEARRAY.slice();
+        for (var i = 0; i < records.length; ++i) {
+            var record = records[i];
+            if (this.handledDebayerSignatures[record.fits]) continue;
+            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
+                return false;
+            var converted = /_d_(RGB|R|G|B)$/.test(record.fits);
+            var file = converted ? (record.normalized || record.registered || record.abed || record.cosmetized || record.calibrated)
+                : (record.cosmetized || record.calibrated || record.fullname);
+            if (!file) continue;
+            if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+                this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
+            else if (Config.PathMode == PATHMODE.ABSOLUTE)
+                this.BaseCalibratedOutputPath = Config.OutputPath;
+            else {
+                var directory = File.extractDrive(file) + File.extractDirectory(file);
+                if (file != record.fullname) {
+                    directory = directory.substring(0, directory.lastIndexOf("/"));
+                    if (Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+                        directory = directory.substring(0, directory.lastIndexOf("/"));
+                }
+                this.BaseCalibratedOutputPath = directory;
             }
-        ];
-    }
+            this.NeedToCopyToFinalDirFlag = true;
+            ++this.FileTotalCount;
+            this.handledDebayerSignatures[record.fits] = true;
+            if (converted) {
+                var files = [file];
+                if (!record.normalized && !record.registered) {
+                    if (!record.abed) files = this.ABEprocess(files);
+                    files = this.registerFits(files);
+                }
+                if (!record.normalized) files = this.localNormalization(files);
+                this.addFileForApproving(files);
+            } else {
+                if (file == record.fullname) file = this.calibrateFITSFile(file);
+                if (!record.cosmetized) file = this.cosmeticFit(file);
+                this.processAfterCosmetic(file);
+            }
+        }
+        return true;
+    };
+
+    // Keep the existing processing suffix so downstream naming and discovery work.
+    // The channel marker is part of the signature: light_d_RGB_c_cc, light_d_R_c_cc.
+    this.debayerSplitFit = function (fileName) {
+        if (!fileName)
+            return false;
+        if (!Config.NeedDebayer)
+            return [fileName];
+        if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
+            return false;
+
+        var source = null, result = null, channel = null;
+        try {
+            var data = getFileHeaderData(fileName);
+            if (!data)
+                return false;
+            if (!data.cfa)
+                return [fileName];
+            var outputPath = this.BaseCalibratedOutputPath;
+            if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+                outputPath += "/" + (data.object || cfgDefObjectName);
+            outputPath += "/" + Config.DebayerdFolderName;
+            var name = File.extractName(fileName);
+            var suffix = name.match(/_c(?:_cc)?$/);
+            var stem = suffix ? name.substring(0, name.length - suffix[0].length) : name;
+            // _c also supplies a processing suffix for already calibrated input with arbitrary names.
+            suffix = suffix ? suffix[0] : "_c";
+            var channels = Config.SplitChannels ? ["R", "G", "B"] : ["RGB"];
+            var outputs = [], allExist = true;
+            for (var i = 0; i < channels.length; ++i) {
+                outputs.push(outputPath + "/" + stem + "_d_" + channels[i] + suffix + ".xisf");
+                allExist = allExist && File.exists(outputs[i]);
+            }
+            if (Config.SkipExistingFiles && allExist)
+                return outputs;
+            if (!File.directoryExists(outputPath))
+                File.createDirectory(outputPath, true);
+            if (this.progressDialog)
+                this.progressDialog.updateBar_NewProcess("Debayer (VNG)");
+
+            source = ImageWindow.open(fileName)[0];
+            if (!source || source.isNull)
+                throw new Error("Unable to open CFA image: " + fileName);
+            var process = new Debayer;
+            // Auto honors XISF/FITS CFA metadata, including offsets. FILTER-only
+            // legacy files have no such metadata and need an explicit pattern.
+            process.bayerPattern = data.cfaFromMetadata ? Debayer.prototype.Auto : Debayer.prototype[data.cfaPattern];
+            process.debayerMethod = Debayer.prototype.VNG;
+            process.evaluateNoise = false;
+            process.showImages = false;
+            if (!process.executeOn(source.mainView))
+                throw new Error("Debayer failed: " + fileName);
+            var view = View.viewById(process.outputImage);
+            if (!view || view.isNull)
+                throw new Error("Debayer did not produce an RGB image: " + fileName);
+            result = view.window;
+
+            for (var i = 0; i < channels.length; ++i) {
+                if (Config.SkipExistingFiles && File.exists(outputs[i]))
+                    continue;
+                if (File.exists(outputs[i]) && !Config.OverwriteAllFiles)
+                    throw new Error("Output exists and overwrite is disabled: " + outputs[i]);
+                var output = result;
+                if (Config.SplitChannels) {
+                    channel = new ImageWindow(result.mainView.image.width, result.mainView.image.height,
+                        1, result.bitsPerSample, result.isFloatSample, false, "AutoCalibrate_channel");
+                    result.mainView.image.selectedChannel = i;
+                    channel.mainView.beginProcess(UndoFlag_NoSwapFile);
+                    channel.mainView.image.assign(result.mainView.image);
+                    channel.mainView.endProcess();
+                    output = channel;
+                }
+                // Preserve acquisition metadata for reference selection, but never
+                // let a converted image advertise itself as a CFA mosaic.
+                var keywords = source.keywords.filter(function (k) {
+                    return !/^(FILTER|BAYERPAT|XBAYROFF|YBAYROFF|CFA.*)$/i.test(k.name);
+                });
+                keywords.push(new FITSKeyword("FILTER", "'" + channels[i] + "'", "AutoCalibrate output channel"));
+                output.keywords = keywords;
+                var properties = source.mainView.properties;
+                for (var j = 0; j < properties.length; ++j)
+                    if (!/^CFA:/.test(properties[j]))
+                        output.mainView.setPropertyValue(properties[j], source.mainView.propertyValue(properties[j]));
+                if (output.mainView.hasProperty("Instrument:Filter:Name"))
+                    output.mainView.setPropertyValue("Instrument:Filter:Name", channels[i]);
+                var outputProperties = output.mainView.properties;
+                for (var j = 0; j < outputProperties.length; ++j)
+                    if (/^CFA:/.test(outputProperties[j]))
+                        output.mainView.deleteProperty(outputProperties[j]);
+                if (!output.saveAs(outputs[i], false, false, false, false))
+                    throw new Error("Unable to save debayered image: " + outputs[i]);
+                if (channel) {
+                    channel.forceClose();
+                    channel = null;
+                }
+            }
+            ++this.ProcessesCompleted;
+            return outputs;
+        } catch (error) {
+            console.criticalln("Debayer: " + error.message);
+            if (this.progressDialog)
+                this.progressDialog.updateBar_Error(error.message, fileName);
+            return false;
+        } finally {
+            if (channel) channel.forceClose();
+            if (result) result.forceClose();
+            if (source) source.forceClose();
+        }
+    };
 
     /************************************************************************************************************
      * Биннинг файлов
@@ -2065,7 +2058,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -2223,6 +2216,9 @@ function AutoCalibrateEngine() {
           return false;
         }
 
+        for (var key in headers)
+            headers[key] = null;
+
         for (var k in keywords) {
 
             if (typeof headers[keywords[k].name] != 'undefined') {
@@ -2235,7 +2231,8 @@ function AutoCalibrateEngine() {
         if (!headers.OBSERVER) {
             if (Config.UseObserverName) {
 				console.criticalln('Can`t find Observer');
-				return false;
+                image.forceClose();
+                return false;
 			} else {
 				console.warningln('Can`t find Observer');
 			}
@@ -2243,21 +2240,36 @@ function AutoCalibrateEngine() {
 
         if (!headers.TELESCOP) {
             console.criticalln('Can`t find Telescope');
+            image.forceClose();
             return false;
         }
 
         if (!headers['DATE-OBS'] || !headers.EXPTIME) {
             console.criticalln('Can`t find Date or Exposure time');
+            image.forceClose();
             return false;
         }
 
         if (!headers['CCD-TEMP']) {
             console.criticalln('Can`t find CCD TEMP');
+            image.forceClose();
             return false;
         }
 
+        var pattern = image.mainView.hasProperty("CFA:SourcePattern")
+            ? String(image.mainView.propertyValue("CFA:SourcePattern")).toUpperCase() : "";
+        for (var k = 0; k < keywords.length; ++k)
+            if (keywords[k].name == "BAYERPAT" && !pattern)
+                pattern = keywords[k].strippedValue.toUpperCase();
+        var cfaFromMetadata = pattern.length > 0;
+        if (!pattern && /^(RGGB|BGGR|GBRG|GRBG)$/.test(String(headers.FILTER).toUpperCase()))
+            pattern = String(headers.FILTER).toUpperCase();
+        var isCFA = !image.mainView.image.isColor && /^(RGGB|BGGR|GBRG|GRBG)$/.test(pattern);
+        if (!headers.FILTER && isCFA) headers.FILTER = pattern;
+
         if (!headers.FILTER || !headers.OBJECT || !headers.XBINNING) {
             console.criticalln('cant find Filter, Object or Binning');
+            image.forceClose();
             return false;
         }
 
@@ -2300,11 +2312,9 @@ function AutoCalibrateEngine() {
             name: fileName.split('/').reverse()[0], // pix-001.fit
             object: headers.OBJECT, // M106
             filter: filter, // L
-            cfa: !!(
-                (filter == 'RGGB') ||
-                (filter == 'BGGR') ||
-                (filter == 'GBRG') ||
-                (filter == 'GRBG')),
+            cfa: isCFA,
+            cfaPattern: pattern,
+            cfaFromMetadata: cfaFromMetadata,
             temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
             bin:            parseInt(headers.XBINNING), // 1
             scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.265, //

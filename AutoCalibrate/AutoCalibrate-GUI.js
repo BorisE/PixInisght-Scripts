@@ -289,6 +289,30 @@ function AutocalibrationDialog() {
         addStretch();
     }
 
+    this.ProcessDebayer_CheckBox = new CheckBox(this);
+    this.ProcessDebayer_CheckBox.text = "Debayer (VNG)";
+    this.ProcessDebayer_CheckBox.checked = Config.NeedDebayer;
+    this.ProcessDebayer_CheckBox.minWidth = labelWidth1;
+    this.ProcessDebayer_CheckBox.toolTip = "<p>Demosaic CFA images after cosmetic correction using VNG. Uses image CFA metadata or a Bayer pattern in FILTER.</p>";
+    this.ProcessDebayer_CheckBox.onClick = function (checked) {
+        Config.NeedDebayer = checked;
+        this.dialog.SplitChannels_CheckBox.enabled = checked;
+    };
+    this.SplitChannels_CheckBox = new CheckBox(this);
+    this.SplitChannels_CheckBox.text = "Split channels";
+    this.SplitChannels_CheckBox.checked = Config.SplitChannels;
+    this.SplitChannels_CheckBox.enabled = Config.NeedDebayer;
+    this.SplitChannels_CheckBox.toolTip = "<p>Continue processing separate R, G and B images instead of the RGB image.</p>";
+    this.SplitChannels_CheckBox.onClick = function (checked) {
+        Config.SplitChannels = checked;
+    };
+    this.ProcessDebayer_Sizer = new HorizontalSizer;
+    this.ProcessDebayer_Sizer.spacing = 4;
+    this.ProcessDebayer_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.ProcessDebayer_Sizer.add(this.ProcessDebayer_CheckBox);
+    this.ProcessDebayer_Sizer.add(this.SplitChannels_CheckBox);
+    this.ProcessDebayer_Sizer.addStretch();
+
     // 4.2. ABE
 
     this.ProcessABE_CheckBox = new CheckBox(this);
@@ -564,6 +588,7 @@ function AutocalibrationDialog() {
         sizer.spacing = 4;
         sizer.add(this.ProcessCalibrate_Sizer);
         sizer.add(this.ProcessCosmetics_Sizer);
+        sizer.add(this.ProcessDebayer_Sizer);
         sizer.add(this.ProcessABE_Sizer);
         sizer.add(this.ProcessRegister_Sizer);
         sizer.add(this.ProcessNormalization_Sizer);
