@@ -24,6 +24,11 @@ Config.NeedRegister = false;                             // ВЫРАВНИВАТ
 Config.NeedNormalization = false;                        // НОРМАЛИЗОВАТЬ ФОН?
 Config.NeedApproving = false;                            // Подготовить к оценке
 Config.NeedBinning = false;								 // Make integer resample
+Config.NeedIntegration = false; // One master per object/filter/acquisition setup
+Config.NeedDrizzle = false; // Generate and integrate .xdrz data
+Config.DrizzleScale = 2;
+Config.DrizzleDropShrink = 90; // 90 = 0.90
+Config.IntegrationFolderName = "integrated";
 Config.NeedNSG = false;									 // Normalized Scale Gradient
 
 // Библиотеки калибровки/референосов
@@ -75,7 +80,7 @@ Config.FinalsDirName = "Results";
 //Пропускать каталоги, начинающиеся с ...
 Config.SkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
-Config.SkipDirs = [Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
+Config.SkipDirs = [Config.IntegrationFolderName, Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
 Config.SkipDirs.push('asteroids', 'bad', 'Bad', 'Aligned'); //User (чувствительно к регистру)
 // Пропустить каталоги, если имя каталога содержит одну из строк
 Config.SkipDirsContains = ['.data', '.pxiproject', '_old', 'Attempt'];
