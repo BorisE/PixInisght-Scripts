@@ -162,6 +162,8 @@ function AutoCalibrateEngine() {
 
         }
         this.runSubframeSelector();
+        if (Config.NeedIntegration && !this.abortRequested)
+            this.integrateChannels();
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
             this.MoveMostAdvanced();
         //sleep(10);
@@ -986,7 +988,7 @@ function AutoCalibrateEngine() {
             newFiles[i] = ABEOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
-            if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
+            if (Config.SkipExistingFiles && File.exists(newFiles[i]) && !(Config.NeedIntegration && Config.NeedDrizzle && !File.exists(File.extractDrive(newFiles[i]) + File.extractDirectory(newFiles[i]) + File.extractName(newFiles[i]) + '.xdrz'))) {
                 Console.warningln('File ' + newFileNameOnly + ' already exists, skipping ABE');
             } else {
 
@@ -1217,7 +1219,7 @@ function AutoCalibrateEngine() {
                 P.mode = StarAlignment.prototype.RegisterMatch;
                 P.writeKeywords = true;
                 P.generateMasks = false;
-                P.generateDrizzleData = false;
+                P.generateDrizzleData = Config.NeedIntegration && Config.NeedDrizzle;
                 P.frameAdaptation = false;
 
                 P.outputPrefix = "";
