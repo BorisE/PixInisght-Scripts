@@ -302,15 +302,17 @@ function AutoCalibrateEngine() {
 										//console.warningln("this.progressDialog.abortRequested: " + this.progressDialog.abortRequested + ", this.abortRequested: "+this.abortRequested);
 									}
 
-                                    //Process by full pipeline
+                                    // Process by the selected workflow using the existing nested pipeline.
                                     this.addFileForApproving(
                                         this.localNormalization(
-                                            this.splitRegisteredChannels(
+                                            this.splitChannels(
                                                 this.registerFits(
                                                     this.ABEprocess(
-                                                        this.debayerSplitFit(
-                                                            this.cosmeticFit(
-                                                                this.calibrateFITSFile(searchPath + '/' + objFileFind.name))))))));
+                                                        this.splitChannels(
+                                                            this.debayerFit(
+                                                                this.cosmeticFit(
+                                                                    this.calibrateFITSFile(searchPath + '/' + objFileFind.name))), false))), true)));
+
 															
                                 }
                                 else
@@ -331,8 +333,8 @@ function AutoCalibrateEngine() {
 
     /**
      * Resume missing stages in FILEARRAY using the existing processing order.
-     * DEBAYERED contains output paths; converted channel records resume after
-     * Debayer, while the source record supplies the relationship to all channels.
+     * DEBAYERED, PRESPLIT and SPLIT store output paths. Source records link
+     * their products; each product resumes after the stage that created it.
      * Updates stage records, output paths and the SubframeSelector queue.
      * @return {undefined} Stops early on abort and sets abortRequested.
      */
@@ -378,6 +380,11 @@ function AutoCalibrateEngine() {
                 return;
             }
 
+            // Ignore saved products belonging to another split order/workflow.
+            var signature = FILEARRAY[i].fits;
+            if (/_s_[RGB]$/i.test(signature) && !splitAfterRegistration()) continue;
+            if (/_(?:p|d)_[RGB]$/i.test(signature) && (!isSplitEnabled() || splitAfterRegistration())) continue;
+            if (Config.Workflow == "MONO" && /_d_RGB$/i.test(signature)) continue;
             var stageFailed = false;
             for (var property in FILEARRAY[i]) {
                 if (property == "fits") {
@@ -386,17 +393,23 @@ function AutoCalibrateEngine() {
                 } else {
                     var record = FILEARRAY[i];
                     if (/_s_[RGB]$/i.test(record.fits) && property != "normalized") continue;
-                    var converted = /_d_(RGB|R|G|B)$/i.test(record.fits);
+                    var preSplitChannel = /_(?:p|d)_[RGB]$/i.test(record.fits);
+                    if (preSplitChannel && (property == "fullname" || property == "calibrated" ||
+                        property == "cosmetized" || property == "debayered" || property == "splitBefore")) continue;
+                    var converted = /_d_RGB$/i.test(record.fits);
                     if (converted && (property == "fullname" || property == "calibrated" ||
                         property == "cosmetized" || property == "debayered")) continue;
                     if ((property == "calibrated" && !Config.NeedCalibration) ||
                         (property == "cosmetized" && !Config.NeedCosmeticCorrection) ||
                         (property == "debayered" && !isDebayerEnabled()) ||
+                        (property == "splitBefore" && (!isSplitEnabled() || splitAfterRegistration())) ||
                         (property == "abed" && !Config.NeedABE) ||
                         (property == "registered" && !Config.NeedRegister) ||
                         (property == "split" && !splitAfterRegistration()) ||
                         (property == "normalized" && !Config.NeedNormalization)) continue;
-                    if (record.debayered && imageSignature(record.debayered[0]) != record.fits &&
+                    if (isDebayerEnabled() && record.debayered && imageSignature(record.debayered[0]) != record.fits &&
+                        (property == "splitBefore" || property == "abed" || property == "registered" || property == "split" || property == "normalized")) continue;
+                    if (isSplitEnabled() && !splitAfterRegistration() && record.splitBefore && imageSignature(record.splitBefore[0]) != record.fits &&
                         (property == "abed" || property == "registered" || property == "split" || property == "normalized")) continue;
                     if (splitAfterRegistration() && property == "normalized" &&
                         record.split && imageSignature(record.split[0]) != record.fits) continue;
@@ -404,11 +417,13 @@ function AutoCalibrateEngine() {
                         // Возьмем предыдущий по конвейеру файл
                         var preceding = getFILEARRPrecedingName(property);
                         var inputs = FILEARRAY[i][preceding];
-                        if (property == "debayered")
-                            inputs = record.cosmetized || record.calibrated || record.fullname;
+                        if (!inputs && (property == "debayered" || property == "splitBefore" || property == "abed" || property == "registered"))
+                            inputs = (converted ? record.debayered : null) || record.cosmetized || record.calibrated || record.fullname;
                         var filename = Array.isArray(inputs) ? inputs[0] : inputs;
-                        if (filename == null)
+                        if (filename == null) {
+                            if (property == "splitBefore") { stageFailed = true; break; }
                             continue;
+                        }
 
                         console.noteln("missing <b>" + property + "</b>. Let's try to create it from <b>" + preceding + "</b>...");
                         console.noteln(" ************************************************************ ");
@@ -452,10 +467,13 @@ function AutoCalibrateEngine() {
                         // Debayer records source and channel outputs in FILEARRAY.
                         if (property == "debayered") {
                             this.FileTotalCount++;
-                            if (this.debayerSplitFit(filename) === false) { stageFailed = true; break; }
+                            if (this.debayerFit(filename) === false) { stageFailed = true; break; }
+                        }
+                        if (property == "splitBefore") {
+                            if (this.splitChannels(Array.isArray(inputs) ? inputs : [inputs], false) === false) { stageFailed = true; break; }
                         }
                         // if missing ABED
-                        if (property == getFILEARRPropertyName(FITS.ABED) && FILEARRAY[i][preceding] != null && Config.NeedABE) {
+                        if (property == getFILEARRPropertyName(FITS.ABED) && inputs != null && Config.NeedABE) {
                             this.FileTotalCount++;
                             // Process
                             var res = this.ABEprocess(Array.isArray(inputs) ? inputs : [inputs]);
@@ -465,7 +483,7 @@ function AutoCalibrateEngine() {
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
                         }
                         // if missing REGISTERED
-                        if (property == getFILEARRPropertyName(FITS.REGISTERED) && FILEARRAY[i][preceding] != null) {
+                        if (property == getFILEARRPropertyName(FITS.REGISTERED) && inputs != null) {
                             this.FileTotalCount++;
                             // Process
                             var res = this.registerFits(Array.isArray(inputs) ? inputs : [inputs]);
@@ -475,7 +493,7 @@ function AutoCalibrateEngine() {
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
                         }
                         if (property == "split") {
-                            if (this.splitRegisteredChannels(Array.isArray(inputs) ? inputs : [inputs]) === false) { stageFailed = true; break; }
+                            if (this.splitChannels(Array.isArray(inputs) ? inputs : [inputs], true) === false) { stageFailed = true; break; }
                         }
                         // if missing NORMALIZED
                         if (property == getFILEARRPropertyName(FITS.NORMALIZED) && FILEARRAY[i][preceding] != null) {
@@ -493,9 +511,10 @@ function AutoCalibrateEngine() {
                 }
             }
             var completed = FILEARRAY[i];
-            if (!stageFailed && (!completed.debayered || imageSignature(completed.debayered[0]) == completed.fits) &&
+            if (!stageFailed && (!isDebayerEnabled() || !completed.debayered || imageSignature(completed.debayered[0]) == completed.fits) &&
+                (!isSplitEnabled() || splitAfterRegistration() || !completed.splitBefore || imageSignature(completed.splitBefore[0]) == completed.fits) &&
                 (!splitAfterRegistration() || !completed.split || imageSignature(completed.split[0]) == completed.fits)) {
-                var latest = completed.normalized || completed.split || completed.registered || completed.abed || completed.debayered || completed.cosmetized || completed.calibrated;
+                var latest = completed[getFILEARRPrecedingName("approved")];
                 if (latest) this.addFileForApproving(Array.isArray(latest) ? latest : [latest]);
             }
             console.writeln();
@@ -594,6 +613,7 @@ function AutoCalibrateEngine() {
                 calibrated:     (type == FITS.CALIBRATED ? fullname : null),
                 cosmetized:     (type == FITS.COSMETIZED ? fullname : null),
                 debayered:      (type == FITS.DEBAYERED ? fullname : null),
+                splitBefore:    (type == FITS.PRESPLIT ? fullname : null),
                 abed:           (type == FITS.ABED ? fullname : null),
                 registered:     (type == FITS.REGISTERED ? fullname : null),
                 split:          (type == FITS.SPLIT ? fullname : null),
@@ -630,7 +650,10 @@ function AutoCalibrateEngine() {
                 stage[3] ? FITS.COSMETIZED : FITS.CALIBRATED;
             if (/_s_[RGB]$/i.test(stage[2]) && type != FITS.NORMALIZED && type != FITS.APPROVED)
                 AddFileToArray(FITS.SPLIT, [file], stage[2], stage[1]);
-            else if (/_d_(RGB|R|G|B)$/i.test(stage[2]) &&
+            else if (/_(?:p|d)_[RGB]$/i.test(stage[2]) &&
+                (type == FITS.CALIBRATED || type == FITS.COSMETIZED))
+                AddFileToArray(FITS.PRESPLIT, [file], stage[2], stage[1]);
+            else if (/_d_RGB$/i.test(stage[2]) &&
                 (type == FITS.CALIBRATED || type == FITS.COSMETIZED))
                 AddFileToArray(FITS.DEBAYERED, [file], stage[2], stage[1]);
             else
@@ -705,7 +728,8 @@ function AutoCalibrateEngine() {
             }
 
             // Get Masters files names
-            var mastersFiles = matchMasterCalibrationFiles(Config.CalibratationMastersPath + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "")
+            var mastersFiles = matchMasterCalibrationFiles(
+                    Config.CalibratationMastersPath + (Config.UseObserverName && fileData.observer ? "/" + fileData.observer : "") + "/" + fileData.instrument + (Config.UseCameraName ? "/" + fileData.camera : "")
                         , fileData);
 
             if (!mastersFiles) {
@@ -1032,6 +1056,7 @@ function AutoCalibrateEngine() {
             var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_b');
             if (FileNameOnly === newFileNameOnly)
                 var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_b'); //if СС was not run before
+            if (FileNameOnly === newFileNameOnly) newFileNameOnly = FileNameOnly + '_c_b';
             newFiles[i] = ABEOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
@@ -1141,10 +1166,13 @@ function AutoCalibrateEngine() {
     }
 
     /************************************************************************************************************
-     * Регистрация (выравнивание) фитов (1-3 в зависимости от был ли чб или цвет)
+     * Register each input with mode 1, optionally retrying unsuccessful frames once with mode 2.
+     * Mode 1: sensitivity 0.50 and distortion correction; mode 2: 0.75 without it.
+     * Confirms executeGlobal, outputData and the expected file before recording success.
+     * Stops on abort; logs the successful mode and reports an error after all enabled attempts fail.
      *
-     * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
-     * @return string | array of strings        полное имя файла_c_сс_r.fit включая путь
+     * @param {Array|Boolean} files Input paths or a failed previous stage.
+     * @return {Array|Boolean} Confirmed/reused registered paths, or false.
      *
      */
     this.registerFits = function (files) {
@@ -1156,10 +1184,7 @@ function AutoCalibrateEngine() {
         if (!Config.NeedRegister) {
             debug("Registration is off", dbgNormal);
 
-            if (!splitAfterRegistration() && Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
-                requestToCopy.push(files);
-                this.NeedToCopyToFinalDirFlag = false;
-            }
+
 
             return files;
         }
@@ -1205,6 +1230,7 @@ function AutoCalibrateEngine() {
                 var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_r'); //if no CC and no ABE was run before
             if (FileNameOnly === newFileNameOnly)
                 var newFileNameOnly = FileNameOnly.replace(/_c_b$/, '_c_b_r'); //if no CC and ABE was run before
+            if (FileNameOnly === newFileNameOnly) newFileNameOnly = FileNameOnly + '_c_r';
             newFiles[i] = RegisteredOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             
@@ -1225,10 +1251,7 @@ function AutoCalibrateEngine() {
                 if (!referenceFile) {
                     Console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
 
-                    if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
-                        requestToCopy.push(files); //mark as final, because no further processing would be
-                        this.NeedToCopyToFinalDirFlag = false;
-                    }
+
                     //return files; // мне кажется, тут лучше вернуть false. Проверим
                     return false;
                 }
@@ -1240,129 +1263,136 @@ function AutoCalibrateEngine() {
                 if (files.length > 1)
                     Console.noteln("Registering " + files[i]);
 
-                var P = new StarAlignment;
-
-                P.structureLayers = 5;
-                P.noiseLayers = 0;
-                P.hotPixelFilterRadius = 1;
-                P.noiseReductionFilterRadius = 0;
-                P.sensitivity = 0.100;
-                P.peakResponse = 0.80;
-                P.maxStarDistortion = 0.500;
-                P.upperLimit = 1.000;
-                P.invert = false;
-                P.noGUIMessages = true;
-                P.inputHints = "";
-                P.outputHints = "";
-                P.mode = StarAlignment.prototype.RegisterMatch;
-                P.writeKeywords = true;
-                P.generateMasks = false;
-                P.generateDrizzleData = false;
-                P.frameAdaptation = false;
-
-                P.outputPrefix = "";
-                P.outputPostfix = "_r";
-                P.maskPostfix = "_m";
-
-                P.useFileThreads = true; //новое?
-                P.fileThreadOverload = 1.20; //новое?
-                P.maxFileReadThreads = 1; //новое?
-                P.maxFileWriteThreads = 1; //новое?
-
-                P.pixelInterpolation = StarAlignment.prototype.Auto;
-                P.clampingThreshold = 0.30;
-
-                P.useSurfaceSplines = true;
-                P.splineSmoothness = 0.050;
-
-                P.referenceImage = referenceFile;
-                P.referenceIsFile = true;
-                P.targets = [// enabled, isFile, image
-                    [true, true, files[i]]
-                ];
-
-                P.outputDirectory = RegisteredOutputPath;
-                P.outputExtension = "." + getCorrectExtension(files[i]);
-                P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
-                P.onError = StarAlignment.prototype.Continue;
-                P.overwriteExistingFiles = Config.OverwriteAllFiles;
-
-                if (coreVersionMajor > 1 || coreVersionMinor > 8 || coreVersionRelease >= 7) {
+                var existedBeforeRegistration = File.exists(newFiles[i]);
+                if (existedBeforeRegistration && !Config.OverwriteAllFiles) {
+                    console.criticalln("Registration output exists and overwrite is disabled: " + newFiles[i]);
+                    return false;
+                }
+                var registered = false;
+                var maxRegistrationAttempts = Config.RegistrationRetryMode2 ? 2 : 1;
+                for (var attempt = 1; attempt <= maxRegistrationAttempts; ++attempt) {
+                    if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
+                        this.abortRequested = true;
+                        return false;
+                    }
+                    console.noteln("StarAlignment mode " + attempt + ": " + files[i]);
+                    if (this.progressDialog) this.progressDialog.updateBar_NewProcess("StarAlignment (mode " + attempt + ")");
+                    // A fresh instance prevents outputData from an earlier failed attempt being reused.
+                    var P = new StarAlignment;
+                    P.structureLayers = 5;
+                    P.noiseLayers = 0;
+                    P.hotPixelFilterRadius = 1;
+                    P.noiseReductionFilterRadius = 0;
+                    P.minStructureSize = 0;
+                    P.sensitivity = attempt == 1 ? 0.50 : 0.75;
+                    P.peakResponse = 0.50;
+                    P.brightThreshold = 3.00;
+                    P.maxStarDistortion = 0.60;
+                    P.allowClusteredSources = false;
+                    P.localMaximaDetectionLimit = 0.75;
+                    P.upperLimit = 1.000;
+                    P.invert = false;
                     P.distortionModel = "";
                     P.undistortedReference = false;
-                    P.distortionCorrection = true;
-                    P.distortionMaxIterations = 100;
-                    P.distortionTolerance = 0.001;
-
-                    P.distortionAmplitude = 2;
-                    P.localDistortion = false;
-                    P.localDistortionScale = 256;
-                    P.localDistortionTolerance = 0.050;
-                    P.localDistortionRejection = 2.50;
-                    P.localDistortionRejectionWindow = 64;
-                    P.localDistortionRegularization = 0.010;
-                    P.extrapolateLocalDistortion = true;
-
+                    P.rigidTransformations = false;
+                    P.distortionCorrection = attempt == 1;
+                    P.distortionMaxIterations = 20;
+                    P.distortionMatcherExpansion = 1.00;
+                    P.rbfType = StarAlignment.prototype.DDMThinPlateSpline;
+                    P.maxSplinePoints = 4000;
+                    P.splineOrder = 2;
+                    P.splineSmoothness = 0.005;
+                    P.splineOutlierDetectionRadius = 160;
+                    P.splineOutlierDetectionMinThreshold = 4.0;
+                    P.splineOutlierDetectionSigma = 5.0;
                     P.matcherTolerance = 0.0500;
-                    P.ransacTolerance = 2.00;
+                    P.ransacTolerance = 1.9000;
                     P.ransacMaxIterations = 2000;
                     P.ransacMaximizeInliers = 1.00;
                     P.ransacMaximizeOverlapping = 1.00;
                     P.ransacMaximizeRegularity = 1.00;
                     P.ransacMinimizeError = 1.00;
                     P.maxStars = 0;
-                    P.fitPSF = StarAlignment.prototype.FitPSF_Always;
+                    P.fitPSF = StarAlignment.prototype.FitPSF_DistortionOnly;
                     P.psfTolerance = 0.50;
                     P.useTriangles = false;
                     P.polygonSides = 5;
-
                     P.descriptorsPerStar = 20;
-
                     P.restrictToPreviews = true;
                     P.intersection = StarAlignment.prototype.MosaicOnly;
                     P.useBrightnessRelations = false;
                     P.useScaleDifferences = false;
                     P.scaleTolerance = 0.100;
-
+                    P.referenceImage = referenceFile;
+                    P.referenceIsFile = true;
+                    P.targets = [[true, true, files[i]]];
+                    P.inputHints = "";
+                    P.outputHints = "";
+                    P.mode = StarAlignment.prototype.RegisterMatch;
+                    P.writeKeywords = true;
+                    P.generateMasks = false;
+                    P.generateDrizzleData = false;
                     P.generateDistortionMaps = false;
-                    P.randomizeMosaic = true;
+                    P.generateHistoryProperties = true;
+                    P.inheritAstrometricSolution = false;
+                    P.frameAdaptation = false;
+                    P.randomizeMosaic = false;
+                    P.pixelInterpolation = StarAlignment.prototype.Auto;
+                    P.clampingThreshold = 0.30;
+                    P.outputDirectory = RegisteredOutputPath;
+                    P.outputExtension = "." + getCorrectExtension(files[i]);
+                    P.outputPrefix = "";
+                    P.outputPostfix = newFileNameOnly.substring(FileNameOnly.length);
+                    P.maskPostfix = "_m";
                     P.distortionMapPostfix = "_dm";
-                } else {
-                    P.distortionModel = "";
-                    P.undistortedReference = false;
-                    P.distortionCorrection = true;
-                    P.distortionMaxIterations = 100; // I use 20
-                    P.distortionTolerance = 0.001; // i use 0.005
+                    P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
+                    P.overwriteExistingFiles = Config.OverwriteAllFiles;
+                    P.onError = StarAlignment.prototype.Continue;
+                    P.useFileThreads = true;
+                    P.fileThreadOverload = 1.00;
+                    P.maxFileReadThreads = 0;
+                    P.maxFileWriteThreads = 0;
+                    P.memoryLoadControl = true;
+                    P.memoryLoadLimit = 0.85;
 
-                    P.matcherTolerance = 0.0500;
-                    P.ransacTolerance = 2.00;
-                    P.ransacMaxIterations = 2000;
-                    P.ransacMaximizeInliers = 1.00;
-                    P.ransacMaximizeOverlapping = 1.00;
-                    P.ransacMaximizeRegularity = 1.00;
-                    P.ransacMinimizeError = 1.00;
-                    P.maxStars = 0;
-                    P.useTriangles = false;
-                    P.polygonSides = 5;
-                    P.descriptorsPerStar = 20;
-                    P.restrictToPreviews = true;
-                    P.intersection = StarAlignment.prototype.MosaicOnly;
-                    P.useBrightnessRelations = false;
-                    P.useScaleDifferences = false;
-                    P.scaleTolerance = 0.100;
-
+                    var status = false;
+                    try {
+                        status = P.executeGlobal();
+                    } catch (error) {
+                        console.warningln("StarAlignment mode " + attempt + " failed: " + error.message);
+                    }
+                    var output = P.outputData;
+                    var reportedFile = output && output.length == 1 && output[0][0] ? String(output[0][0]) : "";
+                    registered = status && reportedFile.replace(/\\/g, "/").toLowerCase() == newFiles[i].replace(/\\/g, "/").toLowerCase() && File.exists(newFiles[i]);
+                    if (registered) {
+                        console.noteln("StarAlignment succeeded in mode " + attempt + ": " + files[i]);
+                        break;
+                    }
+                    // Remove only a new, unconfirmed output produced by this attempt.
+                    // Pre-existing files remain subject to the user's overwrite setting.
+                    if (!existedBeforeRegistration && File.exists(newFiles[i])) {
+                        try {
+                            File.remove(newFiles[i]);
+                        } catch (cleanupError) {
+                            console.criticalln("Unable to remove failed registration output: " + newFiles[i] + ": " + cleanupError.message);
+                            return false;
+                        }
+                    }
+                    if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
+                        this.abortRequested = true;
+                        return false;
+                    }
+                    if (attempt < maxRegistrationAttempts)
+                        console.warningln("StarAlignment mode 1 produced no confirmed result; retrying in mode 2: " + files[i]);
                 }
-                var status = P.executeGlobal();
-
                 this.ProcessesCompleted++;
-
-				if (status) {
-					this.RegisteredCount++;
-					
-				} else {
-					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", files[i]); }
+                if (!registered) {
+                    var registrationError = maxRegistrationAttempts == 2 ? "StarAlignment failed in both modes" : "StarAlignment failed in mode 1";
+                    console.criticalln(registrationError + ": " + files[i]);
+                    if (this.progressDialog) this.progressDialog.updateBar_Error(registrationError, files[i]);
                     return false;
-				}
+                }
+                this.RegisteredCount++;
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
                 console.noteln(" [" + this.FileTotalCount + "] End of registration ");
@@ -1398,10 +1428,7 @@ function AutoCalibrateEngine() {
 
         if (!Config.NeedNormalization) {
             debug("Normalization is off", dbgNormal);
-            if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
-                requestToCopy.push(files);
-                this.NeedToCopyToFinalDirFlag = false;
-            }
+
             return files;
         }
 
@@ -1464,13 +1491,11 @@ function AutoCalibrateEngine() {
                 }
 
                 // Get reference for Normalization
-                var referenceFile = getNormalizationReferenceFile(fileData.object, fileData.filter, fileData.exposure);
+                var normalizationFilter = fileData.isColor ? "RGB" : fileData.filter;
+                var referenceFile = getNormalizationReferenceFile(fileData.object, normalizationFilter, fileData.exposure);
                 if (!referenceFile) {
-                    Console.errorln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + fileData.filter + "</b>" + (Config.StrictNormalization ? " and exposure <b>" + fileData.exposure + "s</b>" : "") + ". Skipping LocalNormalization");
-                    if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
-                        requestToCopy.push(files);
-                        this.NeedToCopyToFinalDirFlag = false; //this is final
-                    }
+                    Console.errorln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + normalizationFilter + "</b>" + (Config.StrictNormalization ? " and exposure <b>" + fileData.exposure + "s</b>" : "") + ". Skipping LocalNormalization");
+
 
                     return files;
                 }
@@ -1562,10 +1587,7 @@ function AutoCalibrateEngine() {
             checkFileNeedCalibratation_and_PopulateArray(newFiles[i]);
         }
 
-        if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
-            requestToCopy.push(newFiles);
-            this.NeedToCopyToFinalDirFlag = false; //Normalization is final
-        }
+
 
         return newFiles;
     }
@@ -1573,8 +1595,9 @@ function AutoCalibrateEngine() {
     /************************************************************************************************************
      * Сохранить файл в список для последующей обработки SubframeSelector
      *
-     * @param
-     * @return
+     * @param {Array|Boolean} files Completed pipeline outputs or failure.
+     * @return {Boolean} True when outputs are accepted; false on failure/abort.
+     * Queues unique final paths for copying and optionally SubframeSelector.
      */
 
 	this.addFileForApproving = function (files)
@@ -1584,16 +1607,26 @@ function AutoCalibrateEngine() {
             return false;
         }
 
-        if (!Config.NeedApproving) {
-            debug("Approving is off", dbgNormal);
-            return true;
-        }
-
 		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
 		}
+
+
+        if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
+            for (var f = 0; f < files.length; ++f) {
+                var queued = false;
+                for (var q = 0; q < requestToCopy.length; ++q)
+                    if (requestToCopy[q].indexOf(files[f]) >= 0) { queued = true; break; }
+                if (!queued) requestToCopy.push([files[f]]);
+            }
+        }
+        if (!Config.NeedApproving) {
+            debug("Approving is off", dbgNormal);
+            return true;
+        }
+
 
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to approve " + files.length + " file(s)", dbgNotice);
@@ -1895,17 +1928,16 @@ function AutoCalibrateEngine() {
     }
 
     /**
-     * Record Debayer or post-registration split in FILEARRAY for source and outputs.
+     * Record a Debayer or channel-split stage in FILEARRAY for source and outputs.
      * The source stage holds all output paths; each channel record holds its own
      * one-element array. Later stages use the channel's independent signature.
      * @param {String} source Input image path.
      * @param {Array} outputs Successfully saved, reused or passed-through paths.
-     * @param {Boolean} afterRegistration Record SPLIT instead of DEBAYERED.
+     * @param {Number} stage FITS.DEBAYERED, FITS.PRESPLIT or FITS.SPLIT.
      * @return {Array} The same output paths for the next pipeline stage.
      * Updates FILEARRAY only; does not write image files.
      */
-    function recordOSCOutputs(source, outputs, afterRegistration) {
-        var stage = afterRegistration ? FITS.SPLIT : FITS.DEBAYERED;
+    function recordOSCOutputs(source, outputs, stage) {
         AddFileToArray(stage, outputs, imageSignature(source), File.extractDirectory(source));
         for (var i = 0; i < outputs.length; ++i)
             if (imageSignature(outputs[i]) != imageSignature(source))
@@ -1914,157 +1946,209 @@ function AutoCalibrateEngine() {
     }
 
     /**
-     * Run VNG after cosmetic correction, optionally extracting R/G/B channels.
-     * Uses CFA metadata (Auto) or a legacy FILTER Bayer pattern. Non-CFA frames
-     * pass through. Reuses existing outputs according to SkipExistingFiles.
-     * @param {String|Boolean} fileName Input path, or false from a failed stage.
-     * @return {Array|Boolean} Output paths, or false on failure/abort.
-     * Saves XISF files under BaseCalibratedOutputPath/DebayerdFolderName,
-     * preserves sample precision and acquisition metadata, removes CFA metadata,
-     * sets channel FILTER, updates FILEARRAY and closes its image windows.
+     * Copy acquisition metadata to an RGB or extracted-channel image.
+     * @param {ImageWindow} source Source image; remains open and unchanged.
+     * @param {ImageWindow} output Destination image; remains open, not saved here.
+     * @param {String} filter RGB, R, G or B for the output FILTER.
+     * @return {undefined} Copies non-CFA properties/keywords, removes CFA tags.
      */
-    this.debayerSplitFit = function (fileName) {
-        return convertOSC.call(this, fileName, false);
-    };
+    function copyOSCMetadata(source, output, filter) {
+        var keywords = source.keywords.filter(function (k) {
+            return !/^(FILTER|BAYERPAT|XBAYROFF|YBAYROFF|CFA.*)$/i.test(k.name);
+        });
+        keywords.push(new FITSKeyword("FILTER", "'" + filter + "'", "AutoCalibrate output channel"));
+        output.keywords = keywords;
+        var properties = source.mainView.properties;
+        for (var j = 0; j < properties.length; ++j)
+            if (!/^CFA:/.test(properties[j]))
+                output.mainView.setPropertyValue(properties[j], source.mainView.propertyValue(properties[j]));
+        if (output.mainView.hasProperty("Instrument:Filter:Name"))
+            output.mainView.setPropertyValue("Instrument:Filter:Name", filter);
+        var outputProperties = output.mainView.properties;
+        for (var j = 0; j < outputProperties.length; ++j)
+            if (/^CFA:/.test(outputProperties[j]))
+                output.mainView.deleteProperty(outputProperties[j]);
+    }
 
     /**
-     * Extract R/G/B after the registration slot for the selected OSC workflow.
-     * With registration disabled, extracts from the preceding enabled stage.
-     * @param {Array|Boolean} files RGB paths, or false from a failed stage.
-     * @return {Array|Boolean} Channel paths, unchanged inputs when disabled, or false.
-     * Saves channels under split/, records FILEARRAY links, closes owned windows.
+     * Run file-based VNG in global context; pass ready RGB/mono through.
+     * @param {String|Boolean} fileName Input path or a failed previous stage.
+     * @return {Array|Boolean} RGB/pass-through paths, or false on failure/abort.
+     * Debayer loads/saves RGB via targetItems, using metadata Auto or a legacy
+     * FILTER Bayer pattern. Moves its generated XISF to the pipeline filename
+     * and records DEBAYERED only after successful execution and file checks.
+     * Header inspection still uses getFileHeaderData; no processing view is opened.
+     * Rejects non-RGB input intended for Split when Debayer cannot convert it.
      */
-    this.splitRegisteredChannels = function (files) {
-        if (!files || !splitAfterRegistration()) return files;
-        var outputs = [];
-        for (var i = 0; i < files.length; ++i) {
-            var channels = convertOSC.call(this, files[i], true);
-            if (channels === false) return false;
-            outputs = outputs.concat(channels);
-        }
-        return outputs;
-    };
-
-    /**
-     * Convert one OSC frame using this engine's output root and progress dialog.
-     * @param {String|Boolean} fileName Input path or a prior failure.
-     * @param {Boolean} afterRegistration Extract existing RGB instead of Debayer.
-     * @return {Array|Boolean} Saved/reused paths, or false on failure/abort.
-     * Preserves precision and acquisition metadata; removes CFA tags and sets FILTER.
-     * Records completed outputs in FILEARRAY and closes all owned image windows.
-     */
-    function convertOSC(fileName, afterRegistration) {
-        if (!fileName)
-            return false;
-        if (!isDebayerEnabled())
-            return [fileName];
+    this.debayerFit = function (fileName) {
+        if (!fileName) return false;
         if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
             return false;
+        if (!isDebayerEnabled() && !isSplitEnabled()) return [fileName];
 
-        var source = null, result = null, channel = null;
+        var stagingPath = null;
         try {
             var data = getFileHeaderData(fileName);
-            if (!data)
-                return false;
-            if (!afterRegistration && !data.cfa)
-                return recordOSCOutputs(fileName, [fileName], afterRegistration);
+            if (!data) return false;
+            if (!isDebayerEnabled()) {
+                if (!data.isColor) {
+                    console.criticalln("Split channels requires RGB input" + (data.cfa ? "; enable Debayer for CFA image: " : ": ") + fileName);
+                    return false;
+                }
+                return [fileName];
+            }
+            if (!data.cfa) {
+                if (isSplitEnabled() && !data.isColor) {
+                    console.criticalln("Split channels requires RGB input; this image is monochrome and has no CFA pattern: " + fileName);
+                    return false;
+                }
+                return recordOSCOutputs(fileName, [fileName], FITS.DEBAYERED);
+            }
+
             var outputPath = this.BaseCalibratedOutputPath;
             if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
                 outputPath += "/" + (data.object || cfgDefObjectName);
-            outputPath += "/" + (afterRegistration ? (Config.SplitFolderName || "split") : Config.DebayerdFolderName);
+            outputPath += "/" + Config.DebayerdFolderName;
             var name = File.extractName(fileName);
             var suffix = name.match(/_c(?:_cc)?(?:_b)?(?:_r)?$/);
             var stem = suffix ? name.substring(0, name.length - suffix[0].length) : name;
-            // _c also supplies a processing suffix for already calibrated input with arbitrary names.
-            suffix = suffix ? suffix[0] : "_c";
-            var extractChannels = afterRegistration || (Config.SplitChannels && !splitAfterRegistration());
-            var channels = extractChannels ? ["R", "G", "B"] : ["RGB"];
-            var outputs = [], allExist = true;
-            for (var i = 0; i < channels.length; ++i) {
-                outputs.push(outputPath + "/" + stem + (afterRegistration ? "_s_" : "_d_") + channels[i] + suffix + ".xisf");
-                allExist = allExist && File.exists(outputs[i]);
-            }
-            if (Config.SkipExistingFiles && allExist)
-                return recordOSCOutputs(fileName, outputs, afterRegistration);
-            if (!File.directoryExists(outputPath))
-                File.createDirectory(outputPath, true);
-            if (this.progressDialog)
-                this.progressDialog.updateBar_NewProcess(afterRegistration ? "Split RGB channels" : "Debayer (VNG)");
+            var outputFile = outputPath + "/" + stem + "_d_RGB" + (suffix ? suffix[0] : "_c") + ".xisf";
+            if (Config.SkipExistingFiles && File.exists(outputFile))
+                return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
+            if (File.exists(outputFile) && !Config.OverwriteAllFiles)
+                throw new Error("Output exists and overwrite is disabled: " + outputFile);
+            if (!File.directoryExists(outputPath)) File.createDirectory(outputPath, true);
+            if (this.progressDialog) this.progressDialog.updateBar_NewProcess("Debayer (VNG)");
 
-            source = ImageWindow.open(fileName)[0];
-            if (!source || source.isNull)
-                throw new Error("Unable to open OSC image: " + fileName);
-            if (afterRegistration) {
-                if (!source.mainView.image.isColor)
-                    return recordOSCOutputs(fileName, [fileName], true);
-                result = source;
-            } else {
-                var process = new Debayer;
-                // Auto honors XISF/FITS CFA metadata, including offsets. FILTER-only
-                // legacy files have no such metadata and need an explicit pattern.
-                process.bayerPattern = data.cfaFromMetadata ? Debayer.prototype.Auto : Debayer.prototype[data.cfaPattern];
-                process.debayerMethod = Debayer.prototype.VNG;
-                process.evaluateNoise = false;
-                process.showImages = false;
-                if (!process.executeOn(source.mainView))
-                    throw new Error("Debayer failed: " + fileName);
-                var view = View.viewById(process.outputImage);
-                if (!view || view.isNull)
-                    throw new Error("Debayer did not produce an RGB image: " + fileName);
-                result = view.window;
-            }
+            // Native Debayer appends its postfix. Stage the result separately, then
+            // move it to the existing marker-before-processing-suffix convention.
+            stagingPath = outputPath + "/_AutoCalibrateDebayer_" + new Date().getTime();
+            var stagingIndex = 0;
+            while (File.directoryExists(stagingPath))
+                stagingPath = outputPath + "/_AutoCalibrateDebayer_" + new Date().getTime() + "_" + (++stagingIndex);
+            File.createDirectory(stagingPath, true);
 
-            for (var i = 0; i < channels.length; ++i) {
-                if (Config.SkipExistingFiles && File.exists(outputs[i]))
-                    continue;
-                if (File.exists(outputs[i]) && !Config.OverwriteAllFiles)
-                    throw new Error("Output exists and overwrite is disabled: " + outputs[i]);
-                var output = result;
-                if (extractChannels) {
-                    channel = new ImageWindow(result.mainView.image.width, result.mainView.image.height,
-                        1, result.bitsPerSample, result.isFloatSample, false, "AutoCalibrate_channel");
-                    result.mainView.image.selectedChannel = i;
-                    channel.mainView.beginProcess(UndoFlag_NoSwapFile);
-                    channel.mainView.image.assign(result.mainView.image);
-                    channel.mainView.endProcess();
-                    output = channel;
+            var process = new Debayer;
+            // Auto honors CFA metadata and offsets; FILTER-only files need an explicit pattern.
+            process.cfaPattern = data.cfaFromMetadata ? Debayer.prototype.Auto : Debayer.prototype[data.cfaPattern];
+            process.debayerMethod = Debayer.prototype.VNG;
+            process.evaluateNoise = false;
+            process.evaluateSignal = false;
+            process.targetItems = [[true, fileName]];
+            process.outputDirectory = stagingPath;
+            process.outputExtension = ".xisf";
+            process.outputPrefix = "";
+            process.outputPostfix = "_d";
+            process.outputRGBImages = true;
+            process.outputSeparateChannels = false;
+            process.overwriteExistingFiles = false;
+            if (!process.executeGlobal()) throw new Error("Debayer failed: " + fileName);
+
+            var outputData = process.outputFileData;
+            if (!outputData || outputData.length != 1 || !outputData[0][0])
+                throw new Error("Debayer did not report an RGB output file: " + fileName);
+            var nativeFile = outputData[0][0];
+            var normalizedOutput = String(nativeFile).replace(/\\/g, "/").toLowerCase();
+            var normalizedStaging = stagingPath.replace(/\\/g, "/").toLowerCase() + "/";
+            if (normalizedOutput.indexOf(normalizedStaging) != 0 || !File.exists(nativeFile))
+                throw new Error("Debayer reported an unexpected or missing output file: " + nativeFile);
+            // Recheck immediately before moving: a prior final file is never taken
+            // as evidence that the current process succeeded.
+            if (File.exists(outputFile)) {
+                if (!Config.OverwriteAllFiles) throw new Error("Output exists and overwrite is disabled: " + outputFile);
+                File.remove(outputFile);
+            }
+            File.move(nativeFile, outputFile);
+            if (!File.exists(outputFile)) throw new Error("Unable to place debayered image: " + outputFile);
+            try {
+                File.removeDirectory(stagingPath);
+                stagingPath = null;
+            } catch (cleanupError) {
+                console.warningln("Unable to remove Debayer staging directory: " + stagingPath + ": " + cleanupError.message);
+            }
+            ++this.ProcessesCompleted;
+            return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
+        } catch (error) {
+            console.criticalln("Debayer: " + error.message);
+            if (stagingPath) console.warningln("Debayer staging files retained in: " + stagingPath);
+            if (this.progressDialog) this.progressDialog.updateBar_Error(error.message, fileName);
+            return false;
+        }
+    };
+
+    /**
+     * Extract R/G/B directly at the selected split position, independently of Debayer.
+     * @param {Array|Boolean} files Input paths or a failed previous stage.
+     * @param {Boolean} afterRegistration True before LN, false before ABE.
+     * @return {Array|Boolean} Saved/reused channel paths, pass-through inputs, or false.
+     * Saves XISF in SplitFolderName, preserving precision and acquisition metadata.
+     * Records PRESPLIT/SPLIT only for complete output sets; closes owned windows.
+     */
+    this.splitChannels = function (files, afterRegistration) {
+        if (!files || !isSplitEnabled() || splitAfterRegistration() != afterRegistration) return files;
+        var stage = afterRegistration ? FITS.SPLIT : FITS.PRESPLIT;
+        var channels = ["R", "G", "B"], outputs = [];
+        for (var f = 0; f < files.length; ++f) {
+            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
+                return false;
+            var fileName = files[f], source = null, channel = null;
+            try {
+                var data = getFileHeaderData(fileName);
+                if (!data) return false;
+                if (!data.isColor) {
+                    console.criticalln("Split channels requires an RGB image" + (data.cfa ? "; enable Debayer for this CFA frame: " : ": ") + fileName);
+                    return false;
                 }
-                // Preserve acquisition metadata for reference selection, but never
-                // let a converted image advertise itself as a CFA mosaic.
-                var keywords = source.keywords.filter(function (k) {
-                    return !/^(FILTER|BAYERPAT|XBAYROFF|YBAYROFF|CFA.*)$/i.test(k.name);
-                });
-                keywords.push(new FITSKeyword("FILTER", "'" + channels[i] + "'", "AutoCalibrate output channel"));
-                output.keywords = keywords;
-                var properties = source.mainView.properties;
-                for (var j = 0; j < properties.length; ++j)
-                    if (!/^CFA:/.test(properties[j]))
-                        output.mainView.setPropertyValue(properties[j], source.mainView.propertyValue(properties[j]));
-                if (output.mainView.hasProperty("Instrument:Filter:Name"))
-                    output.mainView.setPropertyValue("Instrument:Filter:Name", channels[i]);
-                var outputProperties = output.mainView.properties;
-                for (var j = 0; j < outputProperties.length; ++j)
-                    if (/^CFA:/.test(outputProperties[j]))
-                        output.mainView.deleteProperty(outputProperties[j]);
-                if (!output.saveAs(outputs[i], false, false, false, false))
-                    throw new Error("Unable to save OSC output: " + outputs[i]);
-                if (channel) {
+                var outputPath = this.BaseCalibratedOutputPath;
+                if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+                    outputPath += "/" + (data.object || cfgDefObjectName);
+                outputPath += "/" + (Config.SplitFolderName || "split");
+                var name = File.extractName(fileName);
+                var suffix = name.match(/_c(?:_cc)?(?:_b)?(?:_r)?$/);
+                var stem = suffix ? name.substring(0, name.length - suffix[0].length) : name;
+                var channelFiles = [], allExist = true;
+                for (var i = 0; i < channels.length; ++i) {
+                    channelFiles.push(outputPath + "/" + stem + (afterRegistration ? "_s_" : "_p_") + channels[i] + (suffix ? suffix[0] : "_c") + ".xisf");
+                    allExist = allExist && File.exists(channelFiles[i]);
+                }
+                if (Config.SkipExistingFiles && allExist) {
+                    outputs = outputs.concat(recordOSCOutputs(fileName, channelFiles, stage));
+                    continue;
+                }
+                if (!File.directoryExists(outputPath)) File.createDirectory(outputPath, true);
+                if (this.progressDialog) this.progressDialog.updateBar_NewProcess("Split RGB channels");
+
+                source = ImageWindow.open(fileName)[0];
+                if (!source || source.isNull) throw new Error("Unable to open RGB image: " + fileName);
+                for (var i = 0; i < channels.length; ++i) {
+                    if (Config.SkipExistingFiles && File.exists(channelFiles[i])) continue;
+                    if (File.exists(channelFiles[i]) && !Config.OverwriteAllFiles)
+                        throw new Error("Output exists and overwrite is disabled: " + channelFiles[i]);
+                    channel = new ImageWindow(source.mainView.image.width, source.mainView.image.height,
+                        1, source.bitsPerSample, source.isFloatSample, false, "AutoCalibrate_channel");
+                    source.mainView.image.selectedChannel = i;
+                    channel.mainView.beginProcess(UndoFlag_NoSwapFile);
+                    channel.mainView.image.assign(source.mainView.image);
+                    channel.mainView.endProcess();
+                    copyOSCMetadata(source, channel, channels[i]);
+                    if (!channel.saveAs(channelFiles[i], false, false, false, false))
+                        throw new Error("Unable to save split channel: " + channelFiles[i]);
                     channel.forceClose();
                     channel = null;
                 }
+
+                ++this.ProcessesCompleted;
+                outputs = outputs.concat(recordOSCOutputs(fileName, channelFiles, stage));
+            } catch (error) {
+                console.criticalln("Split channels: " + error.message);
+                if (this.progressDialog) this.progressDialog.updateBar_Error(error.message, fileName);
+                return false;
+            } finally {
+                if (channel) channel.forceClose();
+                if (source) source.forceClose();
             }
-            ++this.ProcessesCompleted;
-            return recordOSCOutputs(fileName, outputs, afterRegistration);
-        } catch (error) {
-            console.criticalln((afterRegistration ? "Split channels: " : "Debayer: ") + error.message);
-            if (this.progressDialog)
-                this.progressDialog.updateBar_Error(error.message, fileName);
-            return false;
-        } finally {
-            if (channel) channel.forceClose();
-            if (result && result != source) result.forceClose();
-            if (source) source.forceClose();
         }
+        return outputs;
     };
 
     /************************************************************************************************************
@@ -2249,6 +2333,8 @@ function AutoCalibrateEngine() {
           return false;
         }
 
+        // OBSERVER is optional: never inherit it from the previously inspected frame.
+        headers.OBSERVER = null;
         for (var k in keywords) {
 
             if (typeof headers[keywords[k].name] != 'undefined') {
@@ -2258,13 +2344,11 @@ function AutoCalibrateEngine() {
             }
         }
 
-        if (!headers.OBSERVER) {
-            if (Config.UseObserverName) {
-				console.criticalln('Can`t find Observer');
-				return false;
-			} else {
-				// console.warningln('Can`t find Observer');
-			}
+        var observer = headers.OBSERVER || "";
+        if (headers.OBSERVER) {
+            if (typeof OBSERVER_DICTIONARY[headers.OBSERVER] != 'undefined') {
+                observer = OBSERVER_DICTIONARY[headers.OBSERVER];
+            }
         }
 
         if (!headers.TELESCOP) {
@@ -2290,8 +2374,10 @@ function AutoCalibrateEngine() {
         var cfaFromMetadata = pattern.length > 0;
         if (!pattern && /^(RGGB|BGGR|GBRG|GRBG)$/.test(String(headers.FILTER).toUpperCase()))
             pattern = String(headers.FILTER).toUpperCase();
-        var isCFA = !image.mainView.image.isColor && /^(RGGB|BGGR|GBRG|GRBG)$/.test(pattern);
+        var isColor = image.mainView.image.isColor;
+        var isCFA = !isColor && /^(RGGB|BGGR|GBRG|GRBG)$/.test(pattern);
         if (!headers.FILTER && isCFA) headers.FILTER = pattern;
+
 
         if (!headers.FILTER || !headers.OBJECT || !headers.XBINNING) {
             console.criticalln('cant find Filter, Object or Binning');
@@ -2333,14 +2419,16 @@ function AutoCalibrateEngine() {
         // @todo date midnight / midday
         // @todo utc
         return {
-            filename: fileName, // original file name
-			instrument: (Config.UseObserverName ? headers.OBSERVER + '/' : '') + telescope, // was Vitar/MakF10 or (for me) just SW250
+            filename: fileName,         // original file name
+            observer: observer,         // could be "" (as for Seestar, eg)
+			instrument: telescope,      // was Vitar/MakF10 or (for me) just SW250
             camera: camera , // ArtemisHSC
             date: headers['DATE-OBS'].substr(0, "2017-01-01".length), // 2016-10-13
             time: headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
             name: fileName.split('/').reverse()[0], // pix-001.fit
             object: headers.OBJECT, // M106
             filter: filter, // L
+            isColor: isColor,
             cfa: isCFA,
             cfaPattern: pattern,
             cfaFromMetadata: cfaFromMetadata,

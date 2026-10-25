@@ -23,6 +23,7 @@ Config.NeedDebayer = true;                             // VNG demosaicing after 
 Config.SplitChannels = false;                           // Continue with separate R, G and B images
 Config.NeedABE = false;                                  // РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = false;                             // ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
+Config.RegistrationRetryMode2 = true;                    // Retry failed registration with sensitivity 0.75, no distortion correction
 Config.NeedNormalization = false;                        // НОРМАЛИЗОВАТЬ ФОН?
 Config.NeedApproving = false;                            // Подготовить к оценке
 Config.NeedBinning = false;								 // Make integer resample
@@ -170,6 +171,11 @@ var CAMERA_DICTIONARY = {
 var TELESCOP_DICTIONARY = {
     'EQMOD ASCOM HEQ5/6': 'EQ8',
     'S50 Pro_3eb4c642': 'SeestarS50pro',
+};
+
+
+var OBSERVER_DICTIONARY = {
+    'Boris Emchenko': 'Vedrus',
 };
 
 

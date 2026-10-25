@@ -25,6 +25,7 @@ function ConfigData() {
     this.OSCSplitStage = "before-registration";
     this.NeedDebayer = true; // OSC preference; MONO and CFA Drizzle ignore this stage.
     this.SplitChannels = false;
+    this.RegistrationRetryMode2 = true;
     //temp
     this.outputExtension = "fits";
     this.outputHints = "";
@@ -95,6 +96,8 @@ function ConfigData() {
             this.NeedABE = o;
         if ((o = load("NeedRegister", DataType_Boolean)) != null)
             this.NeedRegister = o;
+        if ((o = load("RegistrationRetryMode2", DataType_Boolean)) != null)
+            this.RegistrationRetryMode2 = o;
         if ((o = load("NeedNormalization", DataType_Boolean)) != null)
             this.NeedNormalization = o;
 		if ((o = load("NeedApproving", DataType_Boolean)) != null)
@@ -141,6 +144,7 @@ function ConfigData() {
         save("NeedCosmeticCorrection", DataType_Boolean, this.NeedCosmeticCorrection);
         save("NeedABE", DataType_Boolean, this.NeedABE);
         save("NeedRegister", DataType_Boolean, this.NeedRegister);
+        save("RegistrationRetryMode2", DataType_Boolean, this.RegistrationRetryMode2);
         save("NeedNormalization", DataType_Boolean, this.NeedNormalization);
         save("NeedApproving", DataType_Boolean, this.NeedApproving);
 
@@ -180,6 +184,7 @@ function ConfigData() {
         Parameters.set("SplitChannels", this.SplitChannels);
         Parameters.set("NeedABE", 					this.NeedABE);
         Parameters.set("NeedRegister", 				this.NeedRegister);
+        Parameters.set("RegistrationRetryMode2", this.RegistrationRetryMode2);
         Parameters.set("NeedNormalization", 		this.NeedNormalization);
         Parameters.set("NeedApproving", 			this.NeedApproving);
 
@@ -230,6 +235,8 @@ function ConfigData() {
             this.NeedABE = Parameters.getBoolean("NeedABE");
         if (Parameters.has("NeedRegister"))
             this.NeedRegister = Parameters.getBoolean("NeedRegister");
+        if (Parameters.has("RegistrationRetryMode2"))
+            this.RegistrationRetryMode2 = Parameters.getBoolean("RegistrationRetryMode2");
         if (Parameters.has("NeedNormalization"))
             this.NeedNormalization = Parameters.getBoolean("NeedNormalization");
         if (Parameters.has("NeedApproving"))
@@ -270,6 +277,7 @@ function ConfigData() {
         console.writeln("SplitChannels: " + this.SplitChannels);
         console.writeln("NeedABE:                        " + this.NeedABE);
         console.writeln("NeedRegister:                   " + this.NeedRegister);
+        console.writeln("RegistrationRetryMode2:          " + this.RegistrationRetryMode2);
         console.writeln("NeedNormalization:              " + this.NeedNormalization);
         console.writeln("NeedApproving:              	 " + this.NeedApproving);
 

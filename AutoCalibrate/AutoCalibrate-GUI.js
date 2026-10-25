@@ -341,7 +341,7 @@ function AutocalibrationDialog() {
     this.SplitChannels_CheckBox = new CheckBox(this.OSCOptions_Control);
     this.SplitChannels_CheckBox.text = "Split channels";
     this.SplitChannels_CheckBox.checked = Config.SplitChannels;
-    this.SplitChannels_CheckBox.toolTip = "<p>Produce monochrome R/G/B files. Disable to keep RGB files.</p>";
+    this.SplitChannels_CheckBox.toolTip = "<p>Produce monochrome R/G/B files from RGB input. CFA input requires Debayer. Disable to keep RGB files.</p>";
     this.SplitChannels_CheckBox.onClick = function (checked) {
         Config.SplitChannels = checked;
         Config.saveWorkflowSettings();
@@ -390,8 +390,8 @@ function AutocalibrationDialog() {
         this.OSCOptions_Control.enabled = Config.Workflow == "OSC";
         this.Debayer_CheckBox.enabled = Config.Workflow == "OSC";
         this.Debayer_CheckBox.checked = Config.Workflow == "OSC" && Config.NeedDebayer;
-        this.SplitChannels_CheckBox.enabled = Config.Workflow == "OSC" && Config.NeedDebayer;
-        this.OSCSplitStage_ComboBox.enabled = Config.Workflow == "OSC" && Config.NeedDebayer && Config.SplitChannels;
+        this.SplitChannels_CheckBox.enabled = Config.Workflow == "OSC";
+        this.OSCSplitStage_ComboBox.enabled = Config.Workflow == "OSC" && Config.SplitChannels;
     };
     this.Workflow_GroupBox.sizer = new VerticalSizer;
     this.Workflow_GroupBox.sizer.margin = 10;
@@ -435,6 +435,7 @@ function AutocalibrationDialog() {
             "<p>It uses reference library for every object</p>";
         onClick = function (checked) {
             Config.NeedRegister = checked;
+            this.dialog.RegistrationRetryMode2_CheckBox.enabled = checked;
         };
     }
 
@@ -478,6 +479,20 @@ function AutocalibrationDialog() {
         add(this.regReferenceDirSelect_Button);
         //addStretch();
     }
+
+    this.RegistrationRetryMode2_CheckBox = new CheckBox(this);
+    this.RegistrationRetryMode2_CheckBox.text = "Retry with mode 2 if registration fails";
+    this.RegistrationRetryMode2_CheckBox.checked = Config.RegistrationRetryMode2;
+    this.RegistrationRetryMode2_CheckBox.enabled = Config.NeedRegister;
+    this.RegistrationRetryMode2_CheckBox.toolTip = "<p>Retry only unsuccessful frames with sensitivity 0.75 and distortion correction disabled. Mode 1 uses sensitivity 0.50 with distortion correction enabled.</p>";
+    this.RegistrationRetryMode2_CheckBox.onClick = function (checked) {
+        Config.RegistrationRetryMode2 = checked;
+    };
+    this.RegistrationRetryMode2_Sizer = new HorizontalSizer;
+    this.RegistrationRetryMode2_Sizer.spacing = 4;
+    this.RegistrationRetryMode2_Sizer.addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
+    this.RegistrationRetryMode2_Sizer.add(this.RegistrationRetryMode2_CheckBox);
+    this.RegistrationRetryMode2_Sizer.addStretch();
 
     // 4.4. Normalization
 
@@ -677,6 +692,7 @@ function AutocalibrationDialog() {
         sizer.add(this.OSCOptions_Control);
         sizer.add(this.ProcessABE_Sizer);
         sizer.add(this.ProcessRegister_Sizer);
+        sizer.add(this.RegistrationRetryMode2_Sizer);
         sizer.add(this.ProcessNormalization_Sizer);
         sizer.add(this.normScale_Sizer);
         sizer.add(this.normNoScaleFlag_Sizer);

@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.0.0aplpha2"
- #define COMPILE_DATE "2026/10/24"
+ #define VERSION "7.0.0aplpha3"
+ #define COMPILE_DATE "2026/10/25"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2026 Boris Emchenko<br/>"
@@ -25,6 +25,14 @@ TODO:
 - Добавить автозапуск NSG
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 7.0.0alpha3 [2026/10/25]
+- workflow selection
+- 2 separate workflow implenmented (mono and osc)
+- split - before or after registration
+- 2 attempts registration process
+- observer as a part of calibration now works
+
 
 v 7.0.0alpha1 [2026/10/24]
 - seestar support
@@ -294,8 +302,9 @@ var FITS = {
     NORMALIZED: 5,
     APPROVED: 6,
     BINNED: 7,
+    PRESPLIT: 10, // channels extracted before ABE/registration
     SPLIT: 9, // channels extracted after the registration slot
-    DEBAYERED: 8 // debayered stores an array of RGB or R/G/B output paths
+    DEBAYERED: 8 // debayered stores a one-element array with the RGB output path
 }; // Типы файлов
 var FILEARRAY = []; // базовый массив хранения файлов, куда вносятся результаты сканирования
 /*      FILEARRAY.push({
@@ -330,6 +339,9 @@ function getFILEARRPropertyName(type) {
     case FITS.DEBAYERED:
         st = "debayered";
         break;
+    case FITS.PRESPLIT:
+        st = "splitBefore";
+        break;
     case FITS.SPLIT:
         st = "split";
         break;
@@ -357,9 +369,14 @@ function isDebayerEnabled() {
     return (Config.Workflow == null || Config.Workflow == "OSC") && Config.NeedDebayer;
 }
 
+/** Return whether channel splitting is enabled in OSC, independently of Debayer. No side effects. */
+function isSplitEnabled() {
+    return (Config.Workflow == "OSC" || (Config.Workflow == null && Config.NeedDebayer)) && Config.SplitChannels;
+}
+
 /** Return whether OSC channel extraction follows the registration slot. No side effects. */
 function splitAfterRegistration() {
-    return isDebayerEnabled() && Config.SplitChannels && Config.OSCSplitStage == "after-registration";
+    return isSplitEnabled() && Config.OSCSplitStage == "after-registration";
 }
 
 /**
@@ -372,12 +389,14 @@ function getFILEARRPrecedingName(property) {
     var calibrated = Config.NeedCalibration ? "calibrated" : "fullname";
     var cosmetic = Config.NeedCosmeticCorrection ? "cosmetized" : calibrated;
     var debayered = isDebayerEnabled() ? "debayered" : cosmetic;
-    var abed = Config.NeedABE ? "abed" : debayered;
+    var splitBefore = isSplitEnabled() && !splitAfterRegistration() ? "splitBefore" : debayered;
+    var abed = Config.NeedABE ? "abed" : splitBefore;
     var registered = Config.NeedRegister ? "registered" : abed;
     if (property == "calibrated") return "fullname";
     if (property == "cosmetized") return calibrated;
     if (property == "debayered") return cosmetic;
-    if (property == "abed") return debayered;
+    if (property == "splitBefore") return debayered;
+    if (property == "abed") return splitBefore;
     if (property == "registered") return abed;
     if (property == "split") return registered;
     if (property == "normalized") return splitAfterRegistration() ? "split" : registered;

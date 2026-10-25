@@ -13,6 +13,7 @@ Config.NeedDebayer = false;                             // VNG demosaicing after
 Config.SplitChannels = false;                           // Continue with separate R, G and B images
 Config.NeedABE = false;                                  	// РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = true;                             	// ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
+Config.RegistrationRetryMode2 = true;                    // Retry failed registration with sensitivity 0.75, no distortion correction
 Config.NeedNormalization = true;                        	// НОРМАЛИЗОВАТЬ ФОН?
 Config.NeedApproving = true;                            	// ОТСЕИТЬ ХОРОШУЮ ЧАСТЬ ФИТОВ? Пока не работает (глюк PI?)
 
@@ -35,7 +36,7 @@ Config.UseSecnodPass = true; //Зачем нужен второй проход.
 
 //Структура:    Config.CalibratationMastersPath / [OBSERVER] / TELESCOP / [CAMERA] / [BIN] /
 //Пример: ../Boris/Newton320/QSI/BIN1/
-Config.UseObserverName  = false;    // Использовать имя наблюдателя в иерархии папок? // Для меня не нужно, Олегу пригодиться
+Config.UseObserverName  = true;    // Использовать имя наблюдателя в иерархии папок? // Для меня не нужно, Олегу пригодиться
 Config.UseCameraName    = true;    // Использовать название камеры в иерархии папок?
 
 Config.UseBiningFolder  = false;    // Использовать бининг в иерархии папок?
