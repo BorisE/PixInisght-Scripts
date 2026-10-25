@@ -1507,7 +1507,7 @@ function AutoCalibrateEngine() {
                 if (files.length > 1)
                     Console.noteln("Normalization of " + files[i]);
 
-				var P = new LocalNormalization; // parameters last review on 2023-01-02
+				var P = new LocalNormalization; // Shared parameters; scale evaluation is selected in the UI.
 				P.globalLocationNormalization = false;
 				P.localScaleCorrections = false;
 				P.truncate = true;
@@ -1521,7 +1521,10 @@ function AutoCalibrateEngine() {
 				P.hotPixelFilterRadius = 2;
 				P.noiseReductionFilterRadius = 0;
 				P.modelScalingFactor = 8.00;
-				P.scaleEvaluationMethod = LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal;
+				P.scaleEvaluationMethod = Config.NormalizationUsePSF
+                    ? LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal
+                    : LocalNormalization.prototype.ScaleEvaluationMethod_MultiscaleAnalysis;
+                console.noteln("LocalNormalization scale evaluation: " + (Config.NormalizationUsePSF ? "PSF Signal" : "Multiscale Analysis"));
 				P.psfStructureLayers = 5;
 				P.saturationThreshold = 0.75;
 				P.saturationRelative = true;
@@ -1539,6 +1542,7 @@ function AutoCalibrateEngine() {
 				P.outputHints = "";
 				P.generateNormalizationData = false;
 				P.generateInvalidData = false;
+				P.generateHistoryProperties = true;
 				P.showBackgroundModels = false;
 				P.showLocalScaleModels = false;
 				P.showRejectionMaps = false;
@@ -1550,9 +1554,9 @@ function AutoCalibrateEngine() {
 				P.onError = LocalNormalization.prototype.OnError_Continue;
 				P.useFileThreads = true;
 				P.fileThreadOverload = 1.20;
-				P.maxFileReadThreads = 1;
-				P.maxFileWriteThreads = 1;
-				P.graphSize = 800;
+				P.maxFileReadThreads = 0;
+				P.maxFileWriteThreads = 0;
+				P.graphSize = 1024;
 				P.graphTextSize = 12;
 				P.graphTitleSize = 18;
 				P.graphTransparent = false;

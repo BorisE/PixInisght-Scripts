@@ -26,6 +26,7 @@ function ConfigData() {
     this.NeedDebayer = true; // OSC preference; MONO and CFA Drizzle ignore this stage.
     this.SplitChannels = false;
     this.RegistrationRetryMode2 = true;
+    this.NormalizationUsePSF = true;
     //temp
     this.outputExtension = "fits";
     this.outputHints = "";
@@ -110,6 +111,8 @@ function ConfigData() {
         if ((o = load("NormalizationReferencesPath", DataType_String)) != null)
             this.NormalizationReferencesPath = o;
 
+        if ((o = load("NormalizationUsePSF", DataType_Boolean)) != null)
+            this.NormalizationUsePSF = o;
         if ((o = load("NormalizationScale", DataType_Int16)) != null)
             this.NormalizationScale = o;
         if ((o = load("NormalizationNoScaleFlag", DataType_Boolean)) != null)
@@ -152,6 +155,7 @@ function ConfigData() {
         save("RegistrationReferencesPath", DataType_String, this.RegistrationReferencesPath);
         save("NormalizationReferencesPath", DataType_String, this.NormalizationReferencesPath);
 
+        save("NormalizationUsePSF", DataType_Boolean, this.NormalizationUsePSF);
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
 
@@ -192,6 +196,7 @@ function ConfigData() {
         Parameters.set("RegistrationReferencesPath",    this.RegistrationReferencesPath);
         Parameters.set("NormalizationReferencesPath",   this.NormalizationReferencesPath);
 
+        Parameters.set("NormalizationUsePSF", this.NormalizationUsePSF);
         Parameters.set("NormalizationScale",            this.NormalizationScale);
         Parameters.set("NormalizationNoScaleFlag",      this.NormalizationNoScaleFlag);
 
@@ -249,6 +254,8 @@ function ConfigData() {
         if (Parameters.has("NormalizationReferencesPath"))
             this.NormalizationReferencesPath = Parameters.getString("NormalizationReferencesPath");
 
+        if (Parameters.has("NormalizationUsePSF"))
+            this.NormalizationUsePSF = Parameters.getBoolean("NormalizationUsePSF");
         if (Parameters.has("NormalizationScale"))
             this.NormalizationScale = Parameters.getInteger("NormalizationScale");
         if (Parameters.has("NormalizationNoScaleFlag"))
@@ -285,6 +292,7 @@ function ConfigData() {
         console.writeln("RegistrationReferencesPath:     " + this.RegistrationReferencesPath);
         console.writeln("NormalizationReferencesPath:    " + this.NormalizationReferencesPath);
 
+        console.writeln("NormalizationUsePSF:            " + this.NormalizationUsePSF);
         console.writeln("NormalizationScale:             " + this.NormalizationScale);
         console.writeln("NormalizationNoScaleFlag:       " + this.NormalizationNoScaleFlag);
 

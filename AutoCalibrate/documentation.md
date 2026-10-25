@@ -346,3 +346,10 @@ SubframeSelector запускается после обоих проходов. 
 на небольшой серии CFA: VNG против ручного запуска, RGB и R/G/B, метаданные,
 оба порядка Split/StarAlignment, повторный запуск с одним удалённым каналом
 и продолжение после ошибки следующего этапа.
+
+LocalNormalization: под строкой этапа доступен Scale evaluation с вариантами
+PSF Signal и Multiscale Analysis. Config.NormalizationUsePSF=true
+выбирает PSF Signal (значение по умолчанию), false — Multiscale Analysis. Выбор
+сохраняется в Settings и экземплярах процесса и передаётся в scaleEvaluationMethod.
+Scale и No scale component задаются отдельно. При включённом No scale component
+множитель нормализации равен 1; для применения оценки масштаба эту галочку нужно снять.

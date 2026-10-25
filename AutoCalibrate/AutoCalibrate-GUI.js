@@ -506,6 +506,8 @@ function AutocalibrationDialog() {
             "<p>It uses reference library for every object, filter and exposure</p>";
         onClick = function (checked) {
             Config.NeedNormalization = checked;
+            this.dialog.normMethod_ComboBox.enabled = checked;
+            this.dialog.normMethod_Label.enabled = checked;
         };
     }
 
@@ -549,6 +551,25 @@ function AutocalibrationDialog() {
         add(this.regReferenceDirSelect_Button);
         //addStretch();
     }
+
+    this.normMethod_Label = new Label(this);
+    this.normMethod_Label.text = "Scale evaluation:";
+    this.normMethod_Label.enabled = Config.NeedNormalization;
+    this.normMethod_ComboBox = new ComboBox(this);
+    this.normMethod_ComboBox.addItem("PSF Signal");
+    this.normMethod_ComboBox.addItem("Multiscale Analysis");
+    this.normMethod_ComboBox.currentItem = Config.NormalizationUsePSF ? 0 : 1;
+    this.normMethod_ComboBox.enabled = Config.NeedNormalization;
+    this.normMethod_ComboBox.toolTip = "<p>PSF Signal evaluates scale from matched stellar fluxes. Multiscale Analysis uses significant image structures instead.</p><p>No scale component fixes the scale to 1; disable that option to apply scale evaluation.</p>";
+    this.normMethod_ComboBox.onItemSelected = function (index) {
+        Config.NormalizationUsePSF = index == 0;
+    };
+    this.normMethod_Sizer = new HorizontalSizer;
+    this.normMethod_Sizer.spacing = 4;
+    this.normMethod_Sizer.addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
+    this.normMethod_Sizer.add(this.normMethod_Label, 0, Align_Center);
+    this.normMethod_Sizer.add(this.normMethod_ComboBox, 0, Align_Center);
+    this.normMethod_Sizer.addStretch();
 
     // 4.4.1. Local Normalization Scale
 
@@ -694,6 +715,7 @@ function AutocalibrationDialog() {
         sizer.add(this.ProcessRegister_Sizer);
         sizer.add(this.RegistrationRetryMode2_Sizer);
         sizer.add(this.ProcessNormalization_Sizer);
+        sizer.add(this.normMethod_Sizer);
         sizer.add(this.normScale_Sizer);
         sizer.add(this.normNoScaleFlag_Sizer);
         sizer.add(this.ProcessSF_Sizer);

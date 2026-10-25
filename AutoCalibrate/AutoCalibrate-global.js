@@ -4,7 +4,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.0.0aplpha3"
+ #define VERSION "7.0.0aplpha4"
  #define COMPILE_DATE "2026/10/25"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
@@ -25,6 +25,9 @@ TODO:
 - Добавить автозапуск NSG
 - добавить в диалог параметр для Absolute Path
 - проверить, что дебайрезиация тоже работает
+
+v 7.0.0alpha4 [2026/10/25]
+- local normalization 2 mode (PSF and Multiscale)
 
 v 7.0.0alpha3 [2026/10/25]
 - workflow selection

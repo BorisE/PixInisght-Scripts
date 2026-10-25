@@ -54,6 +54,7 @@ Config.OutputFormatIC = ImageCalibration.prototype.f32; //default
 
 
 // Параметры для Local Normalization
+Config.NormalizationUsePSF = true; // true: PSF Signal; false: Multiscale Analysis
 Config.NormalizationScale = 256;
 Config.NormalizationNoScaleFlag = true;
 
