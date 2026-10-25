@@ -33,6 +33,7 @@ var Config = new ConfigData(); // Variable for global access to script data
  #ifndef AutoCalibrate_GUI_js
 	#include "AutoCalibrate-GUI.js" // GUI
  #endif
+ #include "AutoCalibrate-integration.js"
  #ifndef AutoCalibate_Engine_js
 	#include "AutoCalibrate-engine.js" // Engine
  #endif
