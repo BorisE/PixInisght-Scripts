@@ -23,6 +23,10 @@
 function ConfigData() {
     this.NeedDebayer = false;
     this.SplitChannels = false;
+    this.NeedIntegration = false;
+    this.NeedDrizzle = false;
+    this.DrizzleScale = 2;
+    this.DrizzleDropShrink = 90; // percent
     //temp
     this.outputExtension = "fits";
     this.outputHints = "";
@@ -73,6 +77,14 @@ function ConfigData() {
             this.NeedNormalization = o;
 		if ((o = load("NeedApproving", DataType_Boolean)) != null)
             this.NeedApproving = o;
+        if ((o = load("NeedIntegration", DataType_Boolean)) != null)
+            this.NeedIntegration = o;
+        if ((o = load("NeedDrizzle", DataType_Boolean)) != null)
+            this.NeedDrizzle = o;
+        if ((o = load("DrizzleScale", DataType_Int16)) != null)
+            this.DrizzleScale = o;
+        if ((o = load("DrizzleDropShrink", DataType_Int16)) != null)
+            this.DrizzleDropShrink = o;
 
         if ((o = load("CalibratationMastersPath", DataType_String)) != null)
             this.CalibratationMastersPath = o;
@@ -104,6 +116,10 @@ function ConfigData() {
         save("NeedRegister", DataType_Boolean, this.NeedRegister);
         save("NeedNormalization", DataType_Boolean, this.NeedNormalization);
         save("NeedApproving", DataType_Boolean, this.NeedApproving);
+        save("NeedIntegration", DataType_Boolean, this.NeedIntegration);
+        save("NeedDrizzle", DataType_Boolean, this.NeedDrizzle);
+        save("DrizzleScale", DataType_Int16, this.DrizzleScale);
+        save("DrizzleDropShrink", DataType_Int16, this.DrizzleDropShrink);
 
         save("CalibratationMastersPath", DataType_String, this.CalibratationMastersPath);
         save("RegistrationReferencesPath", DataType_String, this.RegistrationReferencesPath);
@@ -140,6 +156,10 @@ function ConfigData() {
         Parameters.set("NeedRegister", 				this.NeedRegister);
         Parameters.set("NeedNormalization", 		this.NeedNormalization);
         Parameters.set("NeedApproving", 			this.NeedApproving);
+        Parameters.set("NeedIntegration", this.NeedIntegration);
+        Parameters.set("NeedDrizzle", this.NeedDrizzle);
+        Parameters.set("DrizzleScale", this.DrizzleScale);
+        Parameters.set("DrizzleDropShrink", this.DrizzleDropShrink);
 
         Parameters.set("CalibratationMastersPath",      this.CalibratationMastersPath);
         Parameters.set("RegistrationReferencesPath",    this.RegistrationReferencesPath);
@@ -184,6 +204,14 @@ function ConfigData() {
             this.NeedNormalization = Parameters.getBoolean("NeedNormalization");
         if (Parameters.has("NeedApproving"))
             this.NeedApproving = Parameters.getBoolean("NeedApproving");
+        if (Parameters.has("NeedIntegration"))
+            this.NeedIntegration = Parameters.getBoolean("NeedIntegration");
+        if (Parameters.has("NeedDrizzle"))
+            this.NeedDrizzle = Parameters.getBoolean("NeedDrizzle");
+        if (Parameters.has("DrizzleScale"))
+            this.DrizzleScale = Parameters.getInteger("DrizzleScale");
+        if (Parameters.has("DrizzleDropShrink"))
+            this.DrizzleDropShrink = Parameters.getInteger("DrizzleDropShrink");
 
         if (Parameters.has("CalibratationMastersPath"))
             this.CalibratationMastersPath = Parameters.getString("CalibratationMastersPath");
@@ -220,6 +248,10 @@ function ConfigData() {
         console.writeln("NeedRegister:                   " + this.NeedRegister);
         console.writeln("NeedNormalization:              " + this.NeedNormalization);
         console.writeln("NeedApproving:              	 " + this.NeedApproving);
+        console.writeln("NeedIntegration:                " + this.NeedIntegration);
+        console.writeln("NeedDrizzle:                    " + this.NeedDrizzle);
+        console.writeln("DrizzleScale:                   " + this.DrizzleScale);
+        console.writeln("DrizzleDropShrink:              " + this.DrizzleDropShrink);
 
         console.writeln("CalibratationMastersPath:       " + this.CalibratationMastersPath);
         console.writeln("RegistrationReferencesPath:     " + this.RegistrationReferencesPath);
