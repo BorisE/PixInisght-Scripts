@@ -507,6 +507,49 @@ function AutocalibrationDialog() {
     }
 
 
+    // 4.5. Per-channel integration
+    this.ProcessIntegration_CheckBox = new CheckBox(this);
+    this.ProcessIntegration_CheckBox.text = "Integrate per filter";
+    this.ProcessIntegration_CheckBox.checked = Config.NeedIntegration;
+    this.ProcessIntegration_CheckBox.toolTip = "Integrate registered frames separately for each object, filter and acquisition setup.";
+    this.ProcessIntegration_CheckBox.onClick = function(checked) {
+        Config.NeedIntegration = checked;
+        this.dialog.ProcessDrizzle_CheckBox.enabled = checked;
+        this.dialog.drizzleScale_SpinBox.enabled = checked && Config.NeedDrizzle;
+        this.dialog.drizzleDrop_SpinBox.enabled = checked && Config.NeedDrizzle;
+    };
+    this.ProcessDrizzle_CheckBox = new CheckBox(this);
+    this.ProcessDrizzle_CheckBox.text = "Drizzle";
+    this.ProcessDrizzle_CheckBox.checked = Config.NeedDrizzle;
+    this.ProcessDrizzle_CheckBox.enabled = Config.NeedIntegration;
+    this.ProcessDrizzle_CheckBox.onClick = function(checked) {
+        Config.NeedDrizzle = checked;
+        this.dialog.drizzleScale_SpinBox.enabled = checked && Config.NeedIntegration;
+        this.dialog.drizzleDrop_SpinBox.enabled = checked && Config.NeedIntegration;
+    };
+    this.drizzleScale_SpinBox = new SpinBox(this);
+    this.drizzleScale_SpinBox.minValue = 1;
+    this.drizzleScale_SpinBox.maxValue = 2;
+    this.drizzleScale_SpinBox.value = Config.DrizzleScale;
+    this.drizzleScale_SpinBox.enabled = Config.NeedIntegration && Config.NeedDrizzle;
+    this.drizzleScale_SpinBox.onValueUpdated = function(value) { Config.DrizzleScale = value; };
+    this.drizzleDrop_SpinBox = new SpinBox(this);
+    this.drizzleDrop_SpinBox.minValue = 30;
+    this.drizzleDrop_SpinBox.maxValue = 100;
+    this.drizzleDrop_SpinBox.stepSize = 5;
+    this.drizzleDrop_SpinBox.value = Config.DrizzleDropShrink;
+    this.drizzleDrop_SpinBox.enabled = Config.NeedIntegration && Config.NeedDrizzle;
+    this.drizzleDrop_SpinBox.onValueUpdated = function(value) { Config.DrizzleDropShrink = value; };
+    this.ProcessIntegration_Sizer = new HorizontalSizer;
+    this.ProcessIntegration_Sizer.spacing = 4;
+    this.ProcessIntegration_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.ProcessIntegration_Sizer.add(this.ProcessIntegration_CheckBox);
+    this.ProcessIntegration_Sizer.add(this.ProcessDrizzle_CheckBox);
+    this.ProcessIntegration_Sizer.add(new Label(this)); // spacing
+    this.ProcessIntegration_Sizer.add(this.drizzleScale_SpinBox);
+    this.ProcessIntegration_Sizer.add(this.drizzleDrop_SpinBox);
+    this.ProcessIntegration_Sizer.addStretch();
+
     // 4.5. Subframe selector
     this.ProcessSF_CheckBox = new CheckBox(this);
     with (this.ProcessSF_CheckBox) {
@@ -595,6 +638,7 @@ function AutocalibrationDialog() {
         sizer.add(this.normScale_Sizer);
         sizer.add(this.normNoScaleFlag_Sizer);
         sizer.add(this.ProcessSF_Sizer);
+        sizer.add(this.ProcessIntegration_Sizer);
         sizer.add(this.outputSize_Sizer);
 
     }
