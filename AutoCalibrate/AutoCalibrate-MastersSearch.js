@@ -507,18 +507,35 @@ function getRegistrationReferenceFile(objectname) {
 	return (referenceFile == "" ? false : Config.RegistrationReferencesPath + "/" + referenceFile);
 }
 
-/*********************************************************
- * Поиск соответствующего рефенса для выравнивания
- *
- * @param fileName string Имя файла.fit
- **********************************************************
+/**
+ * Find an LN reference by a literal object prefix and exact final filter token.
+ * Allows an exposure and/or _LN suffix; strict mode requires the target exposure.
+ * @param {String} objectname Object name from the image header.
+ * @param {String} filtername Exact filter, such as R, G, B or RGB.
+ * @param {Number} exposure Target exposure in seconds for strict mode.
+ * @return {String|Boolean} Reference path, or false when no candidate matches.
+ * Reads only the configured directory; does not modify files.
  */
-
 function getNormalizationReferenceFile(objectname, filtername, exposure) {
 
 	console.writeln();
 	console.noteln("Searching for matching Normalization Reference file for object <b>", objectname, "</b>, filter <b>" + filtername + "</b>" + (Config.StrictNormalization? " and exposure <b>" + exposure + "s</b>" : ""));
 	//console.writeln();
+
+    /**
+     * Escape an object, filter or exposure for literal use in the filename pattern.
+     * @param {String|Number} value Header value, not a regular expression.
+     * @return {String} Escaped regular-expression fragment; no side effects.
+     */
+    function escapeReferencePattern(value) {
+        return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+    // Match the final filter token, never an earlier _RGB or another channel marker.
+    // Only exposure and _LN suffixes are allowed after the final filter token.
+    var normalizationreference_file_pattern = new RegExp("^" + escapeReferencePattern(objectname) +
+        "_(?:.*_)?" + escapeReferencePattern(filtername) +
+        (Config.StrictNormalization ? "_" + escapeReferencePattern(exposure) + "s" : "(?:_[0-9]+(?:\\.[0-9]+)?s)?") +
+        "(?:_LN)?\\.(?:xisf|fits|fit)$", "i");
 
 	//1. Search lib dir for folders
 	var objFileFind = new FileFind;
@@ -536,13 +553,6 @@ function getNormalizationReferenceFile(objectname, filtername, exposure) {
 				if (!objFileFind.isDirectory) {
 					debug('found file: ' + objFileFind.name, dbgNotice);
 
-					// Normalization Reference
-					if (Config.StrictNormalization)  {
-						var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '_' + exposure + 's.*', 'i'); // +? non-greedy modifier;
-					} else {
-						var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '.*', 'i'); // +? non-greedy modifier;
-					}
-					//console.writeln(normalizationreference_file_pattern);
 					var matches = objFileFind.name.match(normalizationreference_file_pattern);
 					if (matches) {
 						referenceFile = objFileFind.name;
