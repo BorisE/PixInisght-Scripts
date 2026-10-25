@@ -25,6 +25,7 @@
  #include <pjsr/StdIcon.jsh>
  #include <pjsr/FrameStyle.jsh>
  #include <pjsr/Sizer.jsh>
+ #include <pjsr/FocusStyle.jsh>
  #include <pjsr/TextAlign.jsh>
  #include <pjsr/SectionBar.jsh>
 
@@ -120,7 +121,7 @@ function AutocalibrationDialog() {
 
     this.pathMode_Label = new Label(this);
     this.pathMode_Label.text = "Mode:";
-    this.pathMode_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.pathMode_Label.textAlignment = TextAlign_Right | TextAlign_Center;
     this.pathMode_Label.minWidth = labelWidth1;
     this.pathMode_Label.toolTip = bpsToolTip;
 
@@ -289,29 +290,114 @@ function AutocalibrationDialog() {
         addStretch();
     }
 
-    this.ProcessDebayer_CheckBox = new CheckBox(this);
-    this.ProcessDebayer_CheckBox.text = "Debayer (VNG)";
-    this.ProcessDebayer_CheckBox.checked = Config.NeedDebayer;
-    this.ProcessDebayer_CheckBox.minWidth = labelWidth1;
-    this.ProcessDebayer_CheckBox.toolTip = "<p>Demosaic CFA images after cosmetic correction using VNG. Uses image CFA metadata or a Bayer pattern in FILTER.</p>";
-    this.ProcessDebayer_CheckBox.onClick = function (checked) {
-        Config.NeedDebayer = checked;
-        this.dialog.SplitChannels_CheckBox.enabled = checked;
+    this.Workflow_GroupBox = new GroupBox(this);
+    this.Workflow_GroupBox.title = "Workflow";
+
+    this.WorkflowMono_Button = new PushButton(this.Workflow_GroupBox);
+    this.WorkflowMono_Button.text = "MONO";
+    this.WorkflowMono_Button.focusStyle = FocusStyle_NoFocus;
+    this.WorkflowMono_Button.toolTip = "<p>Process monochrome frames without Debayer or channel splitting.</p>";
+    this.WorkflowMono_Button.onClick = function (checked) {
+        this.dialog.selectWorkflow("MONO");
     };
-    this.SplitChannels_CheckBox = new CheckBox(this);
+    this.WorkflowOSC_Button = new PushButton(this.Workflow_GroupBox);
+    this.WorkflowOSC_Button.text = "OSC";
+    this.WorkflowOSC_Button.focusStyle = FocusStyle_NoFocus;
+    this.WorkflowOSC_Button.toolTip = "<p>Apply VNG Debayer to CFA frames, then keep RGB or extract R/G/B channels.</p>";
+    this.WorkflowOSC_Button.onClick = function (checked) {
+        this.dialog.selectWorkflow("OSC");
+    };
+    this.WorkflowDrizzle_Button = new PushButton(this.Workflow_GroupBox);
+    this.WorkflowDrizzle_Button.text = "OSC CFA Drizzle";
+    this.WorkflowDrizzle_Button.enabled = false;
+    this.WorkflowDrizzle_Button.toolTip = "<p>CFA Drizzle workflow is planned for a future version.</p>";
+
+    this.Workflow_Sizer = new HorizontalSizer;
+    this.Workflow_Sizer.spacing = 8;
+    this.Workflow_Sizer.add(this.WorkflowMono_Button, 1);
+    this.Workflow_Sizer.add(this.WorkflowOSC_Button, 1);
+    this.Workflow_Sizer.add(this.WorkflowDrizzle_Button, 1);
+
+    /**
+     * Select a workflow and refresh the dialog while preserving OSC preferences.
+     * @param {String} workflow MONO or OSC.
+     * @return {undefined} Persists the selection and updates controls without resizing the dialog.
+     */
+    this.selectWorkflow = function (workflow) {
+        Config.Workflow = workflow;
+        Config.saveWorkflowSettings();
+        this.updateWorkflowControls();
+    };
+
+    this.OSCOptions_Control = new Control(this);
+    this.Debayer_CheckBox = new CheckBox(this.OSCOptions_Control);
+    this.Debayer_CheckBox.text = "Debayer (VNG)";
+    this.Debayer_CheckBox.onClick = function (checked) {
+        Config.NeedDebayer = checked;
+        Config.saveWorkflowSettings();
+        this.dialog.updateWorkflowControls();
+    };
+    this.Debayer_CheckBox.toolTip = "<p>Apply VNG Debayer to CFA frames. Enabled by default in OSC; this choice is saved.</p>";
+    this.SplitChannels_CheckBox = new CheckBox(this.OSCOptions_Control);
     this.SplitChannels_CheckBox.text = "Split channels";
     this.SplitChannels_CheckBox.checked = Config.SplitChannels;
-    this.SplitChannels_CheckBox.enabled = Config.NeedDebayer;
-    this.SplitChannels_CheckBox.toolTip = "<p>Continue processing separate R, G and B images instead of the RGB image.</p>";
+    this.SplitChannels_CheckBox.toolTip = "<p>Produce monochrome R/G/B files. Disable to keep RGB files.</p>";
     this.SplitChannels_CheckBox.onClick = function (checked) {
         Config.SplitChannels = checked;
+        Config.saveWorkflowSettings();
+        this.dialog.updateWorkflowControls();
     };
-    this.ProcessDebayer_Sizer = new HorizontalSizer;
-    this.ProcessDebayer_Sizer.spacing = 4;
-    this.ProcessDebayer_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
-    this.ProcessDebayer_Sizer.add(this.ProcessDebayer_CheckBox);
-    this.ProcessDebayer_Sizer.add(this.SplitChannels_CheckBox);
-    this.ProcessDebayer_Sizer.addStretch();
+    this.OSCSplitStage_ComboBox = new ComboBox(this.OSCOptions_Control);
+    this.OSCSplitStage_ComboBox.addItem("Before StarAlignment");
+    this.OSCSplitStage_ComboBox.addItem("After StarAlignment");
+    this.OSCSplitStage_ComboBox.currentItem = Config.OSCSplitStage == "after-registration" ? 1 : 0;
+    this.OSCSplitStage_ComboBox.toolTip = "<p>Before: register R/G/B independently. After: register RGB once, then extract R/G/B. If Register is disabled, split after the preceding enabled stage. LocalNormalization follows splitting.</p>";
+    this.OSCSplitStage_ComboBox.onItemSelected = function (index) {
+        Config.OSCSplitStage = index == 1 ? "after-registration" : "before-registration";
+        Config.saveWorkflowSettings();
+    };
+    this.Debayer_Sizer = new HorizontalSizer;
+    this.Debayer_Sizer.spacing = 4;
+    this.Debayer_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.Debayer_Sizer.add(this.Debayer_CheckBox, 0, Align_Center);
+    this.Debayer_Sizer.addStretch();
+
+    this.SplitChannels_CheckBox.minWidth = labelWidth1;
+    this.SplitChannels_Sizer = new HorizontalSizer;
+    this.SplitChannels_Sizer.spacing = 4;
+    this.SplitChannels_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.SplitChannels_Sizer.add(this.SplitChannels_CheckBox, 0, Align_Center);
+    this.SplitChannels_Sizer.add(this.OSCSplitStage_ComboBox, 0, Align_Center);
+    this.SplitChannels_Sizer.addStretch();
+
+    this.OSCOptions_Control.sizer = new VerticalSizer;
+    this.OSCOptions_Control.sizer.margin = 0;
+    this.OSCOptions_Control.sizer.spacing = 4;
+    this.OSCOptions_Control.sizer.add(this.Debayer_Sizer);
+    this.OSCOptions_Control.sizer.add(this.SplitChannels_Sizer);
+    /**
+     * Refresh selection and enabled state without hiding controls or clearing OSC choices.
+     * @return {undefined} Updates dialog controls; takes no arguments.
+     */
+    this.updateWorkflowControls = function () {
+        // PushButton is not checkable in PJSR: indicate the saved selection explicitly.
+        var selectedStyle = "* { background-color: #c8def8; border: 2px solid #4a80ba; padding: 3px 8px; font-weight: bold; }";
+        var normalStyle = "* { background-color: #e4e4e4; border: 2px solid #999999; padding: 3px 8px; font-weight: normal; }";
+        this.WorkflowMono_Button.styleSheet = Config.Workflow == "MONO" ? selectedStyle : normalStyle;
+        this.WorkflowOSC_Button.styleSheet = Config.Workflow == "OSC" ? selectedStyle : normalStyle;
+        this.WorkflowDrizzle_Button.styleSheet = Config.Workflow == "OSC_CFA_DRIZZLE" ? selectedStyle : normalStyle;
+        if (this.ok_Button) this.ok_Button.enabled = Config.Workflow != "OSC_CFA_DRIZZLE";
+        this.OSCOptions_Control.enabled = Config.Workflow == "OSC";
+        this.Debayer_CheckBox.enabled = Config.Workflow == "OSC";
+        this.Debayer_CheckBox.checked = Config.Workflow == "OSC" && Config.NeedDebayer;
+        this.SplitChannels_CheckBox.enabled = Config.Workflow == "OSC" && Config.NeedDebayer;
+        this.OSCSplitStage_ComboBox.enabled = Config.Workflow == "OSC" && Config.NeedDebayer && Config.SplitChannels;
+    };
+    this.Workflow_GroupBox.sizer = new VerticalSizer;
+    this.Workflow_GroupBox.sizer.margin = 10;
+    this.Workflow_GroupBox.sizer.spacing = 8;
+    this.Workflow_GroupBox.sizer.add(this.Workflow_Sizer);
+    this.updateWorkflowControls();
 
     // 4.2. ABE
 
@@ -472,7 +558,7 @@ function AutocalibrationDialog() {
     with (this.normScale_Label) {
         margin = 4;
         text = "Scale";
-        textAlignment = TextAlign_Right | TextAlign_VertCenter;
+        textAlignment = TextAlign_Right | TextAlign_Center;
     }
 
     this.normScale_Sizer = new HorizontalSizer;
@@ -534,7 +620,7 @@ function AutocalibrationDialog() {
     this.outputSize_Label = new Label(this);
     with (this.outputSize_Label) {
       text = "Output size:";
-      textAlignment = TextAlign_Right | TextAlign_VertCenter;
+      textAlignment = TextAlign_Right | TextAlign_Center;
       minWidth = labelWidth1;
       toolTip = "Sample data format for output images";
     }
@@ -588,7 +674,7 @@ function AutocalibrationDialog() {
         sizer.spacing = 4;
         sizer.add(this.ProcessCalibrate_Sizer);
         sizer.add(this.ProcessCosmetics_Sizer);
-        sizer.add(this.ProcessDebayer_Sizer);
+        sizer.add(this.OSCOptions_Control);
         sizer.add(this.ProcessABE_Sizer);
         sizer.add(this.ProcessRegister_Sizer);
         sizer.add(this.ProcessNormalization_Sizer);
@@ -649,6 +735,7 @@ function AutocalibrationDialog() {
         addSpacing(4);
         add(this.inputDir_GroupBoxSelect_Button);
         add(this.OptionsGroupBox);
+        add(this.Workflow_GroupBox);
 
         add(this.ProcessSection);
         add(this.ProcessGroupBox);
@@ -660,6 +747,7 @@ function AutocalibrationDialog() {
         add(this.buttons_Sizer);
     }
 
+    this.updateWorkflowControls(); // Execute button exists now; apply the reserved-workflow guard.
     this.windowTitle = TITLE + " Script";
     this.adjustToContents();
 

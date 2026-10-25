@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "6.4.3"
- #define COMPILE_DATE "2026/02/28"
+ #define VERSION "7.0.0aplpha2"
+ #define COMPILE_DATE "2026/10/24"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2026 Boris Emchenko<br/>"
@@ -293,7 +293,9 @@ var FITS = {
     REGISTERED: 4,
     NORMALIZED: 5,
     APPROVED: 6,
-    BINNED: 7
+    BINNED: 7,
+    SPLIT: 9, // channels extracted after the registration slot
+    DEBAYERED: 8 // debayered stores an array of RGB or R/G/B output paths
 }; // Типы файлов
 var FILEARRAY = []; // базовый массив хранения файлов, куда вносятся результаты сканирования
 /*      FILEARRAY.push({
@@ -325,6 +327,12 @@ function getFILEARRPropertyName(type) {
     case FITS.COSMETIZED:
         st = "cosmetized";
         break;
+    case FITS.DEBAYERED:
+        st = "debayered";
+        break;
+    case FITS.SPLIT:
+        st = "split";
+        break;
     case FITS.ABED:
         st = "abed";
         break;
@@ -342,35 +350,39 @@ function getFILEARRPropertyName(type) {
 }
 
 /**
- * Получение предыщего в цепочке
+ * Return whether the selected workflow enables the saved Debayer preference.
+ * @return {Boolean} No side effects; null Workflow supports legacy configurations.
+ */
+function isDebayerEnabled() {
+    return (Config.Workflow == null || Config.Workflow == "OSC") && Config.NeedDebayer;
+}
+
+/** Return whether OSC channel extraction follows the registration slot. No side effects. */
+function splitAfterRegistration() {
+    return isDebayerEnabled() && Config.SplitChannels && Config.OSCSplitStage == "after-registration";
+}
+
+/**
+ * Получение предыдущего включённого этапа в цепочке (с учётом Config).
  *
  * @param property string
  * @return string
  */
 function getFILEARRPrecedingName(property) {
-
-    if (property == getFILEARRPropertyName(FITS.ORIGINAL))
-        return getFILEARRPropertyName(FITS.ORIGINAL)
-    else if (property == getFILEARRPropertyName(FITS.CALIBRATED))
-        return getFILEARRPropertyName(FITS.ORIGINAL)
-    else if (property == getFILEARRPropertyName(FITS.COSMETIZED))
-        return getFILEARRPropertyName(FITS.CALIBRATED)
-    else if (property == getFILEARRPropertyName(FITS.ABED))
-        return getFILEARRPropertyName(FITS.COSMETIZED)
-    else if (property == getFILEARRPropertyName(FITS.REGISTERED)) {
-        if (Config.NeedABE) {
-            return getFILEARRPropertyName(FITS.ABED)
-        } else {
-            return getFILEARRPropertyName(FITS.COSMETIZED)
-        }
-    }
-    else if (property == getFILEARRPropertyName(FITS.NORMALIZED))
-        return getFILEARRPropertyName(FITS.REGISTERED)
-    else if (property == getFILEARRPropertyName(FITS.APPROVED))
-        return getFILEARRPropertyName(FITS.NORMALIZED)
-    else
-        return getFILEARRPropertyName(FITS.ORIGINAL);
-
+    var calibrated = Config.NeedCalibration ? "calibrated" : "fullname";
+    var cosmetic = Config.NeedCosmeticCorrection ? "cosmetized" : calibrated;
+    var debayered = isDebayerEnabled() ? "debayered" : cosmetic;
+    var abed = Config.NeedABE ? "abed" : debayered;
+    var registered = Config.NeedRegister ? "registered" : abed;
+    if (property == "calibrated") return "fullname";
+    if (property == "cosmetized") return calibrated;
+    if (property == "debayered") return cosmetic;
+    if (property == "abed") return debayered;
+    if (property == "registered") return abed;
+    if (property == "split") return registered;
+    if (property == "normalized") return splitAfterRegistration() ? "split" : registered;
+    if (property == "approved") return Config.NeedNormalization ? "normalized" : (splitAfterRegistration() ? "split" : registered);
+    return "fullname";
 }
 
 function debug(st, level = dbgCurrent) {

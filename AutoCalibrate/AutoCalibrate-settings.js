@@ -21,7 +21,9 @@
 
 
 function ConfigData() {
-    this.NeedDebayer = false;
+    this.Workflow = null; // Legacy configs derive the workflow from NeedDebayer.
+    this.OSCSplitStage = "before-registration";
+    this.NeedDebayer = true; // OSC preference; MONO and CFA Drizzle ignore this stage.
     this.SplitChannels = false;
     //temp
     this.outputExtension = "fits";
@@ -30,6 +32,17 @@ function ConfigData() {
 
     if (DEBUG)
         console.writeln('<br/><br/>Config object created...<br/>');
+
+    /**
+     * Validate the three workflow identifiers without changing stage preferences.
+     * Preserves OSC preferences while MONO is selected. Takes no arguments.
+     * @return {undefined} Updates only this configuration object.
+     */
+    this.normalizeWorkflow = function () {
+        if (this.Workflow == null) this.Workflow = this.NeedDebayer ? "OSC" : "MONO";
+        if (this.Workflow != "OSC" && this.Workflow != "OSC_CFA_DRIZZLE") this.Workflow = "MONO";
+        if (this.OSCSplitStage != "after-registration") this.OSCSplitStage = "before-registration";
+    };
 
     //Helper functions
     function load(key, type) {
@@ -65,6 +78,19 @@ function ConfigData() {
             this.NeedDebayer = o;
         if ((o = load("SplitChannels", DataType_Boolean)) != null)
             this.SplitChannels = o;
+        // Migrate instances/preferences saved before the Workflow selector.
+        var workflow = load("Workflow", DataType_String);
+        if (workflow != null) this.Workflow = workflow;
+        else if (load("NeedDebayer", DataType_Boolean) != null) this.Workflow = this.NeedDebayer ? "OSC" : "MONO";
+        // Earlier UI revisions stored a preference plus a derived stage flag.
+        // Version 2 stores only NeedDebayer; ignore the stale legacy key thereafter.
+        if (load("WorkflowSettingsVersion", DataType_Int16) != 2) {
+            var legacyDebayer = load("OSCDebayer", DataType_Boolean);
+            if (legacyDebayer != null) this.NeedDebayer = legacyDebayer;
+            else if (this.Workflow == "MONO") this.NeedDebayer = true;
+        }
+        if ((o = load("OSCSplitStage", DataType_String)) != null) this.OSCSplitStage = o;
+        this.normalizeWorkflow();
         if ((o = load("NeedABE", DataType_Boolean)) != null)
             this.NeedABE = o;
         if ((o = load("NeedRegister", DataType_Boolean)) != null)
@@ -91,15 +117,28 @@ function ConfigData() {
 
     }
 
+    /**
+     * Persist the last workflow and its OSC choices as soon as the user changes them.
+     * @return {undefined} Writes only workflow-related application Settings.
+     * Takes no arguments; validates workflow identifiers before writing.
+     */
+    this.saveWorkflowSettings = function () {
+        this.normalizeWorkflow();
+        save("Workflow", DataType_String, this.Workflow);
+        save("WorkflowSettingsVersion", DataType_Int16, 2);
+        save("OSCSplitStage", DataType_String, this.OSCSplitStage);
+        save("SplitChannels", DataType_Boolean, this.SplitChannels);
+        save("NeedDebayer", DataType_Boolean, this.NeedDebayer);
+    };
+
     this.saveSettings = function () {
+        this.saveWorkflowSettings();
         save("InputPath", DataType_String, this.InputPath);
         save("PathMode", DataType_Int16, this.PathMode);
         save("SearchInSubDirs", DataType_Boolean, this.SearchInSubDirs);
 
         save("NeedCalibration", DataType_Boolean, this.NeedCalibration);
         save("NeedCosmeticCorrection", DataType_Boolean, this.NeedCosmeticCorrection);
-        save("NeedDebayer", DataType_Boolean, this.NeedDebayer);
-        save("SplitChannels", DataType_Boolean, this.SplitChannels);
         save("NeedABE", DataType_Boolean, this.NeedABE);
         save("NeedRegister", DataType_Boolean, this.NeedRegister);
         save("NeedNormalization", DataType_Boolean, this.NeedNormalization);
@@ -110,7 +149,6 @@ function ConfigData() {
         save("NormalizationReferencesPath", DataType_String, this.NormalizationReferencesPath);
 
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
-        save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
 
         save("OutputFileSize", DataType_Int16, this.OutputFormatIC);
@@ -128,6 +166,10 @@ function ConfigData() {
      * Import / Export script parameters (global or target View run)
      */
     this.exportParameters = function () {
+        this.normalizeWorkflow();
+        Parameters.set("Workflow", this.Workflow);
+        Parameters.set("WorkflowSettingsVersion", 2);
+        Parameters.set("OSCSplitStage", this.OSCSplitStage);
         Parameters.set("InputPath", this.InputPath);
         Parameters.set("PathMode", this.PathMode);
         Parameters.set("SearchInSubDirs", this.SearchInSubDirs);
@@ -176,6 +218,14 @@ function ConfigData() {
             this.NeedDebayer = Parameters.getBoolean("NeedDebayer");
         if (Parameters.has("SplitChannels"))
             this.SplitChannels = Parameters.getBoolean("SplitChannels");
+        this.Workflow = Parameters.has("Workflow") ? Parameters.getString("Workflow") : (this.NeedDebayer ? "OSC" : "MONO");
+        if (!Parameters.has("WorkflowSettingsVersion") || Parameters.getInteger("WorkflowSettingsVersion") != 2) {
+            if (Parameters.has("OSCDebayer")) this.NeedDebayer = Parameters.getBoolean("OSCDebayer");
+            else if (this.Workflow == "MONO") this.NeedDebayer = true;
+        }
+        if (Parameters.has("OSCSplitStage")) this.OSCSplitStage = Parameters.getString("OSCSplitStage");
+        else this.OSCSplitStage = "before-registration";
+        this.normalizeWorkflow();
         if (Parameters.has("NeedABE"))
             this.NeedABE = Parameters.getBoolean("NeedABE");
         if (Parameters.has("NeedRegister"))
@@ -208,6 +258,8 @@ function ConfigData() {
     }
 
     this.printParameters = function () {
+        console.writeln("Workflow: " + this.Workflow);
+        console.writeln("OSC split stage: " + this.OSCSplitStage);
         console.writeln("InputPath:                      " + this.InputPath);
         console.writeln("PathMode:                       " + this.PathMode);
         console.writeln("SearchInSubDirs:                " + this.SearchInSubDirs);

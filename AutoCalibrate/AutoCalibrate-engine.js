@@ -69,6 +69,10 @@ function AutoCalibrateEngine() {
     // 	Начало исполнения
     // =========================================================
     this.Process = function (progressDialog) {
+        if (Config.Workflow == "OSC_CFA_DRIZZLE") {
+            console.criticalln("OSC CFA Drizzle workflow is not implemented yet. Select MONO or OSC.");
+            return false;
+        }
         //var T = new ElapsedTime;
 		
 		this.progressDialog = progressDialog;
@@ -124,15 +128,6 @@ function AutoCalibrateEngine() {
 		
 		if (this.abortRequested) return false;
 
-        /* **************************************************************************************************************
-        * Run SubframeSelector measurements (if needed)
-        **************************************************************************************************************/
-		this.runSubframeSelector();
-
-
-        if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
-            this.MoveMostAdvanced();
-
         //Finish 1st pass
         console.noteln("<end><cbr><br>",
             "************************************************************");
@@ -170,6 +165,11 @@ function AutoCalibrateEngine() {
             console.noteln("************************************************************");
 
         }
+        // Final consumers include files completed during the second pass.
+        if (this.abortRequested) return false;
+        this.runSubframeSelector();
+        if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+            this.MoveMostAdvanced();
         //sleep(10);
 		return true;
     }
@@ -292,7 +292,7 @@ function AutoCalibrateEngine() {
 
                                     this.NeedToCopyToFinalDirFlag = true;
 
-									if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+									if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 										console.criticalln("Abort requsted, breaking ...");
 										this.abortRequested = true;
 										return false;
@@ -305,11 +305,12 @@ function AutoCalibrateEngine() {
                                     //Process by full pipeline
                                     this.addFileForApproving(
                                         this.localNormalization(
-                                            this.registerFits(
-                                                this.ABEprocess(
-                                                    debayerSplitFit(
-                                                        this.cosmeticFit(
-                                                            this.calibrateFITSFile(searchPath + '/' + objFileFind.name)))))));
+                                            this.splitRegisteredChannels(
+                                                this.registerFits(
+                                                    this.ABEprocess(
+                                                        this.debayerSplitFit(
+                                                            this.cosmeticFit(
+                                                                this.calibrateFITSFile(searchPath + '/' + objFileFind.name))))))));
 															
                                 }
                                 else
@@ -328,14 +329,12 @@ function AutoCalibrateEngine() {
     };
 
 
-    /* **************************************************************************************************************
-     *
-     * Базовая функция для 2го прохода
-     *
-    /* **************************************************************************************************************
-     *
-     * @param file string
-     * @return object
+    /**
+     * Resume missing stages in FILEARRAY using the existing processing order.
+     * DEBAYERED contains output paths; converted channel records resume after
+     * Debayer, while the source record supplies the relationship to all channels.
+     * Updates stage records, output paths and the SubframeSelector queue.
+     * @return {undefined} Stops early on abort and sets abortRequested.
      */
     this.ScanArray = function () {
 
@@ -374,35 +373,59 @@ function AutoCalibrateEngine() {
 
         //Проверим массив на наличие пропущенных звеньев и попробуем создать это звено
         for (var i = 0; i < FILEARRAY.length; i++) {
+            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
+                this.abortRequested = true;
+                return;
+            }
 
+            var stageFailed = false;
             for (var property in FILEARRAY[i]) {
                 if (property == "fits") {
                     console.noteln(" ************************************************************ ");
                     console.note("Fits from array <b>", FILEARRAY[i].fits, "</b> is ");
                 } else {
+                    var record = FILEARRAY[i];
+                    if (/_s_[RGB]$/i.test(record.fits) && property != "normalized") continue;
+                    var converted = /_d_(RGB|R|G|B)$/i.test(record.fits);
+                    if (converted && (property == "fullname" || property == "calibrated" ||
+                        property == "cosmetized" || property == "debayered")) continue;
+                    if ((property == "calibrated" && !Config.NeedCalibration) ||
+                        (property == "cosmetized" && !Config.NeedCosmeticCorrection) ||
+                        (property == "debayered" && !isDebayerEnabled()) ||
+                        (property == "abed" && !Config.NeedABE) ||
+                        (property == "registered" && !Config.NeedRegister) ||
+                        (property == "split" && !splitAfterRegistration()) ||
+                        (property == "normalized" && !Config.NeedNormalization)) continue;
+                    if (record.debayered && imageSignature(record.debayered[0]) != record.fits &&
+                        (property == "abed" || property == "registered" || property == "split" || property == "normalized")) continue;
+                    if (splitAfterRegistration() && property == "normalized" &&
+                        record.split && imageSignature(record.split[0]) != record.fits) continue;
                     if (FILEARRAY[i][property] == null) {
                         // Возьмем предыдущий по конвейеру файл
                         var preceding = getFILEARRPrecedingName(property);
-                        var filename = FILEARRAY[i][preceding];
+                        var inputs = FILEARRAY[i][preceding];
+                        if (property == "debayered")
+                            inputs = record.cosmetized || record.calibrated || record.fullname;
+                        var filename = Array.isArray(inputs) ? inputs[0] : inputs;
                         if (filename == null)
                             continue;
 
                         console.noteln("missing <b>" + property + "</b>. Let's try to create it from <b>" + preceding + "</b>...");
                         console.noteln(" ************************************************************ ");
 
-                        // Установим директорию для вывода недостающего файла
-                        var fn = "";
-                        if ((fn = filename.match(/(.+)\/(.+)\/(.+)\.(fit|fits|xisf)$/i)) != null) {
-                            debug("pathtodir: " + fn[1], dbgNotice);
-                            debug("filedir: " + fn[2], dbgNotice);
-                            debug("file: " + fn[3], dbgNotice);
-                            this.BaseCalibratedOutputPath = fn[1];
-                        } else {
-
-                            this.BaseCalibratedOutputPath = File.extractDrive(FILEARRAY[i][getFILEARRPropertyName(FITS.ORIGINAL)])
-                                 + File.extractDirectory(FILEARRAY[i][getFILEARRPropertyName(FITS.ORIGINAL)]);
+                        if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+                            this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
+                        else if (Config.PathMode == PATHMODE.ABSOLUTE)
+                            this.BaseCalibratedOutputPath = Config.OutputPath;
+                        else {
+                            var directory = File.extractDrive(filename) + File.extractDirectory(filename);
+                            if (filename != record.fullname) {
+                                directory = directory.substring(0, directory.lastIndexOf("/"));
+                                if (Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+                                    directory = directory.substring(0, directory.lastIndexOf("/"));
+                            }
+                            this.BaseCalibratedOutputPath = directory;
                         }
-
                         debug(this.BaseCalibratedOutputPath, dbgNormal);
 
                         // if missing CALIBRATED
@@ -411,6 +434,7 @@ function AutoCalibrateEngine() {
 
                             // Process
                             var res = this.calibrateFITSFile(FILEARRAY[i][preceding]);
+                            if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits, dbgNotice);
@@ -420,15 +444,22 @@ function AutoCalibrateEngine() {
                             this.FileTotalCount++;
                             // Process
                             var res = this.cosmeticFit(FILEARRAY[i][preceding]);
+                            if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
+                        }
+                        // Debayer records source and channel outputs in FILEARRAY.
+                        if (property == "debayered") {
+                            this.FileTotalCount++;
+                            if (this.debayerSplitFit(filename) === false) { stageFailed = true; break; }
                         }
                         // if missing ABED
                         if (property == getFILEARRPropertyName(FITS.ABED) && FILEARRAY[i][preceding] != null && Config.NeedABE) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.ABEprocess([FILEARRAY[i][preceding]]);
+                            var res = this.ABEprocess(Array.isArray(inputs) ? inputs : [inputs]);
+                            if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
@@ -437,16 +468,21 @@ function AutoCalibrateEngine() {
                         if (property == getFILEARRPropertyName(FITS.REGISTERED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.registerFits([FILEARRAY[i][preceding]]);
+                            var res = this.registerFits(Array.isArray(inputs) ? inputs : [inputs]);
+                            if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
+                        }
+                        if (property == "split") {
+                            if (this.splitRegisteredChannels(Array.isArray(inputs) ? inputs : [inputs]) === false) { stageFailed = true; break; }
                         }
                         // if missing NORMALIZED
                         if (property == getFILEARRPropertyName(FITS.NORMALIZED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.localNormalization([FILEARRAY[i][preceding]]);
+                            var res = this.localNormalization(Array.isArray(inputs) ? inputs : [inputs]);
+                            if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
@@ -455,6 +491,12 @@ function AutoCalibrateEngine() {
                     }
 
                 }
+            }
+            var completed = FILEARRAY[i];
+            if (!stageFailed && (!completed.debayered || imageSignature(completed.debayered[0]) == completed.fits) &&
+                (!splitAfterRegistration() || !completed.split || imageSignature(completed.split[0]) == completed.fits)) {
+                var latest = completed.normalized || completed.split || completed.registered || completed.abed || completed.debayered || completed.cosmetized || completed.calibrated;
+                if (latest) this.addFileForApproving(Array.isArray(latest) ? latest : [latest]);
             }
             console.writeln();
         }
@@ -525,7 +567,7 @@ function AutoCalibrateEngine() {
      * Добавить файл в массив (используется во время 2го прохода)
      *
      * @param type          string   тип файла (FITS.ORIGINAL,FITS.CALIBRATED, .... )
-     * @param fullname      string   полное имя файла (с путем)
+     * @param fullname      String|Array   путь файла; для DEBAYERED — массив путей результатов
      * @param signaturename string   имя оригинального fits файла, соответветствующее рассматриваемому (без расширения)
      * @param pathtofile    string   путь к файлу
      * @return object
@@ -551,8 +593,10 @@ function AutoCalibrateEngine() {
                 fullname:       (type == FITS.ORIGINAL ? fullname : null),
                 calibrated:     (type == FITS.CALIBRATED ? fullname : null),
                 cosmetized:     (type == FITS.COSMETIZED ? fullname : null),
+                debayered:      (type == FITS.DEBAYERED ? fullname : null),
                 abed:           (type == FITS.ABED ? fullname : null),
                 registered:     (type == FITS.REGISTERED ? fullname : null),
+                split:          (type == FITS.SPLIT ? fullname : null),
                 normalized:     (type == FITS.NORMALIZED ? fullname : null),
             });
         }
@@ -573,82 +617,29 @@ function AutoCalibrateEngine() {
             debug("Input is boolean, i.e. it was due to previous proccesing incomplitness. Exiting", dbgNormal);
             return false;
         }
-        //Если на входе массив, то берем первый файл
-        else if (typeof(file) == "object" && file.length > 0) {
-            debug("array of files, using first", dbgNotice);
-            file = file[0];
+        if (Array.isArray(file)) {
+            for (var i = 0; i < file.length; ++i)
+                checkFileNeedCalibratation_and_PopulateArray(file[i]);
+            return false;
         }
-
-        //fn=file.match(/(.+)\/(.+)_c_cc.fit(s){0,1}$/);
-        //debug("file :" + file);
-        //debug("test: " + (file.match(/_c_cc.fit(s){0,1}$/) != null));
-
-        // Проверим, на входе файл на какой стадии? (оригинальный, калиброванный, косметизированный, .... )
-        var fn = "";
-        if ((fn = file.match(/(.+)\/(.+)_c((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is calibrated of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.CALIBRATED, file, fn[2], fn[1]); //type, full name, signature, path
+        if (!file) return false;
+        var stage = file.match(/(.+)\/(.+?)_c(_cc)?(_b)?(_r)?(_n)?(_a)?\.(fit|fits|xisf)$/i);
+        if (stage) {
+            var type = stage[7] ? FITS.APPROVED : stage[6] ? FITS.NORMALIZED :
+                stage[5] ? FITS.REGISTERED : stage[4] ? FITS.ABED :
+                stage[3] ? FITS.COSMETIZED : FITS.CALIBRATED;
+            if (/_s_[RGB]$/i.test(stage[2]) && type != FITS.NORMALIZED && type != FITS.APPROVED)
+                AddFileToArray(FITS.SPLIT, [file], stage[2], stage[1]);
+            else if (/_d_(RGB|R|G|B)$/i.test(stage[2]) &&
+                (type == FITS.CALIBRATED || type == FITS.COSMETIZED))
+                AddFileToArray(FITS.DEBAYERED, [file], stage[2], stage[1]);
+            else
+                AddFileToArray(type, file, stage[2], stage[1]);
             return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is cosmetized of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.COSMETIZED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is abed of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.ABED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is registered of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.REGISTERED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r_n((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is normalized of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.NORMALIZED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else if ((fn = file.match(/(.+)\/(.+)_c_cc_b_r_n_a((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r_n_a((\.fit|\.fits|\.xisf){1})$/i)) != null || 
-                (fn = file.match(/(.+)\/(.+)_c_cc_r_a((\.fit|\.fits|\.xisf){1})$/i)) != null) {
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-            debug("file is approved of " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.APPROVED, file, fn[2], fn[1]); //type, full name, signature, path
-            return false;
-        } else {
-            fn = file.match(/(.+)\/(.+)((\.fit|\.fits|\.xisf){1})$/i);
-            debug("path: " + fn[1], dbgNotice);
-            debug("matched: " + fn[2], dbgNotice);
-
-            AddFileToArray(FITS.ORIGINAL, file, fn[2], fn[1]); //type, full name, signature, path
-            return true;
         }
-
-        /*
-        // Проверим, а нет ли уже такого откалиброванного файла?
-        var CalibratedFileName = CalibratedOutputPath +'/'+ File.extractName(file) +'_c.fit';
-        var fileExistsFlag = File.exists( CalibratedFileName );
-        Console.warningln('File '+ CalibratedFileName + ' already exists, skipping calibration' );
-
-        return !fileExistsFlag;
-         */
-
+        var original = file.match(/(.+)\/(.+)\.(fit|fits|xisf)$/i);
+        if (!original) return false;
+        AddFileToArray(FITS.ORIGINAL, file, original[2], original[1]);
         return true;
     }
 
@@ -670,7 +661,7 @@ function AutoCalibrateEngine() {
             return fileName;
         }
 		
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -875,7 +866,7 @@ function AutoCalibrateEngine() {
             return fileName;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1005,7 +996,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1113,11 +1104,17 @@ function AutoCalibrateEngine() {
 
                 //Запустить
                 with (ABEproc) {
-                    executeOn(w.mainView);
+                    if (!executeOn(w.mainView)) {
+                        w.forceClose();
+                        return false;
+                    }
                     //
                     // save
                     //
-                    w.saveAs(newFiles[i], false, false, true, !Config.OverwriteAllFiles);
+                    if (!w.saveAs(newFiles[i], false, false, true, !Config.OverwriteAllFiles)) {
+                        w.forceClose();
+                        return false;
+                    }
                 }
                 w.purge();
                 w.forceClose(); //w.close();
@@ -1134,16 +1131,7 @@ function AutoCalibrateEngine() {
 
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, чтобы второй раз не делать
-                var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b\.(fit|fits|xisf)$/i)) != null || (fn = newFiles[i].match(/(.+)\/(.+)_c_b\.(fit|fits|xisf)$/i)) != null) {
-                    debug("path: " + fn[1], dbgNotice);
-                    debug("matched: " + fn[2], dbgNotice);
-                    debug("file is abed of " + fn[2], dbgNotice);
-
-                    AddFileToArray(FITS.ABED, newFiles[i], fn[2], fn[1]); //type, full name, signature, path
-                } else {
-                    debug("PATTERN NOT FOUND");
-                }
+                checkFileNeedCalibratation_and_PopulateArray(newFiles[i]);
             } else {
                 return false;
             }
@@ -1168,7 +1156,7 @@ function AutoCalibrateEngine() {
         if (!Config.NeedRegister) {
             debug("Registration is off", dbgNormal);
 
-            if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
+            if (!splitAfterRegistration() && Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
                 requestToCopy.push(files);
                 this.NeedToCopyToFinalDirFlag = false;
             }
@@ -1176,7 +1164,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1226,8 +1214,7 @@ function AutoCalibrateEngine() {
                 Console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
             } else {
                 // Search for reference file
-                if (!fileData)
-                    var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
+                var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
                 if (!fileData) {
                     console.criticalln("Can't get File Header for Registration for " + files[i] + "!");
                     return false;
@@ -1295,7 +1282,7 @@ function AutoCalibrateEngine() {
                 ];
 
                 P.outputDirectory = RegisteredOutputPath;
-                P.outputExtension = ".fit";
+                P.outputExtension = "." + getCorrectExtension(files[i]);
                 P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
                 P.onError = StarAlignment.prototype.Continue;
                 P.overwriteExistingFiles = Config.OverwriteAllFiles;
@@ -1374,6 +1361,7 @@ function AutoCalibrateEngine() {
 					
 				} else {
 					if (this.progressDialog) { this.progressDialog.updateBar_Error("StarAlignment.executeGlobal() failed", files[i]); }
+                    return false;
 				}
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
@@ -1385,20 +1373,7 @@ function AutoCalibrateEngine() {
 
             if (File.exists(newFiles[i])) {
                 // Добавим в массив файлов информацию о создании регистрируемого файла, что второй раз не делать
-                var fn = "";
-                if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r\.(fit|fits|xisf)$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_cc_b_r\.(fit|fits|xisf)$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_r\.(fit|fits|xisf)$/i)) != null
-                        || (fn = newFiles[i].match(/(.+)\/(.+)_c_b_r\.(fit|fits|xisf)$/i)) != null
-                   ) {
-                    debug("path: " + fn[1], dbgNotice);
-                    debug("matched: " + fn[2], dbgNotice);
-                    debug("file is registered of " + fn[2], dbgNotice);
-
-                    AddFileToArray(FITS.REGISTERED, newFiles[i], fn[2], fn[1]); //type, full name, signature, path
-                } else {
-                    debug("PATTERN NOT FOUND");
-                }
+                checkFileNeedCalibratation_and_PopulateArray(newFiles[i]);
             } else {
                 return false;
             }
@@ -1430,7 +1405,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1479,11 +1454,10 @@ function AutoCalibrateEngine() {
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileName + ' already exists, skipping normalization');
+                Console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
             } else {
                 // Search for reference file
-                if (!fileData)
-                    var fileData = getFileHeaderData(files[i]); // Get FITS HEADER data if not got earlier
+                var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
                 if (!fileData) {
                     console.criticalln("Can't get File Header for Normalization for " + fileName + "!");
                     return false;
@@ -1569,11 +1543,12 @@ function AutoCalibrateEngine() {
 				P.referenceIsView = false;
 				P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_GlobalExecutionOnly;
 				P.outputDirectory = NormalizedOutputPath;
-				P.outputExtension = ".fit";
+				P.outputExtension = "." + getCorrectExtension(files[i]);
 				P.outputPrefix = "";
 				P.outputPostfix = "_n";
 
                 var status = P.executeGlobal();
+                if (!status || !File.exists(newFiles[i])) return false;
                 this.ProcessesCompleted++;
                 this.NormalizedCount++;
 
@@ -1584,16 +1559,7 @@ function AutoCalibrateEngine() {
             }
 
             // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
-            var fn = "";
-            if ((fn = newFiles[i].match(/(.+)\/(.+)_c_cc_r_n\.(fit|fits|xisf)$/i)) != null) {
-                debug("path: " + fn[1], dbgNotice);
-                debug("matched: " + fn[2], dbgNotice);
-                debug("file is normalized of " + fn[2], dbgNotice);
-
-                AddFileToArray(FITS.NORMALIZED, newFiles[i], fn[2], fn[1]); //type, full name, signature, path
-            } else {
-                debug("PATTERN NOT FOUND");
-            }
+            checkFileNeedCalibratation_and_PopulateArray(newFiles[i]);
         }
 
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && this.NeedToCopyToFinalDirFlag) {
@@ -1601,7 +1567,7 @@ function AutoCalibrateEngine() {
             this.NeedToCopyToFinalDirFlag = false; //Normalization is final
         }
 
-        return false;
+        return newFiles;
     }
 
     /************************************************************************************************************
@@ -1623,7 +1589,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1637,7 +1603,8 @@ function AutoCalibrateEngine() {
 
         // Start registration for all files
         for (var i = 0; i < files.length; i++) {
-			this.approveFileList.push(files[i]);
+			if (this.approveFileList.indexOf(files[i]) < 0)
+                this.approveFileList.push(files[i]);
 			debug("Added to approve list <b>" + files[i] + "</b>", dbgNormal);
 		}
 		return true;
@@ -1658,7 +1625,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1811,7 +1778,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1844,7 +1811,7 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -1918,131 +1885,187 @@ function AutoCalibrateEngine() {
 		return status;
     }
 
-    /************************************************************************************************************
-     * Debayer files
-     *
-     * WARNING Не тестировал работоспособность; не менял под конфигуратор, процедура осталась в оригинале
-     *
+    /**
+     * Get a FILEARRAY signature, retaining the Debayer RGB/R/G/B marker.
+     * @param {String} file Image path with an optional processing suffix.
+     * @return {String} Basename without extension or processing suffix.
      */
-    function debayerSplitFit(file) {
-        //return file; // @todo
-
-        if (!file.cfa) {
-            Console.writeln("File is not CFA, skipping debayering");
-            return [file];
-        } else {
-            //ЗАГЛУШКА!!!
-            Console.criticalln("File is CFA, but debayering wasn't tested, sorry!");
-            return [file];
-        }
-
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
-
-        console.writeln('start to debayer fit: ' + file.dst);
-
-        var P = new Debayer;
-
-        switch (file.filter) {
-        case 'RGGB':
-            P.bayerPattern = Debayer.prototype.RGGB;
-            break;
-
-        case 'BGGR':
-            P.bayerPattern = Debayer.prototype.BGGR;
-            break;
-
-        case 'GBRG':
-            P.bayerPattern = Debayer.prototype.GBRG;
-            break;
-
-        case 'GRBG':
-            P.bayerPattern = Debayer.prototype.GRBG;
-            break;
-
-        default:
-            return false;
-        }
-
-        P.debayerMethod = Debayer.prototype.VNG;
-        P.evaluateNoise = false;
-        P.noiseEvaluationAlgorithm = Debayer.prototype.NoiseEvaluation_MRS;
-        P.showImages = true;
-
-        var inputImageWindow = ImageWindow.open(
-                Config.OutputPath + '/' + file.object + '/' + file.filter + '/cc/' + file.dst + '_c_cc.fit');
-        var sourceView = inputImageWindow[0].mainView;
-
-        var status = P.executeOn(sourceView);
-
-        inputImageWindow[0].close();
-
-        var resultView = View.viewById(P.outputImage);
-
-        // / debayer
-
-
-        // splitRGB
-
-        if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/R/cc'))
-            File.createDirectory(Config.OutputPath + '/' + file.object + '/R/cc', true);
-        if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/G/cc'))
-            File.createDirectory(Config.OutputPath + '/' + file.object + '/G/cc', true);
-        if (!File.directoryExists(Config.OutputPath + '/' + file.object + '/B/cc'))
-            File.createDirectory(Config.OutputPath + '/' + file.object + '/B/cc', true);
-
-        var imgW = resultView.image.width;
-        var imgH = resultView.image.height;
-
-        var red = new ImageWindow(imgW, imgH, 1, 16, false, false, "");
-        var green = new ImageWindow(imgW, imgH, 1, 16, false, false, "");
-        var blue = new ImageWindow(imgW, imgH, 1, 16, false, false, "");
-
-        resultView.image.selectedChannel = 0;
-        red.mainView.beginProcess(UndoFlag_NoSwapFile);
-        red.mainView.image.assign(resultView.image);
-        red.mainView.endProcess();
-        red.saveAs(
-            Config.OutputPath + '/' + file.object + '/R/cc/debayer_' + file.dst + '_R_c_cc.fit', false, false, false, false);
-
-        resultView.image.selectedChannel = 1;
-        green.mainView.beginProcess(UndoFlag_NoSwapFile);
-        green.mainView.image.assign(resultView.image);
-        green.mainView.endProcess();
-        green.saveAs(
-            Config.OutputPath + '/' + file.object + '/G/cc/debayer_' + file.dst + '_G_c_cc.fit', false, false, false, false);
-
-        resultView.image.selectedChannel = 2;
-        blue.mainView.beginProcess(UndoFlag_NoSwapFile);
-        blue.mainView.image.assign(resultView.image);
-        blue.mainView.endProcess();
-        blue.saveAs(
-            Config.OutputPath + '/' + file.object + '/B/cc/debayer_' + file.dst + '_B_c_cc.fit', false, false, false, false);
-
-        //   resultView.window.saveAs(
-        //      Config.OutputPath +'/'+ file.object +'/'+ file.filter +'/cc/deb_'+ file.dst +'_c_cc.fit'
-        //      , false, false, false, false );
-
-        resultView.window.forceClose();
-
-        return [{
-                object: file.object,
-                filter: 'R',
-                dst: 'debayer_' + file.dst + '_R',
-            }, {
-                object: file.object,
-                filter: 'G',
-                dst: 'debayer_' + file.dst + '_G',
-            }, {
-                object: file.object,
-                filter: 'B',
-                dst: 'debayer_' + file.dst + '_B',
-            }
-        ];
+    function imageSignature(file) {
+        return File.extractName(file).replace(/_c(?:_cc)?(?:_b)?(?:_r)?(?:_n)?(?:_a)?$/i, "");
     }
+
+    /**
+     * Record Debayer or post-registration split in FILEARRAY for source and outputs.
+     * The source stage holds all output paths; each channel record holds its own
+     * one-element array. Later stages use the channel's independent signature.
+     * @param {String} source Input image path.
+     * @param {Array} outputs Successfully saved, reused or passed-through paths.
+     * @param {Boolean} afterRegistration Record SPLIT instead of DEBAYERED.
+     * @return {Array} The same output paths for the next pipeline stage.
+     * Updates FILEARRAY only; does not write image files.
+     */
+    function recordOSCOutputs(source, outputs, afterRegistration) {
+        var stage = afterRegistration ? FITS.SPLIT : FITS.DEBAYERED;
+        AddFileToArray(stage, outputs, imageSignature(source), File.extractDirectory(source));
+        for (var i = 0; i < outputs.length; ++i)
+            if (imageSignature(outputs[i]) != imageSignature(source))
+                AddFileToArray(stage, [outputs[i]], imageSignature(outputs[i]), File.extractDirectory(outputs[i]));
+        return outputs;
+    }
+
+    /**
+     * Run VNG after cosmetic correction, optionally extracting R/G/B channels.
+     * Uses CFA metadata (Auto) or a legacy FILTER Bayer pattern. Non-CFA frames
+     * pass through. Reuses existing outputs according to SkipExistingFiles.
+     * @param {String|Boolean} fileName Input path, or false from a failed stage.
+     * @return {Array|Boolean} Output paths, or false on failure/abort.
+     * Saves XISF files under BaseCalibratedOutputPath/DebayerdFolderName,
+     * preserves sample precision and acquisition metadata, removes CFA metadata,
+     * sets channel FILTER, updates FILEARRAY and closes its image windows.
+     */
+    this.debayerSplitFit = function (fileName) {
+        return convertOSC.call(this, fileName, false);
+    };
+
+    /**
+     * Extract R/G/B after the registration slot for the selected OSC workflow.
+     * With registration disabled, extracts from the preceding enabled stage.
+     * @param {Array|Boolean} files RGB paths, or false from a failed stage.
+     * @return {Array|Boolean} Channel paths, unchanged inputs when disabled, or false.
+     * Saves channels under split/, records FILEARRAY links, closes owned windows.
+     */
+    this.splitRegisteredChannels = function (files) {
+        if (!files || !splitAfterRegistration()) return files;
+        var outputs = [];
+        for (var i = 0; i < files.length; ++i) {
+            var channels = convertOSC.call(this, files[i], true);
+            if (channels === false) return false;
+            outputs = outputs.concat(channels);
+        }
+        return outputs;
+    };
+
+    /**
+     * Convert one OSC frame using this engine's output root and progress dialog.
+     * @param {String|Boolean} fileName Input path or a prior failure.
+     * @param {Boolean} afterRegistration Extract existing RGB instead of Debayer.
+     * @return {Array|Boolean} Saved/reused paths, or false on failure/abort.
+     * Preserves precision and acquisition metadata; removes CFA tags and sets FILTER.
+     * Records completed outputs in FILEARRAY and closes all owned image windows.
+     */
+    function convertOSC(fileName, afterRegistration) {
+        if (!fileName)
+            return false;
+        if (!isDebayerEnabled())
+            return [fileName];
+        if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
+            return false;
+
+        var source = null, result = null, channel = null;
+        try {
+            var data = getFileHeaderData(fileName);
+            if (!data)
+                return false;
+            if (!afterRegistration && !data.cfa)
+                return recordOSCOutputs(fileName, [fileName], afterRegistration);
+            var outputPath = this.BaseCalibratedOutputPath;
+            if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+                outputPath += "/" + (data.object || cfgDefObjectName);
+            outputPath += "/" + (afterRegistration ? (Config.SplitFolderName || "split") : Config.DebayerdFolderName);
+            var name = File.extractName(fileName);
+            var suffix = name.match(/_c(?:_cc)?(?:_b)?(?:_r)?$/);
+            var stem = suffix ? name.substring(0, name.length - suffix[0].length) : name;
+            // _c also supplies a processing suffix for already calibrated input with arbitrary names.
+            suffix = suffix ? suffix[0] : "_c";
+            var extractChannels = afterRegistration || (Config.SplitChannels && !splitAfterRegistration());
+            var channels = extractChannels ? ["R", "G", "B"] : ["RGB"];
+            var outputs = [], allExist = true;
+            for (var i = 0; i < channels.length; ++i) {
+                outputs.push(outputPath + "/" + stem + (afterRegistration ? "_s_" : "_d_") + channels[i] + suffix + ".xisf");
+                allExist = allExist && File.exists(outputs[i]);
+            }
+            if (Config.SkipExistingFiles && allExist)
+                return recordOSCOutputs(fileName, outputs, afterRegistration);
+            if (!File.directoryExists(outputPath))
+                File.createDirectory(outputPath, true);
+            if (this.progressDialog)
+                this.progressDialog.updateBar_NewProcess(afterRegistration ? "Split RGB channels" : "Debayer (VNG)");
+
+            source = ImageWindow.open(fileName)[0];
+            if (!source || source.isNull)
+                throw new Error("Unable to open OSC image: " + fileName);
+            if (afterRegistration) {
+                if (!source.mainView.image.isColor)
+                    return recordOSCOutputs(fileName, [fileName], true);
+                result = source;
+            } else {
+                var process = new Debayer;
+                // Auto honors XISF/FITS CFA metadata, including offsets. FILTER-only
+                // legacy files have no such metadata and need an explicit pattern.
+                process.bayerPattern = data.cfaFromMetadata ? Debayer.prototype.Auto : Debayer.prototype[data.cfaPattern];
+                process.debayerMethod = Debayer.prototype.VNG;
+                process.evaluateNoise = false;
+                process.showImages = false;
+                if (!process.executeOn(source.mainView))
+                    throw new Error("Debayer failed: " + fileName);
+                var view = View.viewById(process.outputImage);
+                if (!view || view.isNull)
+                    throw new Error("Debayer did not produce an RGB image: " + fileName);
+                result = view.window;
+            }
+
+            for (var i = 0; i < channels.length; ++i) {
+                if (Config.SkipExistingFiles && File.exists(outputs[i]))
+                    continue;
+                if (File.exists(outputs[i]) && !Config.OverwriteAllFiles)
+                    throw new Error("Output exists and overwrite is disabled: " + outputs[i]);
+                var output = result;
+                if (extractChannels) {
+                    channel = new ImageWindow(result.mainView.image.width, result.mainView.image.height,
+                        1, result.bitsPerSample, result.isFloatSample, false, "AutoCalibrate_channel");
+                    result.mainView.image.selectedChannel = i;
+                    channel.mainView.beginProcess(UndoFlag_NoSwapFile);
+                    channel.mainView.image.assign(result.mainView.image);
+                    channel.mainView.endProcess();
+                    output = channel;
+                }
+                // Preserve acquisition metadata for reference selection, but never
+                // let a converted image advertise itself as a CFA mosaic.
+                var keywords = source.keywords.filter(function (k) {
+                    return !/^(FILTER|BAYERPAT|XBAYROFF|YBAYROFF|CFA.*)$/i.test(k.name);
+                });
+                keywords.push(new FITSKeyword("FILTER", "'" + channels[i] + "'", "AutoCalibrate output channel"));
+                output.keywords = keywords;
+                var properties = source.mainView.properties;
+                for (var j = 0; j < properties.length; ++j)
+                    if (!/^CFA:/.test(properties[j]))
+                        output.mainView.setPropertyValue(properties[j], source.mainView.propertyValue(properties[j]));
+                if (output.mainView.hasProperty("Instrument:Filter:Name"))
+                    output.mainView.setPropertyValue("Instrument:Filter:Name", channels[i]);
+                var outputProperties = output.mainView.properties;
+                for (var j = 0; j < outputProperties.length; ++j)
+                    if (/^CFA:/.test(outputProperties[j]))
+                        output.mainView.deleteProperty(outputProperties[j]);
+                if (!output.saveAs(outputs[i], false, false, false, false))
+                    throw new Error("Unable to save OSC output: " + outputs[i]);
+                if (channel) {
+                    channel.forceClose();
+                    channel = null;
+                }
+            }
+            ++this.ProcessesCompleted;
+            return recordOSCOutputs(fileName, outputs, afterRegistration);
+        } catch (error) {
+            console.criticalln((afterRegistration ? "Split channels: " : "Debayer: ") + error.message);
+            if (this.progressDialog)
+                this.progressDialog.updateBar_Error(error.message, fileName);
+            return false;
+        } finally {
+            if (channel) channel.forceClose();
+            if (result && result != source) result.forceClose();
+            if (source) source.forceClose();
+        }
+    };
 
     /************************************************************************************************************
      * Биннинг файлов
@@ -2068,7 +2091,7 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || this.progressDialog.abortRequested || this.abortRequested){
+		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
 			console.criticalln("Abort requsted, breaking ...");
 			this.abortRequested = true;
 			return false;
@@ -2259,6 +2282,17 @@ function AutoCalibrateEngine() {
             return false;
         }
 
+        var pattern = image.mainView.hasProperty("CFA:SourcePattern")
+            ? String(image.mainView.propertyValue("CFA:SourcePattern")).toUpperCase() : "";
+        for (var k = 0; k < keywords.length; ++k)
+            if (keywords[k].name == "BAYERPAT" && !pattern)
+                pattern = keywords[k].strippedValue.toUpperCase();
+        var cfaFromMetadata = pattern.length > 0;
+        if (!pattern && /^(RGGB|BGGR|GBRG|GRBG)$/.test(String(headers.FILTER).toUpperCase()))
+            pattern = String(headers.FILTER).toUpperCase();
+        var isCFA = !image.mainView.image.isColor && /^(RGGB|BGGR|GBRG|GRBG)$/.test(pattern);
+        if (!headers.FILTER && isCFA) headers.FILTER = pattern;
+
         if (!headers.FILTER || !headers.OBJECT || !headers.XBINNING) {
             console.criticalln('cant find Filter, Object or Binning');
             return false;
@@ -2307,11 +2341,9 @@ function AutoCalibrateEngine() {
             name: fileName.split('/').reverse()[0], // pix-001.fit
             object: headers.OBJECT, // M106
             filter: filter, // L
-            cfa: !!(
-                (filter == 'RGGB') ||
-                (filter == 'BGGR') ||
-                (filter == 'GBRG') ||
-                (filter == 'GRBG')),
+            cfa: isCFA,
+            cfaPattern: pattern,
+            cfaFromMetadata: cfaFromMetadata,
             temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
             bin:            parseInt(headers.XBINNING), // 1
             scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.265, //

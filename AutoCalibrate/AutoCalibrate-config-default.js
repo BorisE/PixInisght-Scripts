@@ -17,7 +17,9 @@ Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;       //КАКОЙ СПОСО�
 
 Config.NeedCalibration = true;                           // КАЛИБРОВАТЬ?
 Config.NeedCosmeticCorrection = false;                   // КОСМЕТИКА?
-Config.NeedDebayer = false;                             // VNG demosaicing after cosmetic correction
+Config.Workflow = "MONO";                              // MONO, OSC, OSC_CFA_DRIZZLE (reserved); null migrates legacy configs
+Config.OSCSplitStage = "before-registration";          // before-registration or after-registration
+Config.NeedDebayer = true;                             // VNG demosaicing after cosmetic correction
 Config.SplitChannels = false;                           // Continue with separate R, G and B images
 Config.NeedABE = false;                                  // РОВНЯТЬ ФОН ABE?
 Config.NeedRegister = false;                             // ВЫРАВНИВАТЬ ПО ЗВЕЗДАМ?
@@ -59,6 +61,7 @@ Config.UseSecnodPass = true; //Зачем нужен второй проход.
 Config.CalibratedFolderName = 'calibrated';         // без финального "/"  //Подпапка с калиброванными фитами
 Config.CosmetizedFolderName = 'cosmetized';         // без финального "/"  //Подпапка с фитами после косметики
 Config.CosmetizedProcessName = 'Cosmetic';          // Префикс названия процесса косметики
+Config.SplitFolderName = "split";                      // Channels extracted after registration
 Config.DebayerdFolderName = "debayered";            // без финального "/" //Подпапка с фитами после дебайеризации
 Config.ABEFolderName = "dABE";                      // без финального "/" //Подпапка с результатом ABE
 Config.RegisteredFolderName = "registered";         // без финального "/" 	//Подпапка с фитами после выравнивания
@@ -75,7 +78,7 @@ Config.FinalsDirName = "Results";
 //Пропускать каталоги, начинающиеся с ...
 Config.SkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
-Config.SkipDirs = [Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
+Config.SkipDirs = [Config.SplitFolderName, Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
 Config.SkipDirs.push('asteroids', 'bad', 'Bad', 'Aligned'); //User (чувствительно к регистру)
 // Пропустить каталоги, если имя каталога содержит одну из строк
 Config.SkipDirsContains = ['.data', '.pxiproject', '_old', 'Attempt'];
