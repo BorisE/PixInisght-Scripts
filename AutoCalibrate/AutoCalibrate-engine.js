@@ -228,7 +228,7 @@ function AutoCalibrateEngine() {
         var FileCount = 0;
         console.noteln("<end><cbr><br>",
             "************************************************************");
-        Console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits/xisf');
+        console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits/xisf');
         console.noteln("************************************************************");
 
         if (!busy && !this.abortRequested) {
@@ -285,10 +285,10 @@ function AutoCalibrateEngine() {
 
                                     console.noteln("<end><cbr><br>",
                                         "************************************************************");
-                                    Console.noteln('* [' + this.FileTotalCount + ' of ' + this.FilesToProcessNum + ' (' + parseFloat(this.FileTotalCount/this.FilesToProcessNum*100).toFixed(1) +'%)] Start file processings: ' + searchPath + '/' + objFileFind.name);
+                                    console.noteln('* [' + this.FileTotalCount + ' of ' + this.FilesToProcessNum + ' (' + parseFloat(this.FileTotalCount/this.FilesToProcessNum*100).toFixed(1) +'%)] Start file processings: ' + searchPath + '/' + objFileFind.name);
                                     progressBar(this.FileTotalCount,this.FilesToProcessNum);
-                                    Console.noteln("  ETA: " + parseFloat(this.T.value/this.FileTotalCount*(this.FilesToProcessNum - this.FileTotalCount) / 60).toFixed(1) + " min, Elapsed: " + this.T.text +" sec");
-                                    Console.noteln("************************************************************");
+                                    console.noteln("  ETA: " + parseFloat(this.T.value/this.FileTotalCount*(this.FilesToProcessNum - this.FileTotalCount) / 60).toFixed(1) + " min, Elapsed: " + this.T.text +" sec");
+                                    console.noteln("************************************************************");
 
                                     this.NeedToCopyToFinalDirFlag = true;
 
@@ -342,7 +342,7 @@ function AutoCalibrateEngine() {
 
         console.noteln("<end><cbr><br>",
             "************************************************************");
-        Console.noteln('* Starting second pass');
+        console.noteln('* Starting second pass');
         console.noteln("************************************************************");
 
         // Print array
@@ -716,7 +716,7 @@ function AutoCalibrateEngine() {
 
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
-            Console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping calibration');
+            console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping calibration');
         } else {
 
             if (!fileData)
@@ -733,7 +733,7 @@ function AutoCalibrateEngine() {
                         , fileData);
 
             if (!mastersFiles) {
-                Console.warningln("*** Skipping calibration because no matching calibration masters were found ***");
+                console.warningln("*** Skipping calibration because no matching calibration masters were found ***");
 				if (this.progressDialog) { this.progressDialog.updateBar_Error("master calibration file(s) was not found", fileName); }
                 return fileName;
             }
@@ -922,7 +922,7 @@ function AutoCalibrateEngine() {
 
         //Проверить - существует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
-            Console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping cosmetic correction');
+            console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping cosmetic correction');
         } else {
             if (!fileData)
                 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
@@ -1061,7 +1061,7 @@ function AutoCalibrateEngine() {
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileNameOnly + ' already exists, skipping ABE');
+                console.warningln('File ' + newFileNameOnly + ' already exists, skipping ABE');
             } else {
 
                 // Check if folder exists
@@ -1069,14 +1069,14 @@ function AutoCalibrateEngine() {
                     File.createDirectory(ABEOutputPath, true);
 
                 if (files.length > 1)
-                    Console.noteln("Processing ABE " + files[i]);
+                    console.noteln("Processing ABE " + files[i]);
 
                 //Open file
                 ImageWindow.open(files[i]);
                 var w = ImageWindow.openWindows[ImageWindow.openWindows.length - 1];
 
                 if (!w || w.isNull) {
-                    Console.criticalln("Error opening image file: " + files[i]);
+                    console.criticalln("Error opening image file: " + files[i]);
                     return false;
                 }
 
@@ -1237,7 +1237,7 @@ function AutoCalibrateEngine() {
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
+                console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
             } else {
                 // Search for reference file
                 var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
@@ -1249,7 +1249,7 @@ function AutoCalibrateEngine() {
                 // Get reference for Registration
                 var referenceFile = getRegistrationReferenceFile(fileData.object);
                 if (!referenceFile) {
-                    Console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
+                    console.warningln("Reference file was not found for object " + fileData.object + ". Skipping Registration");
 
 
                     //return files; // мне кажется, тут лучше вернуть false. Проверим
@@ -1261,7 +1261,7 @@ function AutoCalibrateEngine() {
                     File.createDirectory(RegisteredOutputPath, true);
 
                 if (files.length > 1)
-                    Console.noteln("Registering " + files[i]);
+                    console.noteln("Registering " + files[i]);
 
                 var existedBeforeRegistration = File.exists(newFiles[i]);
                 if (existedBeforeRegistration && !Config.OverwriteAllFiles) {
@@ -1414,10 +1414,12 @@ function AutoCalibrateEngine() {
     }
 
     /************************************************************************************************************
-     * Нормализация фитов (1-3 в зависимости от был ли чб или цвет)
+     * Normalize registered RGB or individual channels and report failures in the progress dialog.
      *
-     * @param
-     * @return
+     * @param {Array|Boolean} files Registered paths or a failed upstream stage.
+     * @return {Array|Boolean} Confirmed/reused normalized paths, or false on failure/abort.
+     * Records only valid completed outputs; blocks failed inputs from downstream processing.
+     * Removes newly created unconfirmed files to allow a clean second-pass retry.
      * @todo пачку фитов в одном процессе регистрировать
      */
     this.localNormalization = function (files) {
@@ -1440,6 +1442,20 @@ function AutoCalibrateEngine() {
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
+        var engine = this, incompleteOutput = null;
+        /**
+         * Report one failed normalization input to the console and progress dialog.
+         * @param {String} message Failure reason.
+         * @param {String} currentFile Input path shown beside the message.
+         * @return {Boolean} Always false, stopping this pipeline branch.
+         */
+        function normalizationError(message, currentFile) {
+            console.criticalln("LocalNormalization: " + message + ": " + currentFile);
+            if (engine.progressDialog) engine.progressDialog.updateBar_Error("LocalNormalization: " + message, currentFile);
+            return false;
+        }
+
+        try {
 
         // Start normalization
         console.noteln("<end><cbr><br>",
@@ -1455,6 +1471,7 @@ function AutoCalibrateEngine() {
         NormalizedOutputPath = this.BaseCalibratedOutputPath;
         if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
             var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+            if (!fileData) return normalizationError("Unable to read image header", file);
             fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
             NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
         }
@@ -1463,6 +1480,11 @@ function AutoCalibrateEngine() {
         // Start normalization for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
+            file = files[i];
+            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
+                this.abortRequested = true;
+                return false;
+            }
 
             // return new file name
             var FileNameOnly = File.extractName(files[i]);
@@ -1474,30 +1496,26 @@ function AutoCalibrateEngine() {
             if (FileNameOnly === newFileNameOnly)
                 var newFileNameOnly = FileNameOnly.replace(/_c_b_r$/, '_c_b_r_n'); //if no CC and ABE was run before
             if (FileNameOnly === newFileNameOnly) {
-                console.criticalln("files seems not to be registered, skipping Normalization");
-                return false;
+                return normalizationError("Input is not registered (_r suffix missing)", files[i]);
             }
             newFiles[i] = NormalizedOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
+                console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
             } else {
                 // Search for reference file
                 var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
                 if (!fileData) {
-                    console.criticalln("Can't get File Header for Normalization for " + fileName + "!");
-                    return false;
+                    return normalizationError("Unable to read image header", files[i]);
                 }
 
                 // Get reference for Normalization
                 var normalizationFilter = fileData.isColor ? "RGB" : fileData.filter;
                 var referenceFile = getNormalizationReferenceFile(fileData.object, normalizationFilter, fileData.exposure);
                 if (!referenceFile) {
-                    Console.errorln("Reference file was not found for object <b>" + fileData.object + "</b>, filter <b>" + normalizationFilter + "</b>" + (Config.StrictNormalization ? " and exposure <b>" + fileData.exposure + "s</b>" : "") + ". Skipping LocalNormalization");
-
-
-                    return files;
+                    return normalizationError("Reference not found for object " + fileData.object + ", filter " + normalizationFilter +
+                        (Config.StrictNormalization ? ", exposure " + fileData.exposure + "s" : ""), files[i]);
                 }
 
                 // Check if folder exists
@@ -1505,7 +1523,7 @@ function AutoCalibrateEngine() {
                     File.createDirectory(NormalizedOutputPath, true);
 
                 if (files.length > 1)
-                    Console.noteln("Normalization of " + files[i]);
+                    console.noteln("Normalization of " + files[i]);
 
 				var P = new LocalNormalization; // Shared parameters; scale evaluation is selected in the UI.
 				P.globalLocationNormalization = false;
@@ -1576,8 +1594,24 @@ function AutoCalibrateEngine() {
 				P.outputPrefix = "";
 				P.outputPostfix = "_n";
 
+                var outputExistedBefore = File.exists(newFiles[i]);
+                if (outputExistedBefore && !Config.OverwriteAllFiles)
+                    return normalizationError("Output exists and overwrite is disabled: " + newFiles[i], files[i]);
+                incompleteOutput = outputExistedBefore ? null : newFiles[i];
                 var status = P.executeGlobal();
-                if (!status || !File.exists(newFiles[i])) return false;
+                if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
+                    this.abortRequested = true;
+                    return false;
+                }
+                if (!status) return normalizationError("Process execution failed", files[i]);
+                var output = P.outputData;
+                if (!output || output.length != 1 || !output[0][1])
+                    return normalizationError("Process did not report a normalized image", files[i]);
+                if (!output[0][5]) return normalizationError("Process reported an invalid normalization result", files[i]);
+                var reportedFile = String(output[0][1]).replace(/\\/g, "/").toLowerCase();
+                if (reportedFile != newFiles[i].replace(/\\/g, "/").toLowerCase() || !File.exists(newFiles[i]))
+                    return normalizationError("Expected normalized image was not created: " + newFiles[i], files[i]);
+                incompleteOutput = null;
                 this.ProcessesCompleted++;
                 this.NormalizedCount++;
 
@@ -1594,7 +1628,24 @@ function AutoCalibrateEngine() {
 
 
         return newFiles;
+        } catch (error) {
+            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
+                this.abortRequested = true;
+                return false;
+            }
+            return normalizationError(error.message || String(error), file);
+        } finally {
+            // A new unconfirmed output must not be reused as successful on the second pass.
+            if (incompleteOutput && File.exists(incompleteOutput)) {
+                try {
+                    File.remove(incompleteOutput);
+                } catch (cleanupError) {
+                    console.warningln("Unable to remove incomplete normalization output: " + incompleteOutput + ": " + cleanupError.message);
+                }
+            }
+        }
     }
+
 
     /************************************************************************************************************
      * Сохранить файл в список для последующей обработки SubframeSelector
@@ -2231,21 +2282,21 @@ function AutoCalibrateEngine() {
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                Console.warningln('File ' + newFileName + ' already exists, skipping Binning');
+                console.warningln('File ' + newFileName + ' already exists, skipping Binning');
             } else {
                 // Check if folder exists
                 if (!File.directoryExists(BinnedOutputPath))
                     File.createDirectory(BinnedOutputPath, true);
 
                 if (files.length > 1)
-                    Console.noteln("Binning " + files[i]);
+                    console.noteln("Binning " + files[i]);
 
                 //Open file
                 ImageWindow.open(files[i]);
                 var w = ImageWindow.openWindows[ImageWindow.openWindows.length - 1];
 
                 if (!w || w.isNull) {
-                    Console.criticalln("Error opening image file: " + files[i]);
+                    console.criticalln("Error opening image file: " + files[i]);
                     return false;
                 }
 

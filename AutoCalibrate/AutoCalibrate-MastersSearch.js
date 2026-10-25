@@ -86,7 +86,7 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 				}
 			}
 		}
-		Console.warningln("No matching master " + label + "; this calibration component is disabled.");
+		console.warningln("No matching master " + label + "; this calibration component is disabled.");
 		return "";
 	}
 
@@ -99,9 +99,9 @@ function matchMasterCalibrationFiles (pathMasterLib, fileData) {
 	if (!masters.masterbias && !masters.masterdark && !masters.masterflat)
 		return false;
 
-	Console.writeln("Master bias: " + (masters.masterbias || "disabled"));
-	Console.writeln("Master dark: " + (masters.masterdark || "disabled"));
-	Console.writeln("Master flat: " + (masters.masterflat || "disabled"));
+	console.writeln("Master bias: " + (masters.masterbias || "disabled"));
+	console.writeln("Master dark: " + (masters.masterdark || "disabled"));
+	console.writeln("Master flat: " + (masters.masterflat || "disabled"));
 	return masters;
 }
 
@@ -160,7 +160,7 @@ function SearchSuitabeFileByTemperature (pathMasterLib, targetTemp) {
 	debug("Nearest temperature found for a given image (" + targetTemp + "deg) is <b>" + nearest_temp + "deg</font></b> (difference = " + mindiff + ", matching folder = <b>" + templib_dirname_nearest + "</b>)", dbgNotice);
 	CosmeticsIconTemperature = nearest_temp;
 	if (nearest_temp == 100) {
-		Console.criticalln("Matching temperature wasn't found! Check dark library folder names and availability for given CCD-TEMP: " + targetTemp + "deg");
+		console.criticalln("Matching temperature wasn't found! Check dark library folder names and availability for given CCD-TEMP: " + targetTemp + "deg");
 		return false;
 	}
 	
@@ -242,7 +242,7 @@ function SearchSuitabeFileByDate (pathMasterLib, targetDate, strictlyBefore=true
 	}
 	debug("Suitable date pack for target date [<b>" + targetDate + "</b>] is <b>[" + datepacklist_date_nearest + "]</b> (differenceInt = " + mindiff + ", folder = " + datepacklist_dirname_nearest + (strictlyBefore? ", stricly before FITS date" : "") + ")",dbgNotice);
 	if (datepacklist_date_nearest == 0) {
-		Console.criticalln("Matching datepack wasn't found! Check library folder names and availability for given date: " + targetDate + "");
+		console.criticalln("Matching datepack wasn't found! Check library folder names and availability for given date: " + targetDate + "");
 		return false;
 	}
 	
@@ -294,7 +294,7 @@ function SearchForBIAS (pathMasterLib, fileData) {
 
 	
 	if (bias_file_name.length == 0) {
-		Console.criticalln("Matching bias wasn't found in <b>" + pathMasterLib + "</b>");
+		console.criticalln("Matching bias wasn't found in <b>" + pathMasterLib + "</b>");
 		return false;
 	}
 	debug("Suitable bias was found <b>" + bias_file_name + "</b>", dbgNormal);
@@ -380,7 +380,7 @@ function SearchForDARK (pathMasterLib, fileData) {
 	debug("Nearest dark exposure for FITS's eposure " + fileData.duration + "s is " + nearest_exposure + "s (difference = " + mindiff + ", file = " + darkexplib_filename_nearest + ")",dbgNotice);
 	
 	if (nearest_exposure == 0) {
-		Console.criticalln("Matching dark frame exposure wasn't found! Check folder with temperature for masterdark availability for exposure: " + fileData.duration + "s");
+		console.criticalln("Matching dark frame exposure wasn't found! Check folder with temperature for masterdark availability for exposure: " + fileData.duration + "s");
 		return false;
 
 	}
@@ -454,7 +454,7 @@ function SearchForFLAT (pathMasterLib, fileData) {
 	debug("Matching filter is " + filtername + " (file = " + filterfilename + ")",dbgNotice);
 	flat_file_name = filterfilename;
 	if (flat_file_name == "") {
-		Console.criticalln("Matching flat frames for FITS filter wasn't found! Check masterflats availability for given filter: " + fileData.filter + "");
+		console.criticalln("Matching flat frames for FITS filter wasn't found! Check masterflats availability for given filter: " + fileData.filter + "");
 		return false;
 	}
 
@@ -542,7 +542,7 @@ function getNormalizationReferenceFile(objectname, filtername, exposure) {
 					} else {
 						var normalizationreference_file_pattern = new RegExp('^' + objectname + '_.*_' + filtername + '.*', 'i'); // +? non-greedy modifier;
 					}
-					//Console.writeln(normalizationreference_file_pattern);
+					//console.writeln(normalizationreference_file_pattern);
 					var matches = objFileFind.name.match(normalizationreference_file_pattern);
 					if (matches) {
 						referenceFile = objFileFind.name;

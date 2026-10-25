@@ -101,7 +101,7 @@ function main() {
                 console.show();
                 processEvents();
 
-                Console.writeln('InputPath: ' + Config.InputPath);
+                console.writeln('InputPath: ' + Config.InputPath);
 
 				AutocalibrationProgressDialog.prototype = new Dialog;
 				ProcessBar = new AutocalibrationProgressDialog();
