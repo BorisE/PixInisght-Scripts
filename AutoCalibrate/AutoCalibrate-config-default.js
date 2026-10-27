@@ -112,6 +112,11 @@ Config.OutputFormatIC = ImageCalibration.prototype.i16; //default - .f32, .i16
 //Config.OutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
 
+// Integration: UI preferences only; execution is not implemented yet.
+Config.NeedIntegration = false;
+Config.IntegrationSigmaLow = 4.0;
+Config.IntegrationSigmaHigh = 3.0;
+
 // Параметры для Local Normalization
 Config.NormalizationUsePSF = true; // true: PSF Signal; false: Multiscale Analysis
 Config.NormalizationScale = 256;

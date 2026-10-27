@@ -28,6 +28,7 @@
  #include <pjsr/FocusStyle.jsh>
  #include <pjsr/TextAlign.jsh>
  #include <pjsr/SectionBar.jsh>
+ #include <pjsr/NumericControl.jsh>
 
 // Global switches
  #ifndef DEBUG
@@ -604,7 +605,6 @@ function AutocalibrationDialog() {
         //add( this.normScale_Edit );
         add(this.normScale_SpinBox);
         add(this.normScale_Label);
-        addStretch();
     }
 
     //
@@ -620,13 +620,9 @@ function AutocalibrationDialog() {
         };
     }
 
-    this.normNoScaleFlag_Sizer = new HorizontalSizer;
-    with (this.normNoScaleFlag_Sizer) {
-        spacing = 4;
-        addUnscaledSpacing(labelWidth1 + this.logicalPixelsToPhysical(8));
-        add(this.normNoScaleFlag_CheckBox);
-        addStretch();
-    }
+    this.normScale_Sizer.addSpacing(16);
+    this.normScale_Sizer.add(this.normNoScaleFlag_CheckBox, 0, Align_Center);
+    this.normScale_Sizer.addStretch();
 
 
     // 4.5. Subframe selector
@@ -704,7 +700,6 @@ function AutocalibrationDialog() {
 
     this.ProcessGroupBox = new GroupBox(this);
     with (this.ProcessGroupBox) {
-        //title = "Processing";
         sizer = new VerticalSizer;
         sizer.margin = 6;
         sizer.spacing = 4;
@@ -717,7 +712,6 @@ function AutocalibrationDialog() {
         sizer.add(this.ProcessNormalization_Sizer);
         sizer.add(this.normMethod_Sizer);
         sizer.add(this.normScale_Sizer);
-        sizer.add(this.normNoScaleFlag_Sizer);
         sizer.add(this.ProcessSF_Sizer);
         sizer.add(this.outputSize_Sizer);
 
@@ -726,6 +720,76 @@ function AutocalibrationDialog() {
     this.ProcessSection = new SectionBar;
     this.ProcessSection.setTitle("Processing");
     this.ProcessSection.setSection(this.ProcessGroupBox);
+
+    // Integration is a separate stage; this revision configures its UI only.
+    Config.normalizeIntegrationSettings();
+    this.IntegrationGroupBox = new GroupBox(this);
+    this.IntegrationGroupBox.sizer = new VerticalSizer;
+    this.IntegrationGroupBox.sizer.margin = 6;
+    this.IntegrationGroupBox.sizer.spacing = 4;
+
+    this.IntegrationEnable_CheckBox = new CheckBox(this);
+    this.IntegrationEnable_CheckBox.text = "Enable Integration";
+    this.IntegrationEnable_CheckBox.checked = Config.NeedIntegration;
+    this.IntegrationEnable_CheckBox.toolTip = "<p>Save the preference for the Integration stage. ImageIntegration execution is not connected yet.</p>";
+    this.IntegrationEnable_CheckBox.onClick = function (checked) {
+        Config.NeedIntegration = checked;
+        this.dialog.IntegrationOptions_Control.enabled = checked;
+    };
+    this.IntegrationEnable_Sizer = new HorizontalSizer;
+    this.IntegrationEnable_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.IntegrationEnable_Sizer.add(this.IntegrationEnable_CheckBox);
+    this.IntegrationEnable_Sizer.addStretch();
+    this.IntegrationGroupBox.sizer.add(this.IntegrationEnable_Sizer);
+
+    this.IntegrationOptions_Control = new Control(this);
+    this.IntegrationOptions_Control.sizer = new HorizontalSizer;
+    this.IntegrationOptions_Control.sizer.spacing = 4;
+    this.IntegrationOptions_Control.sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+
+    /**
+     * Append a sigma threshold to the shared Integration row.
+     * @param {Dialog} dialog Owner of the controls.
+     * @param {String} key Configuration field storing the threshold.
+     * @param {String} title Visible label.
+     * @return {undefined} Appends a numeric control; the first field aligns with Processing.
+     */
+    function addIntegrationSigma(dialog, key, title) {
+        var numeric = new NumericEdit(dialog.IntegrationOptions_Control);
+        numeric.label.text = title;
+        if (key == "IntegrationSigmaLow") numeric.label.minWidth = labelWidth1;
+        numeric.setReal(true);
+        numeric.setRange(0, 10);
+        numeric.setPrecision(2);
+        numeric.setValue(Config[key]);
+        numeric.edit.setFixedWidth(dialog.font.width("0000.00"));
+        numeric.toolTip = "<p>Clipping threshold for sigma-based rejection algorithms. Used only when the selected algorithm supports sigma clipping.</p>";
+        numeric.onValueUpdated = function (value) {
+            Config[key] = value;
+        };
+        dialog[key + "_NumericEdit"] = numeric;
+        dialog.IntegrationOptions_Control.sizer.add(numeric, 0, Align_Center);
+    }
+
+    addIntegrationSigma(this, "IntegrationSigmaLow", "Sigma low:");
+    this.IntegrationOptions_Control.sizer.addSpacing(16);
+    addIntegrationSigma(this, "IntegrationSigmaHigh", "Sigma high:");
+    this.IntegrationOptions_Control.sizer.addStretch();
+    this.IntegrationOptions_Control.enabled = Config.NeedIntegration;
+    this.IntegrationGroupBox.sizer.add(this.IntegrationOptions_Control);
+
+    this.IntegrationSection = new SectionBar;
+    this.IntegrationSection.setTitle("Integration");
+    this.IntegrationSection.setSection(this.IntegrationGroupBox);
+    // Keep each heading attached to its contents, with spacing only between sections.
+    this.ProcessingSection_Sizer = new VerticalSizer;
+    this.ProcessingSection_Sizer.spacing = 0;
+    this.ProcessingSection_Sizer.add(this.ProcessSection);
+    this.ProcessingSection_Sizer.add(this.ProcessGroupBox);
+    this.IntegrationSection_Sizer = new VerticalSizer;
+    this.IntegrationSection_Sizer.spacing = 0;
+    this.IntegrationSection_Sizer.add(this.IntegrationSection);
+    this.IntegrationSection_Sizer.add(this.IntegrationGroupBox);
 
     // == DIALOG total build ==
 
@@ -775,8 +839,8 @@ function AutocalibrationDialog() {
         add(this.OptionsGroupBox);
         add(this.Workflow_GroupBox);
 
-        add(this.ProcessSection);
-        add(this.ProcessGroupBox);
+        add(this.ProcessingSection_Sizer);
+        add(this.IntegrationSection_Sizer);
 
         //add(this.clearConsoleCheckBox_Sizer);
         addSpacing(10);

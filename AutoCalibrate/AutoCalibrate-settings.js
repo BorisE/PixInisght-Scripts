@@ -27,6 +27,9 @@ function ConfigData() {
     this.SplitChannels = false;
     this.RegistrationRetryMode2 = true;
     this.NormalizationUsePSF = true;
+    this.NeedIntegration = false;
+    this.IntegrationSigmaLow = 4.0;
+    this.IntegrationSigmaHigh = 3.0;
     //temp
     this.outputExtension = "fits";
     this.outputHints = "";
@@ -44,6 +47,18 @@ function ConfigData() {
         if (this.Workflow == null) this.Workflow = this.NeedDebayer ? "OSC" : "MONO";
         if (this.Workflow != "OSC" && this.Workflow != "OSC_CFA_DRIZZLE") this.Workflow = "MONO";
         if (this.OSCSplitStage != "after-registration") this.OSCSplitStage = "before-registration";
+    };
+
+    /**
+     * Validate the stored Integration sigma thresholds.
+     * Takes no arguments; replaces invalid thresholds with the UI defaults.
+     * @return {undefined} Updates this configuration object only.
+     */
+    this.normalizeIntegrationSettings = function () {
+        if (typeof this.IntegrationSigmaLow != "number" || !isFinite(this.IntegrationSigmaLow) ||
+            this.IntegrationSigmaLow < 0 || this.IntegrationSigmaLow > 10) this.IntegrationSigmaLow = 4.0;
+        if (typeof this.IntegrationSigmaHigh != "number" || !isFinite(this.IntegrationSigmaHigh) ||
+            this.IntegrationSigmaHigh < 0 || this.IntegrationSigmaHigh > 10) this.IntegrationSigmaHigh = 3.0;
     };
 
     //Helper functions
@@ -118,6 +133,16 @@ function ConfigData() {
         if ((o = load("NormalizationNoScaleFlag", DataType_Boolean)) != null)
             this.NormalizationNoScaleFlag = o;
 
+        if ((o = load("NeedIntegration", DataType_Boolean)) != null)
+            this.NeedIntegration = o;
+        if ((o = load("IntegrationSigmaLow", DataType_Double)) != null)
+            this.IntegrationSigmaLow = o;
+
+        if ((o = load("IntegrationSigmaHigh", DataType_Double)) != null)
+            this.IntegrationSigmaHigh = o;
+
+        this.normalizeIntegrationSettings();
+
         if ((o = load("OutputFileSize", DataType_Int16)) != null)
             this.OutputFormatIC = o;
 
@@ -159,6 +184,11 @@ function ConfigData() {
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
 
+        this.normalizeIntegrationSettings();
+        save("NeedIntegration", DataType_Boolean, this.NeedIntegration);
+
+        save("IntegrationSigmaLow", DataType_Double, this.IntegrationSigmaLow);
+        save("IntegrationSigmaHigh", DataType_Double, this.IntegrationSigmaHigh);
         save("OutputFileSize", DataType_Int16, this.OutputFormatIC);
 
         if (DEBUG) {
@@ -200,6 +230,11 @@ function ConfigData() {
         Parameters.set("NormalizationScale",            this.NormalizationScale);
         Parameters.set("NormalizationNoScaleFlag",      this.NormalizationNoScaleFlag);
 
+        this.normalizeIntegrationSettings();
+        Parameters.set("NeedIntegration", this.NeedIntegration);
+
+        Parameters.set("IntegrationSigmaLow", this.IntegrationSigmaLow);
+        Parameters.set("IntegrationSigmaHigh", this.IntegrationSigmaHigh);
         Parameters.set("OutputFileSize",                this.OutputFormatIC);
 
         if (DEBUG) {
@@ -261,6 +296,16 @@ function ConfigData() {
         if (Parameters.has("NormalizationNoScaleFlag"))
             this.NormalizationNoScaleFlag = Parameters.getBoolean("NormalizationNoScaleFlag");
 
+        if (Parameters.has("NeedIntegration"))
+            this.NeedIntegration = Parameters.getBoolean("NeedIntegration");
+        if (Parameters.has("IntegrationSigmaLow"))
+            this.IntegrationSigmaLow = Parameters.getReal("IntegrationSigmaLow");
+
+        if (Parameters.has("IntegrationSigmaHigh"))
+            this.IntegrationSigmaHigh = Parameters.getReal("IntegrationSigmaHigh");
+
+        this.normalizeIntegrationSettings();
+
         if (Parameters.has("OutputFileSize"))
             this.OutputFormatIC = Parameters.getInteger("OutputFileSize");
 
@@ -296,6 +341,10 @@ function ConfigData() {
         console.writeln("NormalizationScale:             " + this.NormalizationScale);
         console.writeln("NormalizationNoScaleFlag:       " + this.NormalizationNoScaleFlag);
 
+        console.writeln("NeedIntegration: " + this.NeedIntegration);
+
+        console.writeln("IntegrationSigmaLow: " + this.IntegrationSigmaLow);
+        console.writeln("IntegrationSigmaHigh: " + this.IntegrationSigmaHigh);
         console.writeln("OutputFileSize:                 " + this.OutputFormatIC);
         
     }
