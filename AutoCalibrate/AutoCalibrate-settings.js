@@ -28,6 +28,7 @@ function ConfigData() {
     this.RegistrationRetryMode2 = true;
     this.NormalizationUsePSF = true;
     this.NeedIntegration = false;
+    this.IntegrationWeightMode = "psf-signal";
     this.IntegrationSigmaLow = 4.0;
     this.IntegrationSigmaHigh = 3.0;
     //temp
@@ -50,11 +51,13 @@ function ConfigData() {
     };
 
     /**
-     * Validate the stored Integration sigma thresholds.
+     * Validate the stored Integration weighting choices and sigma thresholds.
      * Takes no arguments; replaces invalid thresholds with the UI defaults.
      * @return {undefined} Updates this configuration object only.
      */
     this.normalizeIntegrationSettings = function () {
+        if (["psf-signal", "noise-evaluation", "fits-keyword"].indexOf(this.IntegrationWeightMode) < 0)
+            this.IntegrationWeightMode = "psf-signal";
         if (typeof this.IntegrationSigmaLow != "number" || !isFinite(this.IntegrationSigmaLow) ||
             this.IntegrationSigmaLow < 0 || this.IntegrationSigmaLow > 10) this.IntegrationSigmaLow = 4.0;
         if (typeof this.IntegrationSigmaHigh != "number" || !isFinite(this.IntegrationSigmaHigh) ||
@@ -135,6 +138,8 @@ function ConfigData() {
 
         if ((o = load("NeedIntegration", DataType_Boolean)) != null)
             this.NeedIntegration = o;
+        if ((o = load("IntegrationWeightMode", DataType_String)) != null)
+            this.IntegrationWeightMode = o;
         if ((o = load("IntegrationSigmaLow", DataType_Double)) != null)
             this.IntegrationSigmaLow = o;
 
@@ -187,6 +192,7 @@ function ConfigData() {
         this.normalizeIntegrationSettings();
         save("NeedIntegration", DataType_Boolean, this.NeedIntegration);
 
+        save("IntegrationWeightMode", DataType_String, this.IntegrationWeightMode);
         save("IntegrationSigmaLow", DataType_Double, this.IntegrationSigmaLow);
         save("IntegrationSigmaHigh", DataType_Double, this.IntegrationSigmaHigh);
         save("OutputFileSize", DataType_Int16, this.OutputFormatIC);
@@ -233,6 +239,7 @@ function ConfigData() {
         this.normalizeIntegrationSettings();
         Parameters.set("NeedIntegration", this.NeedIntegration);
 
+        Parameters.set("IntegrationWeightMode", this.IntegrationWeightMode);
         Parameters.set("IntegrationSigmaLow", this.IntegrationSigmaLow);
         Parameters.set("IntegrationSigmaHigh", this.IntegrationSigmaHigh);
         Parameters.set("OutputFileSize",                this.OutputFormatIC);
@@ -298,6 +305,8 @@ function ConfigData() {
 
         if (Parameters.has("NeedIntegration"))
             this.NeedIntegration = Parameters.getBoolean("NeedIntegration");
+        if (Parameters.has("IntegrationWeightMode"))
+            this.IntegrationWeightMode = Parameters.getString("IntegrationWeightMode");
         if (Parameters.has("IntegrationSigmaLow"))
             this.IntegrationSigmaLow = Parameters.getReal("IntegrationSigmaLow");
 
@@ -343,6 +352,7 @@ function ConfigData() {
 
         console.writeln("NeedIntegration: " + this.NeedIntegration);
 
+        console.writeln("IntegrationWeightMode: " + this.IntegrationWeightMode);
         console.writeln("IntegrationSigmaLow: " + this.IntegrationSigmaLow);
         console.writeln("IntegrationSigmaHigh: " + this.IntegrationSigmaHigh);
         console.writeln("OutputFileSize:                 " + this.OutputFormatIC);

@@ -112,8 +112,10 @@ Config.OutputFormatIC = ImageCalibration.prototype.i16; //default - .f32, .i16
 //Config.OutputFormatIC = ImageCalibration.prototype.i16; //reduce size
 
 
-// Integration: UI preferences only; execution is not implemented yet.
+// Integration: Average, configurable weights, additive scaling; automatic rejection.
 Config.NeedIntegration = false;
+Config.IntegrationWeightMode = "psf-signal"; // psf-signal, noise-evaluation, fits-keyword
+Config.IntegrationWeightKeyword = "SSWEIGHT"; // Config only, not Settings/instance parameters; used in fits-keyword mode
 Config.IntegrationSigmaLow = 4.0;
 Config.IntegrationSigmaHigh = 3.0;
 

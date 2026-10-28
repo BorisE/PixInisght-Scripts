@@ -721,7 +721,7 @@ function AutocalibrationDialog() {
     this.ProcessSection.setTitle("Processing");
     this.ProcessSection.setSection(this.ProcessGroupBox);
 
-    // Integration is a separate stage; this revision configures its UI only.
+    // Integration consumes the completed frames after Processing.
     Config.normalizeIntegrationSettings();
     this.IntegrationGroupBox = new GroupBox(this);
     this.IntegrationGroupBox.sizer = new VerticalSizer;
@@ -731,10 +731,10 @@ function AutocalibrationDialog() {
     this.IntegrationEnable_CheckBox = new CheckBox(this);
     this.IntegrationEnable_CheckBox.text = "Enable Integration";
     this.IntegrationEnable_CheckBox.checked = Config.NeedIntegration;
-    this.IntegrationEnable_CheckBox.toolTip = "<p>Save the preference for the Integration stage. ImageIntegration execution is not connected yet.</p>";
+    this.IntegrationEnable_CheckBox.toolTip = "<p>Integrate completed registered frames by object and filter. Uses Average with additive scaling and the selected weights. Rejection: Percentile for 3-5 frames, Winsorized Sigma for 6 or more.</p>";
     this.IntegrationEnable_CheckBox.onClick = function (checked) {
         Config.NeedIntegration = checked;
-        this.dialog.IntegrationOptions_Control.enabled = checked;
+        this.dialog.updateIntegrationControls();
     };
     this.IntegrationEnable_Sizer = new HorizontalSizer;
     this.IntegrationEnable_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
@@ -776,7 +776,40 @@ function AutocalibrationDialog() {
     addIntegrationSigma(this, "IntegrationSigmaHigh", "Sigma high:");
     this.IntegrationOptions_Control.sizer.addStretch();
     this.IntegrationOptions_Control.enabled = Config.NeedIntegration;
+    this.IntegrationWeights_Control = new Control(this);
+    this.IntegrationWeights_Control.sizer = new HorizontalSizer;
+    this.IntegrationWeights_Control.sizer.spacing = 4;
+    this.IntegrationWeights_Control.sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.IntegrationWeights_Label = new Label(this.IntegrationWeights_Control);
+    this.IntegrationWeights_Label.text = "Weights:";
+    this.IntegrationWeights_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.IntegrationWeights_Label.minWidth = labelWidth1;
+    this.IntegrationWeights_ComboBox = new ComboBox(this.IntegrationWeights_Control);
+    this.IntegrationWeights_ComboBox.addItem("PSF Signal Weight");
+    this.IntegrationWeights_ComboBox.addItem("Noise evaluation");
+    this.IntegrationWeights_ComboBox.addItem("FITS Keyword");
+    this.IntegrationWeights_ComboBox.currentItem = ["psf-signal", "noise-evaluation", "fits-keyword"].indexOf(Config.IntegrationWeightMode);
+    this.IntegrationWeights_ComboBox.toolTip = "<p>PSF Signal Weight uses stellar signal estimates. Noise evaluation uses the native SNR Estimate weighting mode. FITS Keyword reads weights already stored in each input header; its keyword name is configured in AutoCalibrate-config-default.js.</p>";
+    this.IntegrationWeights_ComboBox.onItemSelected = function (index) {
+        Config.IntegrationWeightMode = ["psf-signal", "noise-evaluation", "fits-keyword"][index];
+        this.dialog.updateIntegrationControls();
+    };
+    this.IntegrationWeights_Control.sizer.add(this.IntegrationWeights_Label, 0, Align_Center);
+    this.IntegrationWeights_Control.sizer.add(this.IntegrationWeights_ComboBox, 0, Align_Center);
+    this.IntegrationWeights_Control.sizer.addStretch();
+
+    /**
+     * Synchronize Integration controls with stage activation.
+     * Takes no arguments. Keeps rows visible so toggles do not resize the dialog.
+     * @return {undefined} Updates control availability without changing saved preferences.
+     */
+    this.updateIntegrationControls = function () {
+        this.IntegrationOptions_Control.enabled = Config.NeedIntegration;
+        this.IntegrationWeights_Control.enabled = Config.NeedIntegration;
+    };
+    this.IntegrationGroupBox.sizer.add(this.IntegrationWeights_Control);
     this.IntegrationGroupBox.sizer.add(this.IntegrationOptions_Control);
+    this.updateIntegrationControls();
 
     this.IntegrationSection = new SectionBar;
     this.IntegrationSection.setTitle("Integration");

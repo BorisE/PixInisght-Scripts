@@ -25,7 +25,7 @@ Developed 2019 by Boris Emchenko
  #ifndef AutoCalibrate_camera_headers_js
 	#include "AutoCalibrate-CameraHeaders.js"
  #endif
- 
+
 #include "AutoCalibrate-MastersSearch.js"
 
 #include <pjsr/DataType.jsh>
@@ -51,9 +51,10 @@ function AutoCalibrateEngine() {
     this.RegisteredCount = 0;
 	this.NormalizedCount = 0;
     this.ApprovedCount = 0;
+    this.IntegratedCount = 0;
     this.ABECount = 0;
 	this.BinnedCount = 0;
-    
+
 	this.approveFileList = [];
 	this.NSG_FileList= [];
 
@@ -61,21 +62,52 @@ function AutoCalibrateEngine() {
     this.NeedToCopyToFinalDirFlag = false;
 
     this.CameraHeaders = new ProcessCameraHeaders();
-	
+    var fileHeaderCache = {}; // Successful header reads, scoped to this processing run.
+
 	this.progressDialog = null;
 	this.abortRequested = false;
-    
+
 	// =========================================================
     // 	Начало исполнения
     // =========================================================
+    /**
+     * Check cancellation requested by PixInsight, the progress dialog or the engine.
+     * Once detected, cancellation remains latched for the current engine instance.
+     * Takes no arguments. Does not log an error or add a failed-file status.
+     * @return {Boolean} True when processing must stop.
+     */
+    this.isCancelled = function () {
+        if (console.abortRequested || this.abortRequested ||
+            (this.progressDialog && this.progressDialog.abortRequested))
+            this.abortRequested = true;
+        return this.abortRequested;
+    };
+
+    /**
+     * Report a concise failed/skipped-processing status for a file or object/channel group.
+     * Detailed diagnostics are logged by the caller. Cancellation produces no error status.
+     * @param {String} target Input file path or object/channel group label.
+     * @param {String} message Short status including the processing stage.
+     * @return {undefined} Updates the progress dialog when present; does not alter stage results.
+     */
+    this.reportFailure = function (target, message) {
+        if (this.isCancelled()) return;
+        if (this.progressDialog) this.progressDialog.updateBar_Error(message, target);
+    };
+
     this.Process = function (progressDialog) {
         if (Config.Workflow == "OSC_CFA_DRIZZLE") {
             console.criticalln("OSC CFA Drizzle workflow is not implemented yet. Select MONO or OSC.");
             return false;
         }
         //var T = new ElapsedTime;
-		
+
 		this.progressDialog = progressDialog;
+        if (this.isCancelled()) return false;
+        fileHeaderCache = {};
+        this.approveFileList = []; // Shared final-frame queue for SFS and Integration.
+        this.IntegratedCount = 0;
+        if (Config.SkipDirs.indexOf("Integrated") < 0) Config.SkipDirs.push("Integrated");
 
         console.abortEnabled = true; // allow stop
         console.show();
@@ -98,6 +130,7 @@ function AutoCalibrateEngine() {
         console.noteln('  Normalize Images: ' + Config.NeedNormalization);
         if (Config.NeedNormalization)
             console.noteln('  Normalization Reference path: ' + Config.NormalizationReferencesPath);
+        console.noteln("  Integrate Images: " + Config.NeedIntegration);
         console.writeln();
 
         // Starting processing
@@ -105,7 +138,8 @@ function AutoCalibrateEngine() {
         console.noteln();
 
         // Calc work
-		this.calcWork(Config.InputPath);
+        this.calcWork(Config.InputPath);
+        if (this.isCancelled()) return false;
         console.noteln("Need to process:");
         console.noteln("   directories: " + this.DirsToProcessNum);
         console.noteln("   files: " + this.FilesToProcessNum);
@@ -125,8 +159,8 @@ function AutoCalibrateEngine() {
         * Также является 1ым проходом перед поиском недостающих файлов в цепочке калибровки (если включено)
         * **************************************************************************************************************/
         this.searchDirectory(Config.InputPath);
-		
-		if (this.abortRequested) return false;
+
+		if (this.isCancelled()) return false;
 
         //Finish 1st pass
         console.noteln("<end><cbr><br>",
@@ -166,12 +200,15 @@ function AutoCalibrateEngine() {
 
         }
         // Final consumers include files completed during the second pass.
-        if (this.abortRequested) return false;
+        if (this.isCancelled()) return false;
         this.runSubframeSelector();
+        if (this.isCancelled()) return false;
+        var integrationSucceeded = this.runIntegration();
+        if (this.isCancelled()) return false;
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
             this.MoveMostAdvanced();
         //sleep(10);
-		return true;
+		return integrationSucceeded;
     }
 
     /* **************************************************************************************************************
@@ -184,6 +221,7 @@ function AutoCalibrateEngine() {
      * @return void
      */
     this.calcWork = function (searchPath) {
+        if (this.isCancelled()) return;
         this.DirsToProcessNum++;
         var objFileFind = new FileFind;
 
@@ -213,7 +251,7 @@ function AutoCalibrateEngine() {
                      }
                   }
                 }
-            } while (objFileFind.next());
+            } while (!this.isCancelled() && objFileFind.next());
         };
     };
 
@@ -224,6 +262,7 @@ function AutoCalibrateEngine() {
      * @return object
      */
     this.searchDirectory = function (searchPath) {
+        if (this.isCancelled()) return false;
         this.DirCount++;
         var FileCount = 0;
         console.noteln("<end><cbr><br>",
@@ -231,14 +270,14 @@ function AutoCalibrateEngine() {
         console.noteln('* ' + this.DirCount + ' of ' + this.DirsToProcessNum +'. Searching dir: ' + searchPath + ' for fits/xisf');
         console.noteln("************************************************************");
 
-        if (!busy && !this.abortRequested) {
+        if (!busy && !this.isCancelled()) {
 
             busy = true;
             needRefresh = false;
             var objFileFind = new FileFind;
 
             // Begin search
-            if (objFileFind.begin(searchPath + "/*") && !this.abortRequested) {
+            if (objFileFind.begin(searchPath + "/*") && !this.isCancelled()) {
                 do {
 					// if not upper dir links
                     if (objFileFind.name != "." && objFileFind.name != "..") {
@@ -292,15 +331,7 @@ function AutoCalibrateEngine() {
 
                                     this.NeedToCopyToFinalDirFlag = true;
 
-									if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-										console.criticalln("Abort requsted, breaking ...");
-										this.abortRequested = true;
-										return false;
-									}
-									else 
-									{
-										//console.warningln("this.progressDialog.abortRequested: " + this.progressDialog.abortRequested + ", this.abortRequested: "+this.abortRequested);
-									}
+									if (this.isCancelled()) return false;
 
                                     // Process by the selected workflow using the existing nested pipeline.
                                     this.addFileForApproving(
@@ -313,7 +344,7 @@ function AutoCalibrateEngine() {
                                                                 this.cosmeticFit(
                                                                     this.calibrateFITSFile(searchPath + '/' + objFileFind.name))), false))), true)));
 
-															
+
                                 }
                                 else
                                 {
@@ -322,7 +353,7 @@ function AutoCalibrateEngine() {
                             }
                         }
                     }
-                } while (objFileFind.next() && !this.abortRequested);
+                } while (objFileFind.next() && !this.isCancelled());
             }
 
             busy = false;
@@ -339,6 +370,7 @@ function AutoCalibrateEngine() {
      * @return {undefined} Stops early on abort and sets abortRequested.
      */
     this.ScanArray = function () {
+        if (this.isCancelled()) return;
 
         console.noteln("<end><cbr><br>",
             "************************************************************");
@@ -375,8 +407,7 @@ function AutoCalibrateEngine() {
 
         //Проверим массив на наличие пропущенных звеньев и попробуем создать это звено
         for (var i = 0; i < FILEARRAY.length; i++) {
-            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
-                this.abortRequested = true;
+            if (this.isCancelled()) {
                 return;
             }
 
@@ -538,6 +569,8 @@ function AutoCalibrateEngine() {
      * Перемешение наиболее "верхних" в конвейре файлов из папок
      */
     this.MoveMostAdvanced = function (searchPath) {
+        if (this.isCancelled()) return false;
+        var engine = this;
         print_array(requestToCopy);
 
         requestToCopy.forEach(function (element) {
@@ -549,6 +582,7 @@ function AutoCalibrateEngine() {
             }
 
             for (var i = 0; i < objelement.length; i++) {
+                if (engine.isCancelled()) return;
                 var fileName = objelement[i].toString();
 
                 //Get ObjFolderName
@@ -674,6 +708,7 @@ function AutoCalibrateEngine() {
      * @return string          полное имя файла_c.fit включая путь
      */
     this.calibrateFITSFile = function (fileName) {
+        if (this.isCancelled()) return false;
         if (fileName == false) {
             debug("Skipping Calibration", dbgNormal);
             return false;
@@ -683,19 +718,14 @@ function AutoCalibrateEngine() {
             debug("Calibration is off", dbgNormal);
             return fileName;
         }
-		
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
+
 
         // Start calibration
         console.noteln("<end><cbr><br>",
             "-------------------------------------------------------------");
         console.noteln("| [" + this.FileTotalCount + "] Begin calibration of ", fileName);
         console.noteln("-------------------------------------------------------------");
-		
+
 		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("calibrateFITSFile"); }
 
         //Set calibrated output path
@@ -723,7 +753,7 @@ function AutoCalibrateEngine() {
                 fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
             if (!fileData) {
                 console.criticalln("Can't get File Header for Calibration for " + fileName + "!");
-				if (this.progressDialog) { this.progressDialog.updateBar_Error("Can't get File Header", fileName); }
+				this.reportFailure(fileName, "Can't get File Header");
                 return false;
             }
 
@@ -734,7 +764,7 @@ function AutoCalibrateEngine() {
 
             if (!mastersFiles) {
                 console.warningln("*** Skipping calibration because no matching calibration masters were found ***");
-				if (this.progressDialog) { this.progressDialog.updateBar_Error("master calibration file(s) was not found", fileName); }
+				this.reportFailure(fileName, "master calibration file(s) was not found");
                 return fileName;
             }
 
@@ -830,7 +860,14 @@ function AutoCalibrateEngine() {
 
             //P.writeIcon ("Calibr"); //save currrent process into icon for debug
 
-            var status = P.executeGlobal();
+            var status;
+            try {
+                status = P.executeGlobal();
+            } catch (error) {
+                if (this.isCancelled()) return false;
+                throw error;
+            }
+            if (this.isCancelled()) return false;
 
             console.noteln("<end><cbr><br>",
                 "-------------------------------------------------------------");
@@ -847,8 +884,8 @@ function AutoCalibrateEngine() {
             {
                 console.criticalln(" [" + this.FileTotalCount + "] End of calibration with error");
                 console.noteln("-------------------------------------------------------------");
-				if (this.progressDialog) { this.progressDialog.updateBar_Error("ImageCalibration.executeGlobal() failed", fileName); }
-				
+				this.reportFailure(fileName, "ImageCalibration.executeGlobal() failed");
+
                 return false;
             }
 
@@ -857,7 +894,7 @@ function AutoCalibrateEngine() {
         if (File.exists(newFileName)) {
             // Добавим в массив файлов информацию о создании калибровочного файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) != null) {                
+            if ((fn = newFileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) != null) {
                 debug("path: " + fn[1], dbgNotice);
                 debug("matched: " + fn[2], dbgNotice);
                 debug("file is calibrated of " + fn[2], dbgNotice);
@@ -880,7 +917,8 @@ function AutoCalibrateEngine() {
      * @return string          Полное имя файла_c_cc.fit включая путь
      */
     this.cosmeticFit = function (fileName) {
-        
+        if (this.isCancelled()) return false;
+
         if (fileName == false || !fileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) {
             debug("Skipping Cosmetic Correction for input file: " + fileName, dbgNormal);
             return fileName;
@@ -890,11 +928,6 @@ function AutoCalibrateEngine() {
             return fileName;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
         // Start cosmetic correction
         console.noteln("<end><cbr><br>",
@@ -914,7 +947,7 @@ function AutoCalibrateEngine() {
 
         // return new file name
         var FileNameOnly = File.extractName(fileName);
-        var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_cc');        
+        var newFileNameOnly = FileNameOnly.replace(/_c$/, '_c_cc');
         var newFileName = CosmetizedOutputPath + '/' + newFileNameOnly + '.xisf'         // current Pix version, after Huan have started ignoring .ouputExtension option
         var newFileName_old = CosmetizedOutputPath + '/' + newFileNameOnly + '.fit';     // for compatability, before Huan decided to ignore .ouputExtension option
 
@@ -928,8 +961,8 @@ function AutoCalibrateEngine() {
                 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
             if (!fileData) {
                 console.criticalln("Can't get File Header for Cosmetic Correction for " + fileName + "!");
-				if (this.progressDialog) { this.progressDialog.updateBar_Error("Can't get File Header for Cosmetic Correction", fileName); }
-				
+				this.reportFailure(fileName, "Can't get File Header for Cosmetic Correction");
+
                 return false;
             }
 
@@ -947,8 +980,8 @@ function AutoCalibrateEngine() {
                 console.criticalln("Cosmetic correction process icon: <b>" + ProcessIconName + "</b> not found");
                 console.criticalln("Skipping cosmetic correction");
                 console.criticalln();
-				if (this.progressDialog) { this.progressDialog.updateBar_Error("Cosmetic correction process icon: <b>" + ProcessIconName + "</b> not found", fileName); }
-				
+				this.reportFailure(fileName, "Cosmetic correction process icon: <b>" + ProcessIconName + "</b> not found");
+
                 return fileName;
             }
             if (!(CC instanceof CosmeticCorrection)) {
@@ -956,7 +989,7 @@ function AutoCalibrateEngine() {
                 console.criticalln("The specified icon does not an instance of CosmeticCorrection: <b>" + ProcessIconName + "</b>");
                 console.criticalln("Skipping cosmetic correction");
                 console.criticalln();
-				if (this.progressDialog) { this.progressDialog.updateBar_Error("The specified icon does not an instance of CosmeticCorrection: <b>" + ProcessIconName + "</b>", fileName); }
+				this.reportFailure(fileName, "The specified icon does not an instance of CosmeticCorrection: <b>" + ProcessIconName + "</b>");
                 return fileName;
             }
 
@@ -972,7 +1005,14 @@ function AutoCalibrateEngine() {
             CC.overwrite = Config.OverwriteAllFiles;
             //CC.cfa             = false;
 
-            var status = CC.executeGlobal();
+            var status;
+            try {
+                status = CC.executeGlobal();
+            } catch (error) {
+                if (this.isCancelled()) return false;
+                throw error;
+            }
+            if (this.isCancelled()) return false;
             this.ProcessesCompleted++;
             this.CosmetizedCount++;
 
@@ -985,7 +1025,7 @@ function AutoCalibrateEngine() {
         if (File.exists(newFileName)) {
             // Добавим в массив файлов информацию о создании косметического файла, что второй раз не делал
             var fn = "";
-            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc\.(fit|fits|xisf)$/i)) != null) {                
+            if ((fn = newFileName.match(/(.+)\/(.+)_c_cc\.(fit|fits|xisf)$/i)) != null) {
 
                 //debug("path: " + fn[1], dbgNotice);
                 //debug("matched: " + fn[2], dbgNotice);
@@ -1010,6 +1050,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.ABEprocess = function (files) {
+        if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping ABE processing", dbgNormal);
             return false;
@@ -1020,11 +1061,6 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
@@ -1051,6 +1087,7 @@ function AutoCalibrateEngine() {
         // Start ABE for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
+            if (this.isCancelled()) return false;
             // return new file name
             var FileNameOnly = File.extractName(files[i]);
             var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_b');
@@ -1129,7 +1166,15 @@ function AutoCalibrateEngine() {
 
                 //Запустить
                 with (ABEproc) {
-                    if (!executeOn(w.mainView)) {
+                    var abeSucceeded;
+                    try {
+                        abeSucceeded = executeOn(w.mainView);
+                    } catch (error) {
+                        w.forceClose();
+                        if (this.isCancelled()) return false;
+                        throw error;
+                    }
+                    if (this.isCancelled() || !abeSucceeded) {
                         w.forceClose();
                         return false;
                     }
@@ -1176,6 +1221,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.registerFits = function (files) {
+        if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping Registration", dbgNormal);
             return false;
@@ -1183,17 +1229,8 @@ function AutoCalibrateEngine() {
 
         if (!Config.NeedRegister) {
             debug("Registration is off", dbgNormal);
-
-
-
             return files;
         }
-
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
 
         // Прервый всегда будет "файлом", даже если их много
@@ -1221,6 +1258,7 @@ function AutoCalibrateEngine() {
         // Start registration for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
+            if (this.isCancelled()) return false;
             // return new file name
             var FileNameOnly = File.extractName(files[i]);
             var newFileNameOnly = FileNameOnly.replace(/_c_cc$/, '_c_cc_r');
@@ -1233,7 +1271,7 @@ function AutoCalibrateEngine() {
             if (FileNameOnly === newFileNameOnly) newFileNameOnly = FileNameOnly + '_c_r';
             newFiles[i] = RegisteredOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
 
-            
+
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
@@ -1271,10 +1309,7 @@ function AutoCalibrateEngine() {
                 var registered = false;
                 var maxRegistrationAttempts = Config.RegistrationRetryMode2 ? 2 : 1;
                 for (var attempt = 1; attempt <= maxRegistrationAttempts; ++attempt) {
-                    if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
-                        this.abortRequested = true;
-                        return false;
-                    }
+                    if (this.isCancelled()) return false;
                     console.noteln("StarAlignment mode " + attempt + ": " + files[i]);
                     if (this.progressDialog) this.progressDialog.updateBar_NewProcess("StarAlignment (mode " + attempt + ")");
                     // A fresh instance prevents outputData from an earlier failed attempt being reused.
@@ -1359,8 +1394,10 @@ function AutoCalibrateEngine() {
                     try {
                         status = P.executeGlobal();
                     } catch (error) {
+                        if (this.isCancelled()) return false;
                         console.warningln("StarAlignment mode " + attempt + " failed: " + error.message);
                     }
+                    if (this.isCancelled()) return false;
                     var output = P.outputData;
                     var reportedFile = output && output.length == 1 && output[0][0] ? String(output[0][0]) : "";
                     registered = status && reportedFile.replace(/\\/g, "/").toLowerCase() == newFiles[i].replace(/\\/g, "/").toLowerCase() && File.exists(newFiles[i]);
@@ -1378,10 +1415,7 @@ function AutoCalibrateEngine() {
                             return false;
                         }
                     }
-                    if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
-                        this.abortRequested = true;
-                        return false;
-                    }
+                    if (this.isCancelled()) return false;
                     if (attempt < maxRegistrationAttempts)
                         console.warningln("StarAlignment mode 1 produced no confirmed result; retrying in mode 2: " + files[i]);
                 }
@@ -1389,7 +1423,7 @@ function AutoCalibrateEngine() {
                 if (!registered) {
                     var registrationError = maxRegistrationAttempts == 2 ? "StarAlignment failed in both modes" : "StarAlignment failed in mode 1";
                     console.criticalln(registrationError + ": " + files[i]);
-                    if (this.progressDialog) this.progressDialog.updateBar_Error(registrationError, files[i]);
+                    this.reportFailure(files[i], registrationError);
                     return false;
                 }
                 this.RegisteredCount++;
@@ -1423,6 +1457,7 @@ function AutoCalibrateEngine() {
      * @todo пачку фитов в одном процессе регистрировать
      */
     this.localNormalization = function (files) {
+        if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping Normalization", dbgNormal);
             return false;
@@ -1434,11 +1469,6 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
@@ -1451,7 +1481,7 @@ function AutoCalibrateEngine() {
          */
         function normalizationError(message, currentFile) {
             console.criticalln("LocalNormalization: " + message + ": " + currentFile);
-            if (engine.progressDialog) engine.progressDialog.updateBar_Error("LocalNormalization: " + message, currentFile);
+            engine.reportFailure(currentFile, "LocalNormalization: " + message);
             return false;
         }
 
@@ -1480,11 +1510,8 @@ function AutoCalibrateEngine() {
         // Start normalization for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
+            if (this.isCancelled()) return false;
             file = files[i];
-            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
-                this.abortRequested = true;
-                return false;
-            }
 
             // return new file name
             var FileNameOnly = File.extractName(files[i]);
@@ -1598,11 +1625,14 @@ function AutoCalibrateEngine() {
                 if (outputExistedBefore && !Config.OverwriteAllFiles)
                     return normalizationError("Output exists and overwrite is disabled: " + newFiles[i], files[i]);
                 incompleteOutput = outputExistedBefore ? null : newFiles[i];
-                var status = P.executeGlobal();
-                if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
-                    this.abortRequested = true;
-                    return false;
+                var status;
+                try {
+                    status = P.executeGlobal();
+                } catch (error) {
+                    if (this.isCancelled()) return false;
+                    throw error;
                 }
+                if (this.isCancelled()) return false;
                 if (!status) return normalizationError("Process execution failed", files[i]);
                 var output = P.outputData;
                 if (!output || output.length != 1 || !output[0][1])
@@ -1629,10 +1659,7 @@ function AutoCalibrateEngine() {
 
         return newFiles;
         } catch (error) {
-            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested) {
-                this.abortRequested = true;
-                return false;
-            }
+            if (this.isCancelled()) return false;
             return normalizationError(error.message || String(error), file);
         } finally {
             // A new unconfirmed output must not be reused as successful on the second pass.
@@ -1652,22 +1679,16 @@ function AutoCalibrateEngine() {
      *
      * @param {Array|Boolean} files Completed pipeline outputs or failure.
      * @return {Boolean} True when outputs are accepted; false on failure/abort.
-     * Queues unique final paths for copying and optionally SubframeSelector.
+     * Queues unique final paths for copying and the shared SubframeSelector/Integration consumers.
      */
 
 	this.addFileForApproving = function (files)
 	{
+        if (this.isCancelled()) return false;
 		if (files == false) {
             debug("Skipping approving", dbgNormal);
             return false;
         }
-
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
-
 
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
             for (var f = 0; f < files.length; ++f) {
@@ -1677,20 +1698,20 @@ function AutoCalibrateEngine() {
                 if (!queued) requestToCopy.push([files[f]]);
             }
         }
-        if (!Config.NeedApproving) {
-            debug("Approving is off", dbgNormal);
+        if (!Config.NeedApproving && !Config.NeedIntegration) {
+            debug("SubframeSelector and Integration are off", dbgNormal);
             return true;
         }
 
 
-        // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
-        debug("Need to approve " + files.length + " file(s)", dbgNotice);
+        // Includes all final RGB/channel paths, regardless of which consumer is enabled.
+        debug("Completed frames: " + files.length + " file(s)", dbgNotice);
 
-        var file = files[0];
-
+        //var file = files[0];
 
         // Start registration for all files
         for (var i = 0; i < files.length; i++) {
+            if (this.isCancelled()) return false;
 			if (this.approveFileList.indexOf(files[i]) < 0)
                 this.approveFileList.push(files[i]);
 			debug("Added to approve list <b>" + files[i] + "</b>", dbgNormal);
@@ -1699,33 +1720,301 @@ function AutoCalibrateEngine() {
 	}
 
 
+    /**
+     * Integrate the completed files shared with SubframeSelector, grouped by object/filter.
+     * Uses registered or normalized inputs, Average with selected weights and additive scaling.
+     * Saves a master and both rejection maps per group; continues after a group failure.
+     * @return {Boolean} True when every group succeeded or was reused; false on errors/abort.
+     */
+    this.runIntegration = function () {
+        if (this.isCancelled()) return false;
+        if (!Config.NeedIntegration) return true;
+        var groups = [], seen = {}, outputOwners = {}, mastersToShow = [];
+        var success = true, inputErrors = 0;
+        this.IntegratedCount = 0;
+
+        /** Return a safe filename component; collisions are checked before processing groups. */
+        function pathComponent(value) {
+            var result = value.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/[. ]+$/g, "_");
+            if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(result)) result = "_" + result;
+            return result || "_";
+        }
+
+        if (this.isCancelled()) return false;
+        console.noteln("<end><cbr><br>",
+            "-------------------------------------------------------------");
+        console.noteln("| Begin grouping files for Integration (total " + this.approveFileList.length + ")");
+        console.noteln("-------------------------------------------------------------");
+        if (!this.approveFileList.length) {
+            success = false;
+            console.criticalln("Integration: " + "No completed frames to integrate" + " [" + Config.InputPath + "]");
+            this.reportFailure("Integration", "Integration failed: " + "no completed frames");
+            return false;
+        }
+        // Relative per-file processing modes still collect masters under the input root.
+        var base = Config.InputPath.replace(/\\/g, "/").replace(/\/+$/, "");
+        if (Config.PathMode == PATHMODE.ABSOLUTE) base = Config.OutputPath;
+        else if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER ||
+                 Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) base += "/" + Config.OutputPath;
+        base = base.replace(/\\/g, "/").replace(/\/+$/, "");
+
+        if (this.progressDialog) this.progressDialog.updateBar_NewProcess("Integration: grouping");
+        for (var f = 0; f < this.approveFileList.length; ++f) {
+            if (this.isCancelled()) return false;
+            var file = this.approveFileList[f];
+            var fileKey = "$" + file.replace(/\\/g, "/").toLowerCase();
+            if (seen[fileKey]) continue;
+            seen[fileKey] = true;
+            try {
+                /* Проверки, а есть ли файл */
+                if (!File.exists(file)) throw new Error("Input file does not exist");
+                if (!/_r(?:_n)?$/i.test(File.extractName(file)))
+                    throw new Error("Expected a registered (_r) or normalized (_r_n) frame");
+
+                var data = getFileHeaderData(file, true);
+
+                /* Проверки данных */
+                if (!data) throw new Error("Unable to read input metadata");
+                if (!data.object) throw new Error("OBJECT is missing");
+                if (!data.isColor && (data.cfa || data.cfaFromMetadata))
+                    throw new Error("CFA input must be debayered before integration");
+                if (data.numberOfChannels != (data.isColor ? 3 : 1))
+                    throw new Error("Only monochrome and RGB images without alpha channels are supported");
+                if (data.isColor) data.filter = "RGB";
+                else if (!data.filter) throw new Error("FILTER is missing for a monochrome frame");
+
+
+                var key = JSON.stringify([data.object.toUpperCase(), data.filter, data.isColor]);
+                var group = null;
+                for (var g = 0; g < groups.length; ++g) if (groups[g].key == key) { group = groups[g]; break; }
+                if (!group) {
+                    group = {key: key, data: data, files: [], invalid: false};
+                    group.directory = base + "/Integrated";
+                    var stem = group.directory + "/" + pathComponent(data.object) + "_" + pathComponent(data.filter);
+                    group.outputs = [stem + "_rejection_low.xisf", stem + "_rejection_high.xisf", stem + "_master.xisf"];
+                    var outputKey = "$" + stem.toLowerCase();
+                    if (outputOwners[outputKey]) {
+                        group.invalid = outputOwners[outputKey].invalid = true;
+                        group.failureReason = outputOwners[outputKey].failureReason = "output name collision";
+                        success = false;
+                        console.criticalln("Integration: " + "Different groups resolve to the same output name" + " [" + stem + "]");
+                    } else outputOwners[outputKey] = group;
+                    groups.push(group);
+                }
+                if (data.width != group.data.width || data.height != group.data.height) {
+                    group.invalid = true;
+                    group.failureReason = "incompatible image dimensions";
+                    success = false;
+                    console.criticalln("Integration: " + "Incompatible image dimensions in object/filter group" + " [" + file + "]");
+                }
+                group.files.push(file);
+            } catch (error) {
+                if (this.isCancelled()) return false;
+                ++inputErrors;
+                success = false;
+                console.criticalln("Integration: " + error.message + " [" + file + "]");
+            }
+        }
+        if (inputErrors) this.reportFailure("Integration", "Integration failed: " + inputErrors + " input frame(s) could not be prepared; see console");
+
+        console.noteln("Grouping complete: " + groups.length + " object/filter group(s), " + inputErrors + " input error(s)");
+        console.noteln("<end><cbr><br>",
+            "-------------------------------------------------------------");
+        console.noteln("| Begin ImageIntegration (total " + groups.length + " groups)");
+        console.noteln("-------------------------------------------------------------");
+        if (this.progressDialog) this.progressDialog.initBar(Config.InputPath, groups.length);
+        for (var g = 0; g < groups.length; ++g) {
+            if (this.isCancelled()) return false;
+            var group = groups[g], label = group.data.object + " / " + group.data.filter;
+            console.noteln("<end><cbr><br>",
+                "-------------------------------------------------------------");
+            console.noteln("| [" + (g + 1) + "/" + groups.length + "] ImageIntegration: " + label + " (" + group.files.length + " frames)");
+            console.noteln("-------------------------------------------------------------");
+            var process = null;
+            var failureReason = "unable to prepare output files; see console";
+            if (this.progressDialog) {
+                this.progressDialog.updateBar_NewFile(g + 1, label + " (" + group.files.length + " frames)");
+                this.progressDialog.updateBar_NewProcess("Integration");
+            }
+            if (group.invalid) {
+                this.reportFailure(label, "Integration failed: " + group.failureReason);
+                continue;
+            }
+            if (group.files.length < 3) {
+                success = false;
+                console.criticalln("Integration: " + "At least 3 frames are required; found " + group.files.length + " [" + label + "]");
+                this.reportFailure(label, "Integration failed: " + "at least 3 frames required; found " + group.files.length);
+                continue;
+            }
+            try {
+                var existing = 0;
+                for (var o = 0; o < group.outputs.length; ++o) if (File.exists(group.outputs[o])) ++existing;
+                if (Config.SkipExistingFiles && existing == group.outputs.length) {
+                    console.noteln("Integration: reusing complete output set for " + label);
+                    mastersToShow.push(group.outputs[2]);
+                    continue;
+                }
+                if (existing && !Config.OverwriteAllFiles) throw new Error("Output files already exist and overwriting is disabled");
+                if (!File.directoryExists(group.directory))
+                    File.createDirectory(group.directory, true);
+
+
+                console.noteln("Integration: " + label + ", " + group.files.length + " frames");
+
+                process = new ImageIntegration;
+                var targetImages = [];
+                for (var i = 0; i < group.files.length; ++i) targetImages.push([true, group.files[i], "", ""]);
+                process.images = targetImages;
+                process.combination = ImageIntegration.prototype.Average;
+
+                // how to weight
+                switch (Config.IntegrationWeightMode) {
+                    case "noise-evaluation":
+                        process.weightMode = ImageIntegration.prototype.SNREstimate;
+                        break;
+                    case "fits-keyword":
+                        process.weightMode = ImageIntegration.prototype.KeywordWeight;
+                        process.weightKeyword = Config.IntegrationWeightKeyword.trim();
+                        if (!process.weightKeyword) throw new Error("FITS weight keyword is empty");
+                        break;
+                    default:
+                        process.weightMode = ImageIntegration.prototype.PSFSignalWeight;
+                        break;
+                }
+                process.minWeight = 0; // Weighting only; no automatic frame selection.
+                console.noteln("Weights: " + (Config.IntegrationWeightMode == "fits-keyword" ? "FITS Keyword (" + process.weightKeyword + ")" :
+                    Config.IntegrationWeightMode == "noise-evaluation" ? "Noise evaluation" : "PSF Signal Weight"));
+                
+                // how to normalize (images and rejection)
+                var passedThroughLN = group.files.every(function (file) {
+                    return /_r_n$/i.test(File.extractName(file));
+                });
+                if (passedThroughLN) {
+                    // Separate policy for LN outputs; identical settings for now.
+                    process.normalization = ImageIntegration.prototype.AdditiveWithScaling;
+                    process.rejectionNormalization = ImageIntegration.prototype.Scale;
+                } else {
+                    process.normalization = ImageIntegration.prototype.AdditiveWithScaling;
+                    process.rejectionNormalization = ImageIntegration.prototype.Scale;
+                }
+                console.noteln("Normalization: " + (passedThroughLN ? "Additive with scaling; rejection normalization: Scale + zero offset" : "Additive with scaling; rejection normalization: Scale + zero offset"));
+                
+                //how to reject
+                process.rejection = group.files.length < 6 ? ImageIntegration.prototype.PercentileClip : ImageIntegration.prototype.WinsorizedSigmaClip;
+                process.pcClipLow = 0.20;
+                process.pcClipHigh = 0.10;
+                process.sigmaLow = Config.IntegrationSigmaLow;
+                process.sigmaHigh = Config.IntegrationSigmaHigh;
+                process.winsorizationCutoff = 5.0;
+                process.clipLow = true;         //use rejection from low
+                process.clipHigh = true;        //use rejection from high
+                process.rangeClipLow = true;    //throw out values = 0
+                process.rangeLow = 0;
+                process.rangeClipHigh = false;  //throw out values ~ `
+                process.rangeHigh = 0.980000;
+                process.largeScaleClipLow = false;
+                process.largeScaleClipLowProtectedLayers = 2;
+                process.largeScaleClipLowGrowth = 2;
+                process.largeScaleClipHigh = false;
+                process.largeScaleClipHighProtectedLayers = 2;
+                process.largeScaleClipHighGrowth = 2;
+                
+                console.noteln("using rejection: " + (group.files.length < 6 ? "Percentile clipping (0.20 / 0.10)" :
+                    "Winsorized Sigma (" + Config.IntegrationSigmaLow + " / " + Config.IntegrationSigmaHigh + ")"));
+
+                process.generateIntegratedImage = true;
+                process.generateRejectionMaps = true;
+                process.generateDrizzleData = false;
+                process.generate64BitResult = false;
+                process.subtractPedestals = false;
+                process.truncateOnOutOfRange = false;
+                process.evaluateNoise = false;
+                process.closePreviousImages = false;
+                process.showImages = false;
+                process.noGUIMessages = true;
+                process.useFileThreads = true;
+                process.fileThreadOverload = 1.0;
+                process.autoMemorySize = true;
+                process.autoMemoryLimit = 0.75;
+
+
+                failureReason = "ImageIntegration failed; see console";
+                if (!process.executeGlobal()) throw new Error("ImageIntegration failed");
+                if (this.isCancelled()) return false;
+
+                if (process.numberOfImages != group.files.length) throw new Error("ImageIntegration did not integrate all input frames");
+                failureReason = "unable to save integration outputs; see console";
+                var ids = [process.lowRejectionMapImageId, process.highRejectionMapImageId, process.integrationImageId];
+                for (var o = 0; o < ids.length; ++o) {
+                    var output = ImageWindow.windowById(ids[o]);
+                    if (!output || output.isNull) throw new Error("ImageIntegration output is unavailable: " + ids[o]);
+                    if (o == 2) {
+                        var keywords = output.keywords.filter(function (keyword) { return keyword.name != "OBJECT" && keyword.name != "FILTER"; });
+                        keywords.push(new FITSKeyword("OBJECT", "'" + group.data.object.replace(/'/g, "''") + "'", "Integration object"));
+                        keywords.push(new FITSKeyword("FILTER", "'" + group.data.filter.replace(/'/g, "''") + "'", "Integration filter/channel"));
+                        output.keywords = keywords;
+                    }
+                    if (!output.saveAs(group.outputs[o], false, false, false, false))
+                        throw new Error("Unable to save integration output: " + group.outputs[o]);
+                }
+                if (this.isCancelled()) return false;
+                ++this.IntegratedCount;
+                console.noteln("Integration master saved: " + group.outputs[2]);
+                mastersToShow.push(group.outputs[2]);
+            } catch (error) {
+                if (this.isCancelled()) return false;
+                success = false;
+                console.criticalln("Integration: " + error.message + " [" + label + "]");
+                this.reportFailure(label, "Integration failed: " + failureReason);
+            } finally {
+                // Close only windows reported by this process, including on execution/save failure.
+                if (process) {
+                    var ids = [process.integrationImageId, process.lowRejectionMapImageId, process.highRejectionMapImageId];
+                    for (var o = 0; o < ids.length; ++o) if (ids[o]) {
+                        var output = ImageWindow.windowById(ids[o]);
+                        if (output && !output.isNull) output.forceClose();
+                    }
+                }
+            }
+        }
+        // Open saved files after all groups so windows reference final paths.
+        // Reused masters are shown too; rejection maps remain closed.
+        for (var m = 0; m < mastersToShow.length; ++m) {
+            if (this.isCancelled()) return false;
+            try {
+                var masterWindows = ImageWindow.open(mastersToShow[m]);
+                if (!masterWindows || !masterWindows.length || !masterWindows[0] || masterWindows[0].isNull)
+                    throw new Error("Unable to open saved master");
+                masterWindows[0].show();
+            } catch (error) {
+                console.warningln("Integration: master saved but could not be displayed: " +
+                    mastersToShow[m] + ": " + error.message);
+            }
+        }
+        console.noteln("Integration complete: " + this.IntegratedCount + " new master(s)");
+        return success;
+    };
+
     /************************************************************************************************************
      * Запуск SubframeSelector с сохранением результатов в processIcon
      *
      * @param
      * @return
      */
-    this.runSubframeSelector = function () 
+    this.runSubframeSelector = function ()
 	{
+        if (this.isCancelled()) return false;
 
         if (!Config.NeedApproving) {
             debug("Approving is off", dbgNormal);
             return true;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
-
-
 		if (this.approveFileList.length==0) {
 			console.warningln();
 			console.warningln("Approving: there is no files to measure, exiting ...");
 			return false;
 		}
-		
 
         // Start approving
         console.noteln("<end><cbr><br>",
@@ -1777,7 +2066,7 @@ function AutoCalibrateEngine() {
 		P.fileCache = true;
 		P.nonInteractive = true;
 		P.weightingExpression = Config.SF_WeightingExpression;
-		P.approvalExpression = Config.SF_ApprovedExpression; 
+		P.approvalExpression = Config.SF_ApprovedExpression;
 		P.cameraResolution = SubframeSelector.prototype.Bits16;
 		P.scaleUnit = SubframeSelector.prototype.ArcSeconds;
 		P.dataUnit = SubframeSelector.prototype.Electron;
@@ -1824,7 +2113,14 @@ function AutoCalibrateEngine() {
 		P.maxFileWriteThreads = 0;
 
 		//debug(P.toSource(), dbgNotice);
-		var status = P.executeGlobal();
+		var status;
+		try {
+		    status = P.executeGlobal();
+		} catch (error) {
+		    if (this.isCancelled()) return false;
+		    throw error;
+		}
+		if (this.isCancelled()) return false;
 		debug("SF execute status: " + status, dbgNotice);
 
 		// Get Icon Name based on received file
@@ -1838,9 +2134,9 @@ function AutoCalibrateEngine() {
 		// Save result in text file (just in case not to loose measurement results)
 		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement_source.src", P.toSource());
 		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement_source.src</b> file");
-		
-		
-		// Save result in icon 
+
+
+		// Save result in icon
 		P.writeIcon(iconName);
 		console.noteln("Subframes statistics saved into <b>" + iconName+ "</b> icon");
 
@@ -1856,6 +2152,7 @@ function AutoCalibrateEngine() {
 
 	this.addFileForNSG = function (files)
 	{
+        if (this.isCancelled()) return false;
 		if (files == false) {
             debug("Skipping adding to NSG", dbgNormal);
             return false;
@@ -1866,11 +2163,6 @@ function AutoCalibrateEngine() {
             return true;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
         // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
         debug("Need to approve " + files.length + " file(s)", dbgNotice);
@@ -1879,6 +2171,7 @@ function AutoCalibrateEngine() {
 
         // Start registration for all files
         for (var i = 0; i < files.length; i++) {
+            if (this.isCancelled()) return false;
 			this.NSG_FileList.push(files[i]);
 			debug("Added to NSG list <b>" + files[i] + "</b>", dbgNormal);
 		}
@@ -1891,19 +2184,15 @@ function AutoCalibrateEngine() {
      * @param
      * @return
      */
-    this.runNSG = function (filterName) 
+    this.runNSG = function (filterName)
 	{
+        if (this.isCancelled()) return false;
 
         if (!Config.NeedApproving) {
             debug("NSG is off", dbgNormal);
             return true;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
         // Start approving
         console.noteln("<end><cbr><br>",
@@ -1955,18 +2244,25 @@ function AutoCalibrateEngine() {
                 ["selectedTarget", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200901_Red_300s_1x1_-20degC_0.0degN_000020264_c_cc_r.fit"],
                 filelist
             ];
-        
+
 		//debug(P.toSource(), dbgNotice);
-		var status = P.executeGlobal();
+		var status;
+		try {
+		    status = P.executeGlobal();
+		} catch (error) {
+		    if (this.isCancelled()) return false;
+		    throw error;
+		}
+		if (this.isCancelled()) return false;
 		debug("NGC execute status: " + status, dbgNotice);
 
 		// Get Icon Name based on received file
 		// Save result in text file (just in case not to loose measurement results)
 		writeTextFile (ApprovedOutputPath + "/SubframeSelectorMeasurement.src", P.toSource());
 		debug("Subframes statistics saved into <b>" + ApprovedOutputPath+ "/SubframeSelectorMeasurement.src</b> file");
-		
-		
-		// Save result in icon 
+
+
+		// Save result in icon
 		P.writeIcon(ProcessIconName);
 		console.noteln("NGC Process saved into <b>" + ProcessIconName+ "</b> icon");
 
@@ -2036,9 +2332,8 @@ function AutoCalibrateEngine() {
      * Rejects non-RGB input intended for Split when Debayer cannot convert it.
      */
     this.debayerFit = function (fileName) {
+        if (this.isCancelled()) return false;
         if (!fileName) return false;
-        if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
-            return false;
         if (!isDebayerEnabled() && !isSplitEnabled()) return [fileName];
 
         var stagingPath = null;
@@ -2097,7 +2392,9 @@ function AutoCalibrateEngine() {
             process.outputRGBImages = true;
             process.outputSeparateChannels = false;
             process.overwriteExistingFiles = false;
-            if (!process.executeGlobal()) throw new Error("Debayer failed: " + fileName);
+            var debayerSucceeded = process.executeGlobal();
+            if (this.isCancelled()) return false;
+            if (!debayerSucceeded) throw new Error("Debayer failed: " + fileName);
 
             var outputData = process.outputFileData;
             if (!outputData || outputData.length != 1 || !outputData[0][0])
@@ -2124,9 +2421,10 @@ function AutoCalibrateEngine() {
             ++this.ProcessesCompleted;
             return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
         } catch (error) {
+            if (this.isCancelled()) return false;
             console.criticalln("Debayer: " + error.message);
             if (stagingPath) console.warningln("Debayer staging files retained in: " + stagingPath);
-            if (this.progressDialog) this.progressDialog.updateBar_Error(error.message, fileName);
+            this.reportFailure(fileName, error.message);
             return false;
         }
     };
@@ -2140,11 +2438,12 @@ function AutoCalibrateEngine() {
      * Records PRESPLIT/SPLIT only for complete output sets; closes owned windows.
      */
     this.splitChannels = function (files, afterRegistration) {
+        if (this.isCancelled()) return false;
         if (!files || !isSplitEnabled() || splitAfterRegistration() != afterRegistration) return files;
         var stage = afterRegistration ? FITS.SPLIT : FITS.PRESPLIT;
         var channels = ["R", "G", "B"], outputs = [];
         for (var f = 0; f < files.length; ++f) {
-            if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested)
+            if (this.isCancelled())
                 return false;
             var fileName = files[f], source = null, channel = null;
             try {
@@ -2176,6 +2475,7 @@ function AutoCalibrateEngine() {
                 source = ImageWindow.open(fileName)[0];
                 if (!source || source.isNull) throw new Error("Unable to open RGB image: " + fileName);
                 for (var i = 0; i < channels.length; ++i) {
+                    if (this.isCancelled()) return false;
                     if (Config.SkipExistingFiles && File.exists(channelFiles[i])) continue;
                     if (File.exists(channelFiles[i]) && !Config.OverwriteAllFiles)
                         throw new Error("Output exists and overwrite is disabled: " + channelFiles[i]);
@@ -2188,6 +2488,7 @@ function AutoCalibrateEngine() {
                     copyOSCMetadata(source, channel, channels[i]);
                     if (!channel.saveAs(channelFiles[i], false, false, false, false))
                         throw new Error("Unable to save split channel: " + channelFiles[i]);
+                    if (this.isCancelled()) return false;
                     channel.forceClose();
                     channel = null;
                 }
@@ -2195,8 +2496,9 @@ function AutoCalibrateEngine() {
                 ++this.ProcessesCompleted;
                 outputs = outputs.concat(recordOSCOutputs(fileName, channelFiles, stage));
             } catch (error) {
+                if (this.isCancelled()) return false;
                 console.criticalln("Split channels: " + error.message);
-                if (this.progressDialog) this.progressDialog.updateBar_Error(error.message, fileName);
+                this.reportFailure(fileName, error.message);
                 return false;
             } finally {
                 if (channel) channel.forceClose();
@@ -2214,6 +2516,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.binFits = function (files) {
+        if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping binning", dbgNormal);
             return false;
@@ -2230,11 +2533,6 @@ function AutoCalibrateEngine() {
             return files;
         }
 
-		if (console.abortRequested || (this.progressDialog && this.progressDialog.abortRequested) || this.abortRequested){
-			console.criticalln("Abort requsted, breaking ...");
-			this.abortRequested = true;
-			return false;
-		}
 
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
@@ -2261,6 +2559,7 @@ function AutoCalibrateEngine() {
         // Start registration for all files
         var newFiles = []; //empty array
         for (var i = 0; i < files.length; i++) {
+            if (this.isCancelled()) return false;
 
             // return new file name
             var FileNameOnly = File.extractName(files[i]);
@@ -2314,7 +2613,14 @@ function AutoCalibrateEngine() {
                 //Запустить
 				status = false;
                 with (BINproc) {
-                    status = executeOn(w.mainView);
+                    try {
+                        status = executeOn(w.mainView);
+                    } catch (error) {
+                        w.forceClose();
+                        if (this.isCancelled()) return false;
+                        throw error;
+                    }
+                    if (this.isCancelled()) { w.forceClose(); return false; }
                     //
                     // save
                     //
@@ -2327,9 +2633,9 @@ function AutoCalibrateEngine() {
 
 				if (status) {
 					this.BinnedCount++;
-					
+
 				} else {
-					if (this.progressDialog) { this.progressDialog.updateBar_Error("IntegerResample.executeGlobal() failed", fileName); }
+					this.reportFailure(fileName, "IntegerResample.executeGlobal() failed");
 				}
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
@@ -2362,148 +2668,162 @@ function AutoCalibrateEngine() {
     }
 
 
-    /************************************************************************************************************
-     * Получение данных из заголовка фита
-     *
-     * @param file string
-     * @return object
+    /**
+     * Read acquisition metadata and image geometry through the shared header reader.
+     * Successful reads are cached for Integration; normal processing still reads the current file.
+     * @param {String} fileName Input image path.
+     * @param {Boolean} forIntegration Optional: reuse cached data and omit calibration-only requirements.
+     * Integration validates its own object/filter/channel requirements at the call site.
+     * @return {Object|Boolean} Independent metadata snapshot, or false; owned windows always close.
      */
-    function getFileHeaderData(fileName) {
-
+    function getFileHeaderData(fileName, forIntegration) {
+        var cacheKey = "$" + fileName.replace(/\\/g, "/").toLowerCase();
+        if (forIntegration && fileHeaderCache[cacheKey]) {
+            var cached = {}, entry = fileHeaderCache[cacheKey];
+            for (var key in entry) if (entry.hasOwnProperty(key)) cached[key] = entry[key];
+            return cached;
+        }
         //C:/ASTRO/_z/newton/2016-10-13/53P-Van-Biesbroeck-001-L-bin1-1m.fit
         console.writeln();
         console.note("Getting HeaderData for file: ");
         console.writeln("" + fileName);
         console.writeln();
 
-        try
-        {
-            var image = ImageWindow.open(fileName)[0];
-			var keywords = image.keywords; // this line put here to hangle exception correctly, because the prev line doesn't be catched for some reason (FITS?)
-        }
-        catch ( error )
-        {
-          this.inputImageWindow = null;
-          console.criticalln( "WARNING: Unable to open image file: " + fileName + " (" + error.message + ")." );
-          return false;
-        }
+        var windows = [];
+        try {
+            windows = ImageWindow.open(fileName);
+            if (!windows || windows.length != 1 || !windows[0] || windows[0].isNull)
+                throw new Error("Expected one image in the input file");
+            var image = windows[0], keywords = image.keywords;
+            // Every file is independent: optional or missing headers never inherit earlier values.
+            for (var key in headers) if (headers.hasOwnProperty(key)) headers[key] = null;
+            for (var k in keywords) {
 
-        // OBSERVER is optional: never inherit it from the previously inspected frame.
-        headers.OBSERVER = null;
-        for (var k in keywords) {
-
-            if (typeof headers[keywords[k].name] != 'undefined') {
-				keywords[k].trim();
-                headers[keywords[k].name] = keywords[k].strippedValue;
-                debug('header ' + keywords[k].name + '=' + keywords[k].strippedValue, dbgNotice);
+                if (typeof headers[keywords[k].name] != 'undefined') {
+                    keywords[k].trim();
+                    headers[keywords[k].name] = keywords[k].strippedValue;
+                    debug('header ' + keywords[k].name + '=' + keywords[k].strippedValue, dbgNotice);
+                }
             }
-        }
 
-        var observer = headers.OBSERVER || "";
-        if (headers.OBSERVER) {
-            if (typeof OBSERVER_DICTIONARY[headers.OBSERVER] != 'undefined') {
-                observer = OBSERVER_DICTIONARY[headers.OBSERVER];
+            var observer = headers.OBSERVER || "";
+            if (headers.OBSERVER) {
+                if (typeof OBSERVER_DICTIONARY[headers.OBSERVER] != 'undefined') {
+                    observer = OBSERVER_DICTIONARY[headers.OBSERVER];
+                }
             }
-        }
 
-        if (!headers.TELESCOP) {
-            console.criticalln('Can`t find Telescope');
+            if (!forIntegration && !headers.TELESCOP) {
+                console.criticalln('Can`t find Telescope');
+                return false;
+            }
+
+            if (!forIntegration && (!headers['DATE-OBS'] || !headers.EXPTIME)) {
+                console.criticalln('Can`t find Date or Exposure time');
+                return false;
+            }
+
+            if (!forIntegration && !headers['CCD-TEMP']) {
+                console.criticalln('Can`t find CCD TEMP');
+                return false;
+            }
+
+            var pattern = image.mainView.hasProperty("CFA:SourcePattern")
+                ? String(image.mainView.propertyValue("CFA:SourcePattern")).toUpperCase() : "";
+            for (var k = 0; k < keywords.length; ++k)
+                if (keywords[k].name == "BAYERPAT" && !pattern)
+                    pattern = keywords[k].strippedValue.toUpperCase();
+            var cfaFromMetadata = pattern.length > 0;
+            if (!pattern && /^(RGGB|BGGR|GBRG|GRBG)$/.test(String(headers.FILTER).toUpperCase()))
+                pattern = String(headers.FILTER).toUpperCase();
+            var isColor = image.mainView.image.isColor;
+            var isCFA = !isColor && /^(RGGB|BGGR|GBRG|GRBG)$/.test(pattern);
+            if (!headers.FILTER && isCFA) headers.FILTER = pattern;
+
+
+            if (!forIntegration && (!headers.FILTER || !headers.OBJECT || !headers.XBINNING)) {
+                console.criticalln('cant find Filter, Object or Binning');
+                return false;
+            }
+
+
+            // Возьмем фильтр, заменим его по справочнику и затем переведем в UPCASE
+            headers.FILTER = String(headers.FILTER || "").trim().toUpperCase();
+            if (typeof FILTERS_DICTIONARY[headers.FILTER] != 'undefined') {
+                headers.FILTER = FILTERS_DICTIONARY[headers.FILTER];
+            }
+            var filter = String(headers.FILTER || "").trim().toUpperCase();
+            //debug('Filter name after normalization: '+ headers.FILTER +'',2);
+
+            // Возьмем камеру, заменим его по справочнику
+            var camera = headers.INSTRUME;
+            if (typeof CAMERA_DICTIONARY[headers.INSTRUME] != 'undefined') {
+                camera = CAMERA_DICTIONARY[headers.INSTRUME];
+            }
+
+            // Возьмем телескоп, заменим его по справочнику
+            var telescope = headers.TELESCOP;
+            if (typeof TELESCOP_DICTIONARY[headers.TELESCOP] != 'undefined') {
+                telescope = TELESCOP_DICTIONARY[headers.TELESCOP];
+            }
+
+            // Integrated cameras such as Seestar may omit INSTRUME.
+            if (!headers.INSTRUME)
+                camera = telescope;
+
+            // Сохраним геометрию
+            var Width = image.mainView.image.width;
+            var Height = image.mainView.image.height;
+
+
+            var numberOfChannels = image.mainView.image.numberOfChannels;
+            var dateObs = headers["DATE-OBS"] || "";
+
+            // @todo date midnight / midday
+            // @todo utc
+            var data = {
+                filename: fileName,         // original file name
+                observer: observer,         // could be "" (as for Seestar, eg)
+                instrument: telescope,      // was Vitar/MakF10 or (for me) just SW250
+                camera: camera , // ArtemisHSC
+                date: dateObs.substr(0, "2017-01-01".length), // 2016-10-13
+                time: dateObs.substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
+                name: fileName.split('/').reverse()[0], // pix-001.fit
+                object: String(headers.OBJECT || "").trim(), // M106
+                filter: filter, // L
+                isColor: isColor,
+                numberOfChannels: numberOfChannels,
+                cfa: isCFA,
+                cfaPattern: pattern,
+                cfaFromMetadata: cfaFromMetadata,
+                temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
+                bin:            parseInt(headers.XBINNING), // 1
+                scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.265, //
+                focallen:       parseFloat(headers['FOCALLEN']), // 1368
+                width :			Width,
+                height:			Height,
+                qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
+                ReadOutMode:    headers.READOUTM,
+                Gain:           headers.GAIN,
+                EGain:          ( headers.EGAIN ? parseFloat(headers.EGAIN) : 1.000 ),
+                Offset:         headers.OFFSET,
+                Overscan:       headers.QOVERSCN,
+                Preset:         headers.QPRESET,
+                USBLimit:       headers.USBLIMIT,
+                duration:       parseInt(headers.EXPTIME), // 1800
+                exposure:       parseInt(headers.EXPTIME) // dublicate for convinience
+            };
+            var snapshot = {};
+            for (var key in data) if (data.hasOwnProperty(key)) snapshot[key] = data[key];
+            fileHeaderCache[cacheKey] = snapshot;
+            return data;
+        } catch (error) {
+            console.criticalln("Unable to read image metadata: " + fileName + ": " + error.message);
             return false;
+        } finally {
+            for (var w = 0; windows && w < windows.length; ++w)
+                if (windows[w] && !windows[w].isNull) windows[w].forceClose();
         }
-
-        if (!headers['DATE-OBS'] || !headers.EXPTIME) {
-            console.criticalln('Can`t find Date or Exposure time');
-            return false;
-        }
-
-        if (!headers['CCD-TEMP']) {
-            console.criticalln('Can`t find CCD TEMP');
-            return false;
-        }
-
-        var pattern = image.mainView.hasProperty("CFA:SourcePattern")
-            ? String(image.mainView.propertyValue("CFA:SourcePattern")).toUpperCase() : "";
-        for (var k = 0; k < keywords.length; ++k)
-            if (keywords[k].name == "BAYERPAT" && !pattern)
-                pattern = keywords[k].strippedValue.toUpperCase();
-        var cfaFromMetadata = pattern.length > 0;
-        if (!pattern && /^(RGGB|BGGR|GBRG|GRBG)$/.test(String(headers.FILTER).toUpperCase()))
-            pattern = String(headers.FILTER).toUpperCase();
-        var isColor = image.mainView.image.isColor;
-        var isCFA = !isColor && /^(RGGB|BGGR|GBRG|GRBG)$/.test(pattern);
-        if (!headers.FILTER && isCFA) headers.FILTER = pattern;
-
-
-        if (!headers.FILTER || !headers.OBJECT || !headers.XBINNING) {
-            console.criticalln('cant find Filter, Object or Binning');
-            return false;
-        }
-
-
-        // Возьмем фильтр, заменим его по справочнику и затем переведем в UPCASE
-        headers.FILTER = String.toUpperCase(headers.FILTER);
-        if (typeof FILTERS_DICTIONARY[headers.FILTER] != 'undefined') {
-            headers.FILTER = FILTERS_DICTIONARY[headers.FILTER];
-        }
-        var filter = String.toUpperCase(headers.FILTER);
-        //debug('Filter name after normalization: '+ headers.FILTER +'',2);
-
-        // Возьмем камеру, заменим его по справочнику
-        var camera = headers.INSTRUME;
-        if (typeof CAMERA_DICTIONARY[headers.INSTRUME] != 'undefined') {
-            camera = CAMERA_DICTIONARY[headers.INSTRUME];
-        }
-
-        // Возьмем телескоп, заменим его по справочнику
-        var telescope = headers.TELESCOP;
-        if (typeof TELESCOP_DICTIONARY[headers.TELESCOP] != 'undefined') {
-            telescope = TELESCOP_DICTIONARY[headers.TELESCOP];
-        }
-
-        // Integrated cameras such as Seestar may omit INSTRUME.
-        if (!headers.INSTRUME)
-            camera = telescope;
-
-		// Сохраним геометрию
-		var Width = image.mainView.image.width;
-		var Height = image.mainView.image.height;
-
-
-        image.close();
-
-        // @todo date midnight / midday
-        // @todo utc
-        return {
-            filename: fileName,         // original file name
-            observer: observer,         // could be "" (as for Seestar, eg)
-			instrument: telescope,      // was Vitar/MakF10 or (for me) just SW250
-            camera: camera , // ArtemisHSC
-            date: headers['DATE-OBS'].substr(0, "2017-01-01".length), // 2016-10-13
-            time: headers['DATE-OBS'].substr("2017-01-01T".length, "00:00".length).replace(':', '_'), // 23_15
-            name: fileName.split('/').reverse()[0], // pix-001.fit
-            object: headers.OBJECT, // M106
-            filter: filter, // L
-            isColor: isColor,
-            cfa: isCFA,
-            cfaPattern: pattern,
-            cfaFromMetadata: cfaFromMetadata,
-            temp:           parseInt(headers['CCD-TEMP']), // 28 вместо 28.28131291
-            bin:            parseInt(headers.XBINNING), // 1
-            scale:          parseFloat(headers['XPIXSZ']) / parseFloat(headers['FOCALLEN']) * 206.265, //
-            focallen:       parseFloat(headers['FOCALLEN']), // 1368
-			width :			Width,
-			height:			Height,
-            qhy:            (headers.GAIN && headers.READOUTM && headers.OFFSET), // true or false
-            ReadOutMode:    headers.READOUTM,
-            Gain:           headers.GAIN,
-            EGain:          ( headers.EGAIN ? parseFloat(headers.EGAIN) : 1.000 ),
-            Offset:         headers.OFFSET,
-            Overscan:       headers.QOVERSCN,
-            Preset:         headers.QPRESET,
-            USBLimit:       headers.USBLIMIT,
-            duration:       parseInt(headers.EXPTIME), // 1800
-            exposure:       parseInt(headers.EXPTIME) // dublicate for convinience
-        };
     }
 
 } //end of class
