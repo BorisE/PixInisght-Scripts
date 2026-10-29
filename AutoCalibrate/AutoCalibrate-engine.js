@@ -56,6 +56,7 @@ function AutoCalibrateEngine() {
 	this.BinnedCount = 0;
 
 	this.approveFileList = [];
+    this.integrationFallbackFiles = []; // Registered inputs retained after LN failure; Integration only.
 	this.NSG_FileList= [];
 
     this.BaseCalibratedOutputPath = ""; //base path
@@ -106,6 +107,7 @@ function AutoCalibrateEngine() {
         if (this.isCancelled()) return false;
         fileHeaderCache = {};
         this.approveFileList = []; // Shared final-frame queue for SFS and Integration.
+        this.integrationFallbackFiles = [];
         this.IntegratedCount = 0;
         if (Config.SkipDirs.indexOf("Integrated") < 0) Config.SkipDirs.push("Integrated");
 
@@ -444,6 +446,30 @@ function AutoCalibrateEngine() {
                         (property == "abed" || property == "registered" || property == "split" || property == "normalized")) continue;
                     if (splitAfterRegistration() && property == "normalized" &&
                         record.split && imageSignature(record.split[0]) != record.fits) continue;
+                    if (property == "normalized" && Config.NeedNormalization && Config.NormalizationGenerateData && FILEARRAY[i].normalized) {
+                        var normalizationFiles = getNormalizationFiles(FILEARRAY[i].normalized);
+                        if (!File.exists(normalizationFiles.data)) {
+                            var normalizationBase = File.extractDrive(FILEARRAY[i].normalized) + File.extractDirectory(FILEARRAY[i].normalized);
+                            normalizationBase = normalizationBase.substring(0, normalizationBase.lastIndexOf("/"));
+                            if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
+                                normalizationBase = normalizationBase.substring(0, normalizationBase.lastIndexOf("/"));
+                            this.BaseCalibratedOutputPath = normalizationBase;
+                            if (!normalizationFiles.image) {
+                                console.criticalln("LocalNormalization: registered source is missing for " + FILEARRAY[i].normalized);
+                                this.reportFailure(FILEARRAY[i].normalized, "LocalNormalization: registered source is missing for XNML generation");
+                                if (Config.NeedIntegration && File.exists(FILEARRAY[i].normalized)) {
+                                    console.warningln("Integration: XNML generation failed; using the existing normalized image with global normalization.");
+                                    this.addFileForApproving([FILEARRAY[i].normalized]);
+                                }
+                                stageFailed = true;
+                                break;
+                            }
+                            if (!this.localNormalization([normalizationFiles.image])) {
+                                stageFailed = true;
+                                break;
+                            }
+                        }
+                    }
                     if (FILEARRAY[i][property] == null) {
                         // Возьмем предыдущий по конвейеру файл
                         var preceding = getFILEARRPrecedingName(property);
@@ -1447,217 +1473,280 @@ function AutoCalibrateEngine() {
         return newFiles;
     }
 
+    /**
+     * Locate the registered source and canonical XNML path for a registered/normalized frame.
+     * Normalized outputs retain their source basename plus _n. FILEARRAY supplies the source
+     * when available; sibling registered/split folders cover ready files from earlier runs.
+     * @param {String} file Registered (_r) or normalized (_r_n) image path.
+     * @return {Object} image is the registered source (or empty if absent); data is its XNML path.
+     */
+    function getNormalizationFiles(file) {
+        var directory = (File.extractDrive(file) + File.extractDirectory(file)).replace(/\\/g, "/");
+        var parent = directory.substring(0, directory.lastIndexOf("/"));
+        var name = File.extractName(file);
+        var normalized = /_r_n$/i.test(name);
+        var sourceName = normalized ? name.replace(/_n$/i, "") : name;
+        var normDirectory = normalized ? directory : parent + "/" + Config.NormilizedFolderName;
+        var source = normalized ? "" : file;
+        if (normalized) {
+            for (var i = 0; i < FILEARRAY.length && !source; ++i) {
+                if (FILEARRAY[i].normalized != file) continue;
+                var candidates = FILEARRAY[i].split || FILEARRAY[i].registered || [];
+                if (!Array.isArray(candidates)) candidates = [candidates];
+                for (var j = 0; j < candidates.length; ++j)
+                    if (File.extractName(candidates[j]) == sourceName && File.exists(candidates[j])) {
+                        source = candidates[j];
+                        break;
+                    }
+            }
+            if (!source) {
+                var extension = File.extractNameAndExtension(file).substring(name.length);
+                var folders = [Config.RegisteredFolderName, Config.SplitFolderName];
+                for (var j = 0; j < folders.length; ++j) {
+                    var candidate = parent + "/" + folders[j] + "/" + sourceName + extension;
+                    if (File.exists(candidate)) { source = candidate; break; }
+                }
+            }
+        }
+        return {image: source, data: normDirectory + "/xnml/" + sourceName + ".xnml"};
+    }
+
     /************************************************************************************************************
      * Normalize registered RGB or individual channels and report failures in the progress dialog.
      *
      * @param {Array|Boolean} files Registered paths or a failed upstream stage.
      * @return {Array|Boolean} Confirmed/reused normalized paths, or false on failure/abort.
-     * Records only valid completed outputs; blocks failed inputs from downstream processing.
+     * Records only valid completed outputs. On LN failure, retains registered inputs for Integration.
      * Removes newly created unconfirmed files to allow a clean second-pass retry.
      * @todo пачку фитов в одном процессе регистрировать
      */
     this.localNormalization = function (files) {
         if (this.isCancelled()) return false;
-        if (files == false) {
+
+        if (!Config.NeedNormalization || files == false) {
             debug("Skipping Normalization", dbgNormal);
             return false;
         }
 
-        if (!Config.NeedNormalization) {
-            debug("Normalization is off", dbgNormal);
-
-            return files;
-        }
-
-
         // Прервый всегда будет "файлом", даже если их много
         var file = files[0];
         var engine = this, incompleteOutput = null;
+        
         /**
          * Report one failed normalization input to the console and progress dialog.
          * @param {String} message Failure reason.
          * @param {String} currentFile Input path shown beside the message.
-         * @return {Boolean} Always false, stopping this pipeline branch.
+         * @return {Boolean} False stops the LN branch; registered inputs are retained separately for Integration.
          */
         function normalizationError(message, currentFile) {
             console.criticalln("LocalNormalization: " + message + ": " + currentFile);
             engine.reportFailure(currentFile, "LocalNormalization: " + message);
+            if (Config.NeedIntegration && !engine.isCancelled()) {
+                for (var i = 0; i < files.length; ++i) {
+                    if (/_r$/i.test(File.extractName(files[i])) && File.exists(files[i]) &&
+                        engine.integrationFallbackFiles.indexOf(files[i]) < 0)
+                        engine.integrationFallbackFiles.push(files[i]);
+                }
+                console.warningln("Integration: LocalNormalization failed; available registered frames will be integrated with global normalization.");
+            }
             return false;
         }
 
         try {
+            // Start normalization
+            console.noteln("<end><cbr><br>",
+                "-------------------------------------------------------------");
+            console.noteln("| [" + this.FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file));
+            console.noteln("-------------------------------------------------------------");
+            if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("localNormalization"); }
 
-        // Start normalization
-        console.noteln("<end><cbr><br>",
-            "-------------------------------------------------------------");
-        console.noteln("| [" + this.FileTotalCount + "] Begin normalization of ", (files.length != 1 ? files.length + " files" : file));
-        console.noteln("-------------------------------------------------------------");
-		if (this.progressDialog) { this.progressDialog.updateBar_NewProcess("localNormalization"); }
+            // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
+            debug("Need to normilize " + files.length + " file(s)", dbgNotice);
 
-        // Если была дебайеризация, то на входе должное быть 3 файла, а не 1!!!
-        debug("Need to normilize " + files.length + " file(s)", dbgNotice);
-
-        // Set normalization folder
-        NormalizedOutputPath = this.BaseCalibratedOutputPath;
-        if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-            var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
-            if (!fileData) return normalizationError("Unable to read image header", file);
-            fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
-            NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
-        }
-        NormalizedOutputPath = NormalizedOutputPath + "/" + Config.NormilizedFolderName;
-
-        // Start normalization for all files
-        var newFiles = []; //empty array
-        for (var i = 0; i < files.length; i++) {
-            if (this.isCancelled()) return false;
-            file = files[i];
-
-            // return new file name
-            var FileNameOnly = File.extractName(files[i]);
-            var newFileNameOnly = FileNameOnly.replace(/_c_cc_r$/, '_c_cc_r_n');
-            if (FileNameOnly === newFileNameOnly)
-                var newFileNameOnly = FileNameOnly.replace(/_c_cc_b_r$/, '_c_cc_b_r_n'); //if ABE was run before
-            if (FileNameOnly === newFileNameOnly)
-                var newFileNameOnly = FileNameOnly.replace(/_c_r$/, '_c_r_n'); //if no CC and no ABE was run before
-            if (FileNameOnly === newFileNameOnly)
-                var newFileNameOnly = FileNameOnly.replace(/_c_b_r$/, '_c_b_r_n'); //if no CC and ABE was run before
-            if (FileNameOnly === newFileNameOnly) {
-                return normalizationError("Input is not registered (_r suffix missing)", files[i]);
+            // Set normalization folder
+            NormalizedOutputPath = this.BaseCalibratedOutputPath;
+            if (Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
+                var fileData = getFileHeaderData(file); // Get FITS HEADER data to know object name
+                if (!fileData) return normalizationError("Unable to read image header", file);
+                fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
+                NormalizedOutputPath = NormalizedOutputPath + "/" + fileData.object;
             }
-            newFiles[i] = NormalizedOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
+            NormalizedOutputPath = NormalizedOutputPath + "/" + Config.NormilizedFolderName;
 
-            //Проверить - существует ли файл и стоит ли перезаписывать его
-            if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
-                console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
-            } else {
-                // Search for reference file
-                var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
-                if (!fileData) {
-                    return normalizationError("Unable to read image header", files[i]);
-                }
-
-                // Get reference for Normalization
-                var normalizationFilter = fileData.isColor ? "RGB" : fileData.filter;
-                var referenceFile = getNormalizationReferenceFile(fileData.object, normalizationFilter, fileData.exposure);
-                if (!referenceFile) {
-                    return normalizationError("Reference not found for object " + fileData.object + ", filter " + normalizationFilter +
-                        (Config.StrictNormalization ? ", exposure " + fileData.exposure + "s" : ""), files[i]);
-                }
-
-                // Check if folder exists
-                if (!File.directoryExists(NormalizedOutputPath))
-                    File.createDirectory(NormalizedOutputPath, true);
-
-                if (files.length > 1)
-                    console.noteln("Normalization of " + files[i]);
-
-				var P = new LocalNormalization; // Shared parameters; scale evaluation is selected in the UI.
-				P.globalLocationNormalization = false;
-				P.localScaleCorrections = false;
-				P.truncate = true;
-				P.backgroundSamplingDelta = 32;
-				P.rejection = true;
-				P.referenceRejection = false;
-				P.lowClippingLevel = 0.000045;
-				P.highClippingLevel = 0.85;
-				P.referenceRejectionThreshold = 3.00;
-				P.targetRejectionThreshold = 3.20;
-				P.hotPixelFilterRadius = 2;
-				P.noiseReductionFilterRadius = 0;
-				P.modelScalingFactor = 8.00;
-				P.scaleEvaluationMethod = Config.NormalizationUsePSF
-                    ? LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal
-                    : LocalNormalization.prototype.ScaleEvaluationMethod_MultiscaleAnalysis;
-                console.noteln("LocalNormalization scale evaluation: " + (Config.NormalizationUsePSF ? "PSF Signal" : "Multiscale Analysis"));
-				P.psfStructureLayers = 5;
-				P.saturationThreshold = 0.75;
-				P.saturationRelative = true;
-				P.rejectionLimit = 0.30;
-				P.psfNoiseLayers = 1;
-				P.psfHotPixelFilterRadius = 1;
-				P.psfNoiseReductionFilterRadius = 0;
-				P.psfMinStructureSize = 0;
-				P.psfMinSNR = 40.00;
-				P.psfAllowClusteredSources = true;
-				P.psfType = LocalNormalization.prototype.PSFType_Auto;
-				P.psfGrowth = 1.00;
-				P.psfMaxStars = 24576;
-				P.inputHints = "";
-				P.outputHints = "";
-				P.generateNormalizationData = false;
-				P.generateInvalidData = false;
-				P.generateHistoryProperties = true;
-				P.showBackgroundModels = false;
-				P.showLocalScaleModels = false;
-				P.showRejectionMaps = false;
-				P.showStructureMaps = false;
-				P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_DontPlot;
-				P.noGUIMessages = true;
-				P.autoMemoryLimit = 0.85;
-				P.overwriteExistingFiles = Config.OverwriteAllFiles;
-				P.onError = LocalNormalization.prototype.OnError_Continue;
-				P.useFileThreads = true;
-				P.fileThreadOverload = 1.20;
-				P.maxFileReadThreads = 0;
-				P.maxFileWriteThreads = 0;
-				P.graphSize = 1024;
-				P.graphTextSize = 12;
-				P.graphTitleSize = 18;
-				P.graphTransparent = false;
-				P.graphOutputDirectory = "";
-
-				//Some overrides
-				P.scale = Config.NormalizationScale;
-				P.noScale = Config.NormalizationNoScaleFlag;
-				P.referencePathOrViewId = referenceFile;
-				P.targetItems = [// enabled, image
-					[true, files[i]]
-				];
-				P.referenceIsView = false;
-				P.generateNormalizedImages = LocalNormalization.prototype.GenerateNormalizedImages_GlobalExecutionOnly;
-				P.outputDirectory = NormalizedOutputPath;
-				P.outputExtension = "." + getCorrectExtension(files[i]);
-				P.outputPrefix = "";
-				P.outputPostfix = "_n";
-
-                var outputExistedBefore = File.exists(newFiles[i]);
-                if (outputExistedBefore && !Config.OverwriteAllFiles)
-                    return normalizationError("Output exists and overwrite is disabled: " + newFiles[i], files[i]);
-                incompleteOutput = outputExistedBefore ? null : newFiles[i];
-                var status;
-                try {
-                    status = P.executeGlobal();
-                } catch (error) {
-                    if (this.isCancelled()) return false;
-                    throw error;
-                }
+            // Start normalization for all files
+            var newFiles = []; //empty array
+            for (var i = 0; i < files.length; i++) {
                 if (this.isCancelled()) return false;
-                if (!status) return normalizationError("Process execution failed", files[i]);
-                var output = P.outputData;
-                if (!output || output.length != 1 || !output[0][1])
-                    return normalizationError("Process did not report a normalized image", files[i]);
-                if (!output[0][5]) return normalizationError("Process reported an invalid normalization result", files[i]);
-                var reportedFile = String(output[0][1]).replace(/\\/g, "/").toLowerCase();
-                if (reportedFile != newFiles[i].replace(/\\/g, "/").toLowerCase() || !File.exists(newFiles[i]))
-                    return normalizationError("Expected normalized image was not created: " + newFiles[i], files[i]);
-                incompleteOutput = null;
-                this.ProcessesCompleted++;
-                this.NormalizedCount++;
+                file = files[i];
 
-                console.noteln("<end><cbr><br>",
-                    "-------------------------------------------------------------");
-                console.noteln(" [" + this.FileTotalCount + "] End of normalization ");
-                console.noteln("-------------------------------------------------------------");
+                // return new file name
+                var FileNameOnly = File.extractName(files[i]);
+                var newFileNameOnly = FileNameOnly.replace(/_c_cc_r$/, '_c_cc_r_n');
+                if (FileNameOnly === newFileNameOnly)
+                    var newFileNameOnly = FileNameOnly.replace(/_c_cc_b_r$/, '_c_cc_b_r_n'); //if ABE was run before
+                if (FileNameOnly === newFileNameOnly)
+                    var newFileNameOnly = FileNameOnly.replace(/_c_r$/, '_c_r_n'); //if no CC and no ABE was run before
+                if (FileNameOnly === newFileNameOnly)
+                    var newFileNameOnly = FileNameOnly.replace(/_c_b_r$/, '_c_b_r_n'); //if no CC and ABE was run before
+                if (FileNameOnly === newFileNameOnly) {
+                    return normalizationError("Input is not registered (_r suffix missing)", files[i]);
+                }
+                newFiles[i] = NormalizedOutputPath + '/' + newFileNameOnly + '.' + getCorrectExtension(files[i]);
+
+                var normalizationDataPath = NormalizedOutputPath + "/xnml/" + FileNameOnly + ".xnml";
+                var dataOnly = Config.SkipExistingFiles && File.exists(newFiles[i]);
+                // Reuse only when all requested LN outputs are present.
+                if (dataOnly && (!Config.NormalizationGenerateData || File.exists(normalizationDataPath))) {
+                    console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
+                } else {
+                    // Search for reference file
+                    var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
+                    if (!fileData) {
+                        return normalizationError("Unable to read image header", files[i]);
+                    }
+
+                    // Get reference for Normalization
+                    var normalizationFilter = fileData.isColor ? "RGB" : fileData.filter;
+                    var referenceFile = getNormalizationReferenceFile(fileData.object, normalizationFilter, fileData.exposure);
+                    if (!referenceFile) {
+                        return normalizationError("Reference not found for object " + fileData.object + ", filter " + normalizationFilter +
+                            (Config.StrictNormalization ? ", exposure " + fileData.exposure + "s" : ""), files[i]);
+                    }
+
+                    // Check if folder exists
+                    if (!File.directoryExists(NormalizedOutputPath))
+                        File.createDirectory(NormalizedOutputPath, true);
+
+                    if (files.length > 1)
+                        console.noteln("Normalization of " + files[i]);
+
+                    var P = new LocalNormalization; // Shared parameters; scale evaluation is selected in the UI.
+                    P.globalLocationNormalization = false;
+                    P.localScaleCorrections = false;
+                    P.truncate = true;
+                    P.backgroundSamplingDelta = 32;
+                    P.rejection = true;
+                    P.referenceRejection = false;
+                    P.lowClippingLevel = 0.000045;
+                    P.highClippingLevel = 0.85;
+                    P.referenceRejectionThreshold = 3.00;
+                    P.targetRejectionThreshold = 3.20;
+                    P.hotPixelFilterRadius = 2;
+                    P.noiseReductionFilterRadius = 0;
+                    P.modelScalingFactor = 8.00;
+                    P.scaleEvaluationMethod = Config.NormalizationUsePSF
+                        ? LocalNormalization.prototype.ScaleEvaluationMethod_PSFSignal
+                        : LocalNormalization.prototype.ScaleEvaluationMethod_MultiscaleAnalysis;
+                    console.noteln("LocalNormalization scale evaluation: " + (Config.NormalizationUsePSF ? "PSF Signal" : "Multiscale Analysis"));
+                    P.psfStructureLayers = 5;
+                    P.saturationThreshold = 0.75;
+                    P.saturationRelative = true;
+                    P.rejectionLimit = 0.30;
+                    P.psfNoiseLayers = 1;
+                    P.psfHotPixelFilterRadius = 1;
+                    P.psfNoiseReductionFilterRadius = 0;
+                    P.psfMinStructureSize = 0;
+                    P.psfMinSNR = 40.00;
+                    P.psfAllowClusteredSources = true;
+                    P.psfType = LocalNormalization.prototype.PSFType_Auto;
+                    P.psfGrowth = 1.00;
+                    P.psfMaxStars = 24576;
+                    P.inputHints = "";
+                    P.outputHints = "";
+                    P.generateNormalizationData = Config.NormalizationGenerateData;
+                    P.generateInvalidData = false;
+                    P.generateHistoryProperties = true;
+                    P.showBackgroundModels = false;
+                    P.showLocalScaleModels = false;
+                    P.showRejectionMaps = false;
+                    P.showStructureMaps = false;
+                    P.plotNormalizationFunctions = LocalNormalization.prototype.PlotNormalizationFunctions_DontPlot;
+                    P.noGUIMessages = true;
+                    P.autoMemoryLimit = 0.85;
+                    P.overwriteExistingFiles = Config.OverwriteAllFiles;
+                    P.onError = LocalNormalization.prototype.OnError_Continue;
+                    P.useFileThreads = true;
+                    P.fileThreadOverload = 1.20;
+                    P.maxFileReadThreads = 0;
+                    P.maxFileWriteThreads = 0;
+                    P.graphSize = 1024;
+                    P.graphTextSize = 12;
+                    P.graphTitleSize = 18;
+                    P.graphTransparent = false;
+                    P.graphOutputDirectory = "";
+
+                    //Some overrides
+                    P.scale = Config.NormalizationScale;
+                    P.noScale = Config.NormalizationNoScaleFlag;
+                    P.referencePathOrViewId = referenceFile;
+                    P.targetItems = [// enabled, image
+                        [true, files[i]]
+                    ];
+                    P.referenceIsView = false;
+                    P.generateNormalizedImages = dataOnly
+                        ? LocalNormalization.prototype.GenerateNormalizedImages_ViewExecutionOnly
+                        : LocalNormalization.prototype.GenerateNormalizedImages_GlobalExecutionOnly;
+                    P.outputDirectory = NormalizedOutputPath;
+                    P.outputExtension = "." + getCorrectExtension(files[i]);
+                    P.outputPrefix = "";
+                    P.outputPostfix = "_n";
+
+                    var outputExistedBefore = File.exists(newFiles[i]);
+                    if (outputExistedBefore && !dataOnly && !Config.OverwriteAllFiles)
+                        return normalizationError("Output exists and overwrite is disabled: " + newFiles[i], files[i]);
+                    if (Config.NormalizationGenerateData && File.exists(normalizationDataPath) && !Config.OverwriteAllFiles)
+                        return normalizationError("XNML exists and overwrite is disabled: " + normalizationDataPath, files[i]);
+                    incompleteOutput = outputExistedBefore ? null : newFiles[i];
+                    var status;
+                    
+                    // Запуск
+                    try {
+                        status = P.executeGlobal();
+                    } catch (error) {
+                        if (this.isCancelled()) return false;
+                        throw error;
+                    }
+                    
+                    if (this.isCancelled()) return false;
+                    if (!status) return normalizationError("Process execution failed", files[i]);
+                    
+                    var output = P.outputData;
+                    if (!output || output.length != 1)
+                        return normalizationError("Process did not report a normalization result", files[i]);
+                    if (!output[0][5]) return normalizationError("Process reported an invalid normalization result", files[i]);
+                    if (!dataOnly) {
+                        var reportedFile = output[0][1] ? String(output[0][1]).replace(/\\/g, "/").toLowerCase() : "";
+                        if (reportedFile != newFiles[i].replace(/\\/g, "/").toLowerCase() || !File.exists(newFiles[i]))
+                            return normalizationError("Expected normalized image was not created: " + newFiles[i], files[i]);
+                    }
+                    if (Config.NormalizationGenerateData) {
+                        var generatedData = output[0][0] ? String(output[0][0]) : "";
+                        if (!generatedData || !File.exists(generatedData))
+                            return normalizationError("XNML data was not created", files[i]);
+                        var dataDirectory = NormalizedOutputPath + "/xnml";
+                        if (!File.directoryExists(dataDirectory)) File.createDirectory(dataDirectory, true);
+                        if (generatedData.replace(/\\/g, "/").toLowerCase() != normalizationDataPath.replace(/\\/g, "/").toLowerCase()) {
+                            if (File.exists(normalizationDataPath)) File.remove(normalizationDataPath);
+                            File.move(generatedData, normalizationDataPath);
+                        }
+                        console.noteln("LocalNormalization data saved: " + normalizationDataPath);
+                    }
+                    
+                    incompleteOutput = null;
+                    this.ProcessesCompleted++;
+                    this.NormalizedCount++;
+
+                    console.noteln("<end><cbr><br>",
+                        "-------------------------------------------------------------");
+                    console.noteln(" [" + this.FileTotalCount + "] End of normalization ");
+                    console.noteln("-------------------------------------------------------------");
+                }
+
+                // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
+                checkFileNeedCalibratation_and_PopulateArray(newFiles[i]);
             }
 
-            // Добавим в массив файлов информацию о создании нормализуемого файла, что второй раз не делал
-            checkFileNeedCalibratation_and_PopulateArray(newFiles[i]);
-        }
-
-
-
-        return newFiles;
+            return newFiles;
         } catch (error) {
             if (this.isCancelled()) return false;
             return normalizationError(error.message || String(error), file);
@@ -1724,12 +1813,14 @@ function AutoCalibrateEngine() {
      * Integrate the completed files shared with SubframeSelector, grouped by object/filter.
      * Uses registered or normalized inputs, Average with selected weights and additive scaling.
      * Saves a master and both rejection maps per group; continues after a group failure.
-     * @return {Boolean} True when every group succeeded or was reused; false on errors/abort.
+     * @return {Boolean} True when every group succeeded; false on errors/abort.
      */
     this.runIntegration = function () {
         if (this.isCancelled()) return false;
         if (!Config.NeedIntegration) return true;
         var groups = [], seen = {}, outputOwners = {}, mastersToShow = [];
+        var fallbackFiles = this.integrationFallbackFiles || [];
+        var integrationFiles = this.approveFileList.concat(fallbackFiles);
         var success = true, inputErrors = 0;
         this.IntegratedCount = 0;
 
@@ -1743,9 +1834,9 @@ function AutoCalibrateEngine() {
         if (this.isCancelled()) return false;
         console.noteln("<end><cbr><br>",
             "-------------------------------------------------------------");
-        console.noteln("| Begin grouping files for Integration (total " + this.approveFileList.length + ")");
+        console.noteln("| Begin grouping files for Integration (total " + integrationFiles.length + ")");
         console.noteln("-------------------------------------------------------------");
-        if (!this.approveFileList.length) {
+        if (!integrationFiles.length) {
             success = false;
             console.criticalln("Integration: " + "No completed frames to integrate" + " [" + Config.InputPath + "]");
             this.reportFailure("Integration", "Integration failed: " + "no completed frames");
@@ -1759,10 +1850,17 @@ function AutoCalibrateEngine() {
         base = base.replace(/\\/g, "/").replace(/\/+$/, "");
 
         if (this.progressDialog) this.progressDialog.updateBar_NewProcess("Integration: grouping");
-        for (var f = 0; f < this.approveFileList.length; ++f) {
+        for (var f = 0; f < integrationFiles.length; ++f) {
             if (this.isCancelled()) return false;
-            var file = this.approveFileList[f];
-            var fileKey = "$" + file.replace(/\\/g, "/").toLowerCase();
+            var file = integrationFiles[f];
+            var sourcePair = getNormalizationFiles(file);
+            if (!File.exists(file) && sourcePair.image && File.exists(sourcePair.image)) {
+                console.warningln("Integration: normalized image is missing; using registered source: " + sourcePair.image);
+                file = sourcePair.image;
+                if (fallbackFiles.indexOf(file) < 0) fallbackFiles.push(file);
+            }
+            // A successful second-pass LN result replaces the same exposure's fallback input.
+            var fileKey = "$" + (sourcePair.image || file).replace(/\\/g, "/").toLowerCase();
             if (seen[fileKey]) continue;
             seen[fileKey] = true;
             try {
@@ -1847,14 +1945,16 @@ function AutoCalibrateEngine() {
                 continue;
             }
             try {
-                var existing = 0;
-                for (var o = 0; o < group.outputs.length; ++o) if (File.exists(group.outputs[o])) ++existing;
-                if (Config.SkipExistingFiles && existing == group.outputs.length) {
-                    console.noteln("Integration: reusing complete output set for " + label);
-                    mastersToShow.push(group.outputs[2]);
-                    continue;
+                // Reserve one free index for the master and both maps; never reuse/overwrite older sums.
+                var originalOutputs = group.outputs.slice(), outputIndex = 0;
+                while (group.outputs.some(function (file) { return File.exists(file); })) {
+                    if (this.isCancelled()) return false;
+                    ++outputIndex;
+                    group.outputs = originalOutputs.map(function (file) {
+                        return file.replace(/\.xisf$/i, "_" + outputIndex + ".xisf");
+                    });
                 }
-                if (existing && !Config.OverwriteAllFiles) throw new Error("Output files already exist and overwriting is disabled");
+                if (outputIndex) console.noteln("Integration: saving a new output set with index " + outputIndex + " for " + label);
                 if (!File.directoryExists(group.directory))
                     File.createDirectory(group.directory, true);
 
@@ -1862,8 +1962,26 @@ function AutoCalibrateEngine() {
                 console.noteln("Integration: " + label + ", " + group.files.length + " frames");
 
                 process = new ImageIntegration;
+                var normalizationPairs = [], dataCount = 0;
+                for (var i = 0; i < group.files.length; ++i) {
+                    var pair = getNormalizationFiles(group.files[i]);
+                    normalizationPairs.push(pair);
+                    if (File.exists(pair.data) && pair.image && File.exists(pair.image)) ++dataCount;
+                }
+                var normalizationFailed = group.files.some(function (file) {
+                    return fallbackFiles.indexOf(file) >= 0;
+                });
+                // Complete XNML/source pairs take priority, even when normalized-image generation failed.
+                var useXNML = dataCount == group.files.length;
+                var useRegistered = !useXNML && (normalizationFailed || normalizationPairs.some(function (pair) { return File.exists(pair.data); }));
+                if (useRegistered)
+                    console.warningln("Integration: " + label + ": LN/XNML is incomplete; using available registered frames with global normalization (no XNML).");
                 var targetImages = [];
-                for (var i = 0; i < group.files.length; ++i) targetImages.push([true, group.files[i], "", ""]);
+                for (var i = 0; i < group.files.length; ++i) {
+                    var pair = normalizationPairs[i];
+                    var input = (useXNML || useRegistered) && pair.image && File.exists(pair.image) ? pair.image : group.files[i];
+                    targetImages.push([true, input, "", useXNML ? pair.data : ""]);
+                }
                 process.images = targetImages;
                 process.combination = ImageIntegration.prototype.Average;
 
@@ -1889,7 +2007,10 @@ function AutoCalibrateEngine() {
                 var passedThroughLN = group.files.every(function (file) {
                     return /_r_n$/i.test(File.extractName(file));
                 });
-                if (passedThroughLN) {
+                if (useXNML) {
+                    process.normalization = ImageIntegration.prototype.LocalNormalization;
+                    process.rejectionNormalization = ImageIntegration.prototype.LocalRejectionNormalization;
+                } else if (passedThroughLN) {
                     // Separate policy for LN outputs; identical settings for now.
                     process.normalization = ImageIntegration.prototype.AdditiveWithScaling;
                     process.rejectionNormalization = ImageIntegration.prototype.Scale;
@@ -1897,7 +2018,7 @@ function AutoCalibrateEngine() {
                     process.normalization = ImageIntegration.prototype.AdditiveWithScaling;
                     process.rejectionNormalization = ImageIntegration.prototype.Scale;
                 }
-                console.noteln("Normalization: " + (passedThroughLN ? "Additive with scaling; rejection normalization: Scale + zero offset" : "Additive with scaling; rejection normalization: Scale + zero offset"));
+                console.noteln("Normalization: " + (useXNML ? "LocalNormalization (XNML), registered inputs; rejection normalization: Local" : "Additive with scaling; rejection normalization: Scale + zero offset"));
                 
                 //how to reject
                 process.rejection = group.files.length < 6 ? ImageIntegration.prototype.PercentileClip : ImageIntegration.prototype.WinsorizedSigmaClip;
@@ -1978,7 +2099,7 @@ function AutoCalibrateEngine() {
             }
         }
         // Open saved files after all groups so windows reference final paths.
-        // Reused masters are shown too; rejection maps remain closed.
+        // Show newly saved masters only; rejection maps remain closed.
         for (var m = 0; m < mastersToShow.length; ++m) {
             if (this.isCancelled()) return false;
             try {

@@ -509,6 +509,7 @@ function AutocalibrationDialog() {
             Config.NeedNormalization = checked;
             this.dialog.normMethod_ComboBox.enabled = checked;
             this.dialog.normMethod_Label.enabled = checked;
+            this.dialog.normGenerateData_CheckBox.enabled = checked;
         };
     }
 
@@ -622,6 +623,16 @@ function AutocalibrationDialog() {
 
     this.normScale_Sizer.addSpacing(16);
     this.normScale_Sizer.add(this.normNoScaleFlag_CheckBox, 0, Align_Center);
+    this.normGenerateData_CheckBox = new CheckBox(this);
+    this.normGenerateData_CheckBox.text = "Generate XNML";
+    this.normGenerateData_CheckBox.checked = Config.NormalizationGenerateData;
+    this.normGenerateData_CheckBox.enabled = Config.NeedNormalization;
+    this.normGenerateData_CheckBox.toolTip = "<p>Save LocalNormalization functions in the xnml subfolder. Integration uses these data with registered frames instead of applying normalization twice.</p>";
+    this.normGenerateData_CheckBox.onClick = function (checked) {
+        Config.NormalizationGenerateData = checked;
+    };
+    this.normScale_Sizer.addSpacing(16);
+    this.normScale_Sizer.add(this.normGenerateData_CheckBox, 0, Align_Center);
     this.normScale_Sizer.addStretch();
 
 

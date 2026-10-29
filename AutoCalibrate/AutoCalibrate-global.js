@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.1beta1"
- #define COMPILE_DATE "2026/10/27"
+ #define VERSION "7.1beta2"
+ #define COMPILE_DATE "2026/10/29"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2026 Boris Emchenko<br/>"
@@ -21,10 +21,12 @@ Developed 2019-2023 by Boris Emchenko http://astromania.info
 Version History
 
 TODO:
-- Добавить Gradient Correction
 - Добавить автозапуск NSG
+- Добавить Gradient Correction
 - добавить в диалог параметр для Absolute Path
-- проверить, что дебайрезиация тоже работает
+
+v 7.1beta2  [2026/10/29]
+- LN data fiels for Integration added
 
 v 7.1beta1  [2026/10/27]
 - Integration added

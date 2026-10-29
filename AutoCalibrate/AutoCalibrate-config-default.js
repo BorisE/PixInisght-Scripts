@@ -120,6 +120,7 @@ Config.IntegrationSigmaLow = 4.0;
 Config.IntegrationSigmaHigh = 3.0;
 
 // Параметры для Local Normalization
+Config.NormalizationGenerateData = false; // Save XNML functions in the normalization folder/xnml/
 Config.NormalizationUsePSF = true; // true: PSF Signal; false: Multiscale Analysis
 Config.NormalizationScale = 256;
 Config.NormalizationNoScaleFlag = true;

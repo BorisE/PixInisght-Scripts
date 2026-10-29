@@ -27,6 +27,7 @@ function ConfigData() {
     this.SplitChannels = false;
     this.RegistrationRetryMode2 = true;
     this.NormalizationUsePSF = true;
+    this.NormalizationGenerateData = false;
     this.NeedIntegration = false;
     this.IntegrationWeightMode = "psf-signal";
     this.IntegrationSigmaLow = 4.0;
@@ -129,6 +130,8 @@ function ConfigData() {
         if ((o = load("NormalizationReferencesPath", DataType_String)) != null)
             this.NormalizationReferencesPath = o;
 
+        if ((o = load("NormalizationGenerateData", DataType_Boolean)) != null)
+            this.NormalizationGenerateData = o;
         if ((o = load("NormalizationUsePSF", DataType_Boolean)) != null)
             this.NormalizationUsePSF = o;
         if ((o = load("NormalizationScale", DataType_Int16)) != null)
@@ -185,6 +188,7 @@ function ConfigData() {
         save("RegistrationReferencesPath", DataType_String, this.RegistrationReferencesPath);
         save("NormalizationReferencesPath", DataType_String, this.NormalizationReferencesPath);
 
+        save("NormalizationGenerateData", DataType_Boolean, this.NormalizationGenerateData);
         save("NormalizationUsePSF", DataType_Boolean, this.NormalizationUsePSF);
         save("NormalizationScale", DataType_Int16, this.NormalizationScale);
         save("NormalizationNoScaleFlag", DataType_Boolean, this.NormalizationNoScaleFlag);
@@ -232,6 +236,7 @@ function ConfigData() {
         Parameters.set("RegistrationReferencesPath",    this.RegistrationReferencesPath);
         Parameters.set("NormalizationReferencesPath",   this.NormalizationReferencesPath);
 
+        Parameters.set("NormalizationGenerateData", this.NormalizationGenerateData);
         Parameters.set("NormalizationUsePSF", this.NormalizationUsePSF);
         Parameters.set("NormalizationScale",            this.NormalizationScale);
         Parameters.set("NormalizationNoScaleFlag",      this.NormalizationNoScaleFlag);
@@ -296,6 +301,8 @@ function ConfigData() {
         if (Parameters.has("NormalizationReferencesPath"))
             this.NormalizationReferencesPath = Parameters.getString("NormalizationReferencesPath");
 
+        if (Parameters.has("NormalizationGenerateData"))
+            this.NormalizationGenerateData = Parameters.getBoolean("NormalizationGenerateData");
         if (Parameters.has("NormalizationUsePSF"))
             this.NormalizationUsePSF = Parameters.getBoolean("NormalizationUsePSF");
         if (Parameters.has("NormalizationScale"))
@@ -346,6 +353,7 @@ function ConfigData() {
         console.writeln("RegistrationReferencesPath:     " + this.RegistrationReferencesPath);
         console.writeln("NormalizationReferencesPath:    " + this.NormalizationReferencesPath);
 
+        console.writeln("NormalizationGenerateData: " + this.NormalizationGenerateData);
         console.writeln("NormalizationUsePSF:            " + this.NormalizationUsePSF);
         console.writeln("NormalizationScale:             " + this.NormalizationScale);
         console.writeln("NormalizationNoScaleFlag:       " + this.NormalizationNoScaleFlag);
