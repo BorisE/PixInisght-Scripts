@@ -29,6 +29,9 @@ function ConfigData() {
     this.NormalizationUsePSF = true;
     this.NormalizationGenerateData = false;
     this.NeedIntegration = false;
+    this.IntegrationMethod = "image-integration";
+    this.DrizzleScale = 2.0;
+    this.DrizzleDropShrink = 0.9;
     this.IntegrationWeightMode = "psf-signal";
     this.IntegrationSigmaLow = 4.0;
     this.IntegrationSigmaHigh = 3.0;
@@ -52,11 +55,15 @@ function ConfigData() {
     };
 
     /**
-     * Validate the stored Integration weighting choices and sigma thresholds.
+     * Validate Integration method, Drizzle parameters, weighting choices and sigma thresholds.
      * Takes no arguments; replaces invalid thresholds with the UI defaults.
      * @return {undefined} Updates this configuration object only.
      */
     this.normalizeIntegrationSettings = function () {
+        if (this.IntegrationMethod != "drizzle-integration") this.IntegrationMethod = "image-integration";
+        if ([1, 2, 3].indexOf(this.DrizzleScale) < 0) this.DrizzleScale = 2;
+        if (typeof this.DrizzleDropShrink != "number" || !isFinite(this.DrizzleDropShrink) ||
+            this.DrizzleDropShrink < 0.1 || this.DrizzleDropShrink > 1) this.DrizzleDropShrink = 0.9;
         if (["psf-signal", "noise-evaluation", "fits-keyword"].indexOf(this.IntegrationWeightMode) < 0)
             this.IntegrationWeightMode = "psf-signal";
         if (typeof this.IntegrationSigmaLow != "number" || !isFinite(this.IntegrationSigmaLow) ||
@@ -141,6 +148,12 @@ function ConfigData() {
 
         if ((o = load("NeedIntegration", DataType_Boolean)) != null)
             this.NeedIntegration = o;
+        if ((o = load("IntegrationMethod", DataType_String)) != null)
+            this.IntegrationMethod = o;
+        if ((o = load("DrizzleScale", DataType_Double)) != null)
+            this.DrizzleScale = o;
+        if ((o = load("DrizzleDropShrink", DataType_Double)) != null)
+            this.DrizzleDropShrink = o;
         if ((o = load("IntegrationWeightMode", DataType_String)) != null)
             this.IntegrationWeightMode = o;
         if ((o = load("IntegrationSigmaLow", DataType_Double)) != null)
@@ -196,6 +209,9 @@ function ConfigData() {
         this.normalizeIntegrationSettings();
         save("NeedIntegration", DataType_Boolean, this.NeedIntegration);
 
+        save("IntegrationMethod", DataType_String, this.IntegrationMethod);
+        save("DrizzleScale", DataType_Double, this.DrizzleScale);
+        save("DrizzleDropShrink", DataType_Double, this.DrizzleDropShrink);
         save("IntegrationWeightMode", DataType_String, this.IntegrationWeightMode);
         save("IntegrationSigmaLow", DataType_Double, this.IntegrationSigmaLow);
         save("IntegrationSigmaHigh", DataType_Double, this.IntegrationSigmaHigh);
@@ -244,6 +260,9 @@ function ConfigData() {
         this.normalizeIntegrationSettings();
         Parameters.set("NeedIntegration", this.NeedIntegration);
 
+        Parameters.set("IntegrationMethod", this.IntegrationMethod);
+        Parameters.set("DrizzleScale", this.DrizzleScale);
+        Parameters.set("DrizzleDropShrink", this.DrizzleDropShrink);
         Parameters.set("IntegrationWeightMode", this.IntegrationWeightMode);
         Parameters.set("IntegrationSigmaLow", this.IntegrationSigmaLow);
         Parameters.set("IntegrationSigmaHigh", this.IntegrationSigmaHigh);
@@ -312,6 +331,12 @@ function ConfigData() {
 
         if (Parameters.has("NeedIntegration"))
             this.NeedIntegration = Parameters.getBoolean("NeedIntegration");
+        if (Parameters.has("IntegrationMethod"))
+            this.IntegrationMethod = Parameters.getString("IntegrationMethod");
+        if (Parameters.has("DrizzleScale"))
+            this.DrizzleScale = Parameters.getReal("DrizzleScale");
+        if (Parameters.has("DrizzleDropShrink"))
+            this.DrizzleDropShrink = Parameters.getReal("DrizzleDropShrink");
         if (Parameters.has("IntegrationWeightMode"))
             this.IntegrationWeightMode = Parameters.getString("IntegrationWeightMode");
         if (Parameters.has("IntegrationSigmaLow"))
@@ -360,6 +385,9 @@ function ConfigData() {
 
         console.writeln("NeedIntegration: " + this.NeedIntegration);
 
+        console.writeln("IntegrationMethod: " + this.IntegrationMethod);
+        console.writeln("DrizzleScale: " + this.DrizzleScale);
+        console.writeln("DrizzleDropShrink: " + this.DrizzleDropShrink);
         console.writeln("IntegrationWeightMode: " + this.IntegrationWeightMode);
         console.writeln("IntegrationSigmaLow: " + this.IntegrationSigmaLow);
         console.writeln("IntegrationSigmaHigh: " + this.IntegrationSigmaHigh);

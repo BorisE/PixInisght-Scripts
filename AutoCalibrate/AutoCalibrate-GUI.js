@@ -356,6 +356,7 @@ function AutocalibrationDialog() {
     this.OSCSplitStage_ComboBox.onItemSelected = function (index) {
         Config.OSCSplitStage = index == 1 ? "after-registration" : "before-registration";
         Config.saveWorkflowSettings();
+        this.dialog.updateWorkflowControls();
     };
     this.Debayer_Sizer = new HorizontalSizer;
     this.Debayer_Sizer.spacing = 4;
@@ -393,6 +394,7 @@ function AutocalibrationDialog() {
         this.Debayer_CheckBox.checked = Config.Workflow == "OSC" && Config.NeedDebayer;
         this.SplitChannels_CheckBox.enabled = Config.Workflow == "OSC";
         this.OSCSplitStage_ComboBox.enabled = Config.Workflow == "OSC" && Config.SplitChannels;
+        if (this.updateIntegrationControls) this.updateIntegrationControls();
     };
     this.Workflow_GroupBox.sizer = new VerticalSizer;
     this.Workflow_GroupBox.sizer.margin = 10;
@@ -753,6 +755,54 @@ function AutocalibrationDialog() {
     this.IntegrationEnable_Sizer.addStretch();
     this.IntegrationGroupBox.sizer.add(this.IntegrationEnable_Sizer);
 
+    this.DrizzleEnable_CheckBox = new CheckBox(this);
+    this.DrizzleEnable_CheckBox.text = "Drizzle Integration";
+    this.DrizzleEnable_CheckBox.toolTip = "<p>Available for MONO and OSC without channel splitting, or with splitting before StarAlignment. Requires ImageIntegration; the preparatory master is always saved. The ordinary integration master is saved even if Drizzle cannot complete.</p>";
+    this.DrizzleEnable_CheckBox.onClick = function (checked) {
+        Config.IntegrationMethod = checked ? "drizzle-integration" : "image-integration";
+        if (checked) Config.NeedIntegration = true;
+        this.dialog.updateIntegrationControls();
+    };
+    this.DrizzleEnable_Sizer = new HorizontalSizer;
+    this.DrizzleEnable_Sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.DrizzleEnable_Sizer.add(this.DrizzleEnable_CheckBox);
+    this.DrizzleEnable_Sizer.addStretch();
+
+    this.DrizzleOptions_Control = new Control(this);
+    this.DrizzleOptions_Control.sizer = new HorizontalSizer;
+    this.DrizzleOptions_Control.sizer.spacing = 4;
+    this.DrizzleOptions_Control.sizer.addUnscaledSpacing(this.logicalPixelsToPhysical(4));
+    this.DrizzleScale_Label = new Label(this.DrizzleOptions_Control);
+    this.DrizzleScale_Label.text = "Drizzle scale:";
+    this.DrizzleScale_Label.minWidth = labelWidth1;
+    this.DrizzleScale_Label.textAlignment = TextAlign_Right | TextAlign_VertCenter;
+    this.DrizzleScale_ComboBox = new ComboBox(this.DrizzleOptions_Control);
+    this.DrizzleScale_ComboBox.addItem("1");
+    this.DrizzleScale_ComboBox.addItem("2");
+    this.DrizzleScale_ComboBox.addItem("3");
+    this.DrizzleScale_ComboBox.currentItem = Config.DrizzleScale - 1;
+    this.DrizzleScale_ComboBox.toolTip = "<p>Output scale relative to the registered image dimensions.</p>";
+    this.DrizzleScale_ComboBox.onItemSelected = function (index) { Config.DrizzleScale = index + 1; };
+    this.DrizzleDropShrink_NumericEdit = new NumericEdit(this.DrizzleOptions_Control);
+    this.DrizzleDropShrink_NumericEdit.label.text = "Drop shrink:";
+    this.DrizzleDropShrink_NumericEdit.setReal(true);
+    this.DrizzleDropShrink_NumericEdit.setRange(0.1, 1);
+    this.DrizzleDropShrink_NumericEdit.setPrecision(2);
+    this.DrizzleDropShrink_NumericEdit.setValue(Config.DrizzleDropShrink);
+    this.DrizzleDropShrink_NumericEdit.edit.setFixedWidth(this.font.width("0000.00"));
+    this.DrizzleDropShrink_NumericEdit.toolTip = "<p>Fraction of the input pixel footprint used by Drizzle. Smaller drops can produce sharper results, but require more frames with varied subpixel offsets to avoid uncovered pixels, grid patterns and uneven noise.</p>" +
+        "<p>Suggested starting points:<br/>" +
+        "0.90 (default): few frames or uncertain dithering.<br/>" +
+        "0.70: try with many frames and good dithering.<br/>" +
+        "0.50: experimental; use a large, well-dithered set and check coverage.</p>" +
+        "<p>There is no universal frame-count threshold. Compare results at the same display scale and inspect the Drizzle weight map for uniform coverage. Start with 0.90, then compare with 0.70.</p>";
+    this.DrizzleDropShrink_NumericEdit.onValueUpdated = function (value) { Config.DrizzleDropShrink = value; };
+    this.DrizzleOptions_Control.sizer.add(this.DrizzleScale_Label, 0, Align_Center);
+    this.DrizzleOptions_Control.sizer.add(this.DrizzleScale_ComboBox, 0, Align_Center);
+    this.DrizzleOptions_Control.sizer.addSpacing(16);
+    this.DrizzleOptions_Control.sizer.add(this.DrizzleDropShrink_NumericEdit, 0, Align_Center);
+    this.DrizzleOptions_Control.sizer.addStretch();
+
     this.IntegrationOptions_Control = new Control(this);
     this.IntegrationOptions_Control.sizer = new HorizontalSizer;
     this.IntegrationOptions_Control.sizer.spacing = 4;
@@ -812,14 +862,25 @@ function AutocalibrationDialog() {
     /**
      * Synchronize Integration controls with stage activation.
      * Takes no arguments. Keeps rows visible so toggles do not resize the dialog.
-     * @return {undefined} Updates control availability without changing saved preferences.
+     * @return {undefined} Updates availability and enforces ImageIntegration while Drizzle is active.
      */
     this.updateIntegrationControls = function () {
+        var drizzleSupported = Config.Workflow == "MONO" || (Config.Workflow == "OSC" &&
+            (!Config.SplitChannels || Config.OSCSplitStage == "before-registration"));
+        var drizzleEnabled = drizzleSupported && Config.IntegrationMethod == "drizzle-integration";
+        if (drizzleEnabled) Config.NeedIntegration = true;
+        this.IntegrationEnable_CheckBox.checked = Config.NeedIntegration;
+        this.IntegrationEnable_CheckBox.enabled = !drizzleEnabled;
+        this.DrizzleEnable_CheckBox.enabled = drizzleSupported;
+        this.DrizzleEnable_CheckBox.checked = drizzleEnabled;
+        this.DrizzleOptions_Control.enabled = drizzleEnabled;
         this.IntegrationOptions_Control.enabled = Config.NeedIntegration;
         this.IntegrationWeights_Control.enabled = Config.NeedIntegration;
     };
     this.IntegrationGroupBox.sizer.add(this.IntegrationWeights_Control);
     this.IntegrationGroupBox.sizer.add(this.IntegrationOptions_Control);
+    this.IntegrationGroupBox.sizer.add(this.DrizzleEnable_Sizer);
+    this.IntegrationGroupBox.sizer.add(this.DrizzleOptions_Control);
     this.updateIntegrationControls();
 
     this.IntegrationSection = new SectionBar;

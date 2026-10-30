@@ -1243,17 +1243,18 @@ function AutoCalibrateEngine() {
      * Stops on abort; logs the successful mode and reports an error after all enabled attempts fail.
      *
      * @param {Array|Boolean} files Input paths or a failed previous stage.
+     * @param {String} restoreDrizzleTarget Optional existing registered path to regenerate with XDRZ.
      * @return {Array|Boolean} Confirmed/reused registered paths, or false.
      *
      */
-    this.registerFits = function (files) {
+    this.registerFits = function (files, restoreDrizzleTarget) {
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping Registration", dbgNormal);
             return false;
         }
 
-        if (!Config.NeedRegister) {
+        if (!Config.NeedRegister && !restoreDrizzleTarget) {
             debug("Registration is off", dbgNormal);
             return files;
         }
@@ -1300,7 +1301,12 @@ function AutoCalibrateEngine() {
 
 
             //Проверить - существует ли файл и стоит ли перезаписывать его
-            if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
+            if (restoreDrizzleTarget) {
+                newFiles[i] = restoreDrizzleTarget;
+                newFileNameOnly = File.extractName(restoreDrizzleTarget);
+                RegisteredOutputPath = File.extractDrive(restoreDrizzleTarget) + File.extractDirectory(restoreDrizzleTarget);
+            }
+            if (!restoreDrizzleTarget && Config.SkipExistingFiles && File.exists(newFiles[i])) {
                 console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
             } else {
                 // Search for reference file
@@ -1328,7 +1334,7 @@ function AutoCalibrateEngine() {
                     console.noteln("Registering " + files[i]);
 
                 var existedBeforeRegistration = File.exists(newFiles[i]);
-                if (existedBeforeRegistration && !Config.OverwriteAllFiles) {
+                if (existedBeforeRegistration && !Config.OverwriteAllFiles && !restoreDrizzleTarget) {
                     console.criticalln("Registration output exists and overwrite is disabled: " + newFiles[i]);
                     return false;
                 }
@@ -1392,7 +1398,7 @@ function AutoCalibrateEngine() {
                     P.mode = StarAlignment.prototype.RegisterMatch;
                     P.writeKeywords = true;
                     P.generateMasks = false;
-                    P.generateDrizzleData = false;
+                    P.generateDrizzleData = isDrizzleEnabled();
                     P.generateDistortionMaps = false;
                     P.generateHistoryProperties = true;
                     P.inheritAstrometricSolution = false;
@@ -1407,7 +1413,7 @@ function AutoCalibrateEngine() {
                     P.maskPostfix = "_m";
                     P.distortionMapPostfix = "_dm";
                     P.outputSampleFormat = StarAlignment.prototype.SameAsTarget;
-                    P.overwriteExistingFiles = Config.OverwriteAllFiles;
+                    P.overwriteExistingFiles = !!restoreDrizzleTarget || Config.OverwriteAllFiles;
                     P.onError = StarAlignment.prototype.Continue;
                     P.useFileThreads = true;
                     P.fileThreadOverload = 1.00;
@@ -1815,6 +1821,88 @@ function AutoCalibrateEngine() {
      * Saves a master and both rejection maps per group; continues after a group failure.
      * @return {Boolean} True when every group succeeded; false on errors/abort.
      */
+    /** Return whether ordinary (non-CFA) Drizzle is requested for a supported workflow. */
+    function isDrizzleEnabled() {
+        return Config.IntegrationMethod == "drizzle-integration" && (Config.Workflow == "MONO" ||
+            (Config.Workflow == "OSC" && (!Config.SplitChannels || Config.OSCSplitStage == "before-registration")));
+    }
+
+    /** Return the XDRZ sidecar path corresponding to a registered image. */
+    function drizzlePath(file) {
+        return File.extractDrive(file) + File.extractDirectory(file) + "/" + File.extractName(file) + ".xdrz";
+    }
+
+    /** Locate the pre-registration input among recorded processing products. Never align an _r image again. */
+    function registrationSource(registered) {
+        var name = File.extractName(registered).replace(/_r$/i, "");
+        for (var i = 0; i < FILEARRAY.length; ++i) {
+            for (var key in FILEARRAY[i]) {
+                var values = FILEARRAY[i][key];
+                if (!Array.isArray(values)) values = [values];
+                for (var j = 0; j < values.length; ++j) {
+                    var candidate = values[j];
+                    if (typeof candidate != "string" || !File.exists(candidate)) continue;
+                    var candidateName = File.extractName(candidate);
+                    if (!/_r(?:_n)?$/i.test(candidateName) &&
+                        (candidateName == name || candidateName + "_c" == name)) return candidate;
+                }
+            }
+        }
+        return "";
+    }
+
+    /** Execute Drizzle for one prepared group and save a master plus coverage map under a free index.
+     * @return {String} Saved master path. Native/save errors propagate to the group's fallback handler.
+     */
+    this.drizzleIntegration = function (group, targets, useLN) {
+        
+        var process = new DrizzleIntegration;
+        process.inputData = targets.map(function (row) { return [true, row[2], useLN ? row[3] : ""]; });
+        process.scale = Config.DrizzleScale;
+        process.dropShrink = Config.DrizzleDropShrink;
+        process.enableCFA = false;
+        process.enableRejection = true;
+        process.enableImageWeighting = true;
+        process.enableLocalNormalization = useLN;
+        var stem = group.outputs[2].replace(/_master(?:_\d+)?\.xisf$/i, "_drizzle");
+        var index = 0, paths;
+        do {
+            var suffix = index ? "_" + index : "";
+            paths = [stem + "_master" + suffix + ".xisf", stem + "_weights" + suffix + ".xisf"];
+            ++index;
+        } while (paths.some(function (file) { return File.exists(file); }));
+        try {
+            if (this.isCancelled()) return "";
+            console.noteln("<end><cbr><br>-------------------------------------------------------------");
+            console.noteln("| DrizzleIntegration: " + group.data.object + " / " + group.data.filter);
+            console.noteln("-------------------------------------------------------------");
+            if (this.progressDialog) this.progressDialog.updateBar_NewProcess("DrizzleIntegration");
+            if (!process.executeGlobal()) throw new Error("DrizzleIntegration failed");
+            if (this.isCancelled()) return "";
+            var ids = [process.integrationImageId, process.weightImageId];
+            for (var i = 0; i < ids.length; ++i) {
+                var window = ImageWindow.windowById(ids[i]);
+                if (!window || window.isNull) throw new Error("Drizzle output is unavailable");
+                if (!i) {
+                    window.keywords = window.keywords.filter(function (k) { return k.name != "OBJECT" && k.name != "FILTER"; });
+                    var keywords = window.keywords;
+                    keywords.push(new FITSKeyword("OBJECT", "'" + group.data.object.replace(/'/g, "''") + "'", "Integration object"));
+                    keywords.push(new FITSKeyword("FILTER", "'" + group.data.filter.replace(/'/g, "''") + "'", "Integration filter"));
+                    window.keywords = keywords;
+                }
+                if (!window.saveAs(paths[i], false, false, false, false)) throw new Error("Unable to save " + paths[i]);
+            }
+            console.noteln("Drizzle master saved: " + paths[0]);
+            return paths[0];
+        } finally {
+            var ids = [process.integrationImageId, process.weightImageId];
+            for (var i = 0; i < ids.length; ++i) if (ids[i]) {
+                var window = ImageWindow.windowById(ids[i]);
+                if (window && !window.isNull) window.forceClose();
+            }
+        }
+    };
+
     this.runIntegration = function () {
         if (this.isCancelled()) return false;
         if (!Config.NeedIntegration) return true;
@@ -1968,6 +2056,27 @@ function AutoCalibrateEngine() {
                     normalizationPairs.push(pair);
                     if (File.exists(pair.data) && pair.image && File.exists(pair.image)) ++dataCount;
                 }
+                var drizzleRequested = isDrizzleEnabled();
+                var drizzleCount = normalizationPairs.filter(function (pair) { return pair.image && File.exists(drizzlePath(pair.image)); }).length;
+                if (drizzleRequested && drizzleCount == 0) {
+                    for (var i = 0; i < normalizationPairs.length; ++i) {
+                        if (this.isCancelled()) return false;
+                        var registeredInput = normalizationPairs[i].image;
+                        var source = registeredInput ? registrationSource(registeredInput) : "";
+                        if (!source) {
+                            console.warningln("Drizzle: pre-registration source unavailable for " + group.files[i]);
+                            continue;
+                        }
+                        console.noteln("Drizzle: restoring registration data for " + registeredInput);
+                        try { this.registerFits([source], registeredInput); }
+                        catch (error) { if (this.isCancelled()) return false; console.warningln("Drizzle registration recovery failed: " + error.message); }
+                    }
+                }
+                var useDrizzle = drizzleRequested && normalizationPairs.every(function (pair) {
+                    return pair.image && File.exists(pair.image) && File.exists(drizzlePath(pair.image));
+                });
+                if (drizzleRequested && !useDrizzle)
+                    console.warningln("Drizzle: incomplete registration data; saving ordinary integration for " + label);
                 var normalizationFailed = group.files.some(function (file) {
                     return fallbackFiles.indexOf(file) >= 0;
                 });
@@ -1979,8 +2088,8 @@ function AutoCalibrateEngine() {
                 var targetImages = [];
                 for (var i = 0; i < group.files.length; ++i) {
                     var pair = normalizationPairs[i];
-                    var input = (useXNML || useRegistered) && pair.image && File.exists(pair.image) ? pair.image : group.files[i];
-                    targetImages.push([true, input, "", useXNML ? pair.data : ""]);
+                    var input = (useXNML || useRegistered || useDrizzle) && pair.image && File.exists(pair.image) ? pair.image : group.files[i];
+                    targetImages.push([true, input, useDrizzle ? drizzlePath(pair.image) : "", useXNML ? pair.data : ""]);
                 }
                 process.images = targetImages;
                 process.combination = ImageIntegration.prototype.Average;
@@ -2045,7 +2154,7 @@ function AutoCalibrateEngine() {
 
                 process.generateIntegratedImage = true;
                 process.generateRejectionMaps = true;
-                process.generateDrizzleData = false;
+                process.generateDrizzleData = useDrizzle;
                 process.generate64BitResult = false;
                 process.subtractPedestals = false;
                 process.truncateOnOutOfRange = false;
@@ -2059,10 +2168,34 @@ function AutoCalibrateEngine() {
                 process.autoMemoryLimit = 0.75;
 
 
-                failureReason = "ImageIntegration failed; see console";
-                if (!process.executeGlobal()) throw new Error("ImageIntegration failed");
+                // Run integration with drizzle first
+                var integrated = false; failureReason = "ImageIntegration failed; see console";
+                try { 
+                    integrated = process.executeGlobal(); 
+                } catch (error) {
+                    if (this.isCancelled() || !useDrizzle) throw error;
+                    console.warningln("Drizzle preparation failed: " + error.message);
+                }
+                if (!integrated && useDrizzle && !this.isCancelled()) {
+                    
+                    // As a fallback - run integration without drizzle then 
+                    // (в случае, если .xdrz файлов не окажется, процесс вывалится с ошибкой, а так соберем хотя бы обычную сумму, без дриззла)
+                    console.warningln("Retrying ordinary ImageIntegration without drizzle data for " + label);
+                    var failedIds = [process.integrationImageId, process.lowRejectionMapImageId, process.highRejectionMapImageId];
+                    for (var k = 0; k < failedIds.length; ++k) if (failedIds[k]) {
+                        var failedWindow = ImageWindow.windowById(failedIds[k]);
+                        if (failedWindow && !failedWindow.isNull) failedWindow.forceClose();
+                    }
+                    useDrizzle = false;
+                    process.generateDrizzleData = false;
+                    process.images = targetImages.map(function (row) { return [row[0], row[1], "", row[3]]; });
+                    
+                    integrated = process.executeGlobal();
+                }
+                if (!integrated) throw new Error("ImageIntegration failed");
                 if (this.isCancelled()) return false;
 
+                // Check the results
                 if (process.numberOfImages != group.files.length) throw new Error("ImageIntegration did not integrate all input frames");
                 failureReason = "unable to save integration outputs; see console";
                 var ids = [process.lowRejectionMapImageId, process.highRejectionMapImageId, process.integrationImageId];
@@ -2081,7 +2214,21 @@ function AutoCalibrateEngine() {
                 if (this.isCancelled()) return false;
                 ++this.IntegratedCount;
                 console.noteln("Integration master saved: " + group.outputs[2]);
-                mastersToShow.push(group.outputs[2]);
+                var displayMaster = group.outputs[2];
+                
+                // Run drizzle integration
+                if (useDrizzle) {
+                    try {
+                        var drizzleMaster = this.drizzleIntegration(group, targetImages, useXNML);
+                        if (drizzleMaster) displayMaster = drizzleMaster;
+                    } catch (error) {
+                        if (this.isCancelled()) return false;
+                        console.warningln("DrizzleIntegration failed; ordinary master saved: " + error.message);
+                        this.reportFailure(label, "DrizzleIntegration failed; ordinary master saved");
+                    }
+                }
+                mastersToShow.push(displayMaster);
+                
             } catch (error) {
                 if (this.isCancelled()) return false;
                 success = false;
@@ -2098,20 +2245,20 @@ function AutoCalibrateEngine() {
                 }
             }
         }
+        
         // Open saved files after all groups so windows reference final paths.
         // Show newly saved masters only; rejection maps remain closed.
         for (var m = 0; m < mastersToShow.length; ++m) {
             if (this.isCancelled()) return false;
             try {
                 var masterWindows = ImageWindow.open(mastersToShow[m]);
-                if (!masterWindows || !masterWindows.length || !masterWindows[0] || masterWindows[0].isNull)
-                    throw new Error("Unable to open saved master");
                 masterWindows[0].show();
             } catch (error) {
                 console.warningln("Integration: master saved but could not be displayed: " +
                     mastersToShow[m] + ": " + error.message);
             }
         }
+        
         console.noteln("Integration complete: " + this.IntegratedCount + " new master(s)");
         return success;
     };

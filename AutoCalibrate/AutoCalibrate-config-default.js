@@ -114,6 +114,10 @@ Config.OutputFormatIC = ImageCalibration.prototype.i16; //default - .f32, .i16
 
 // Integration: Average, configurable weights, additive scaling; automatic rejection.
 Config.NeedIntegration = false;
+// Ordinary Drizzle integration preferences (MONO and debayered OSC).
+Config.IntegrationMethod = "image-integration"; // image-integration, drizzle-integration
+Config.DrizzleScale = 2.0;
+Config.DrizzleDropShrink = 0.9;
 Config.IntegrationWeightMode = "psf-signal"; // psf-signal, noise-evaluation, fits-keyword
 Config.IntegrationWeightKeyword = "SSWEIGHT"; // Config only, not Settings/instance parameters; used in fits-keyword mode
 Config.IntegrationSigmaLow = 4.0;
