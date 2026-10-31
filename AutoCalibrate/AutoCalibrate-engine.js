@@ -28,6 +28,8 @@ Developed 2019 by Boris Emchenko
 
 #include "AutoCalibrate-MastersSearch.js"
 
+#include "AutoCalibrate-runReport.js"
+
 #include <pjsr/DataType.jsh>
 #include <pjsr/UndoFlag.jsh>
 
@@ -52,6 +54,10 @@ function AutoCalibrateEngine() {
 	this.NormalizedCount = 0;
     this.ApprovedCount = 0;
     this.IntegratedCount = 0;
+    this.DebayerCount = 0;
+    this.SplitChannelCount = 0;
+    this.summarySourcesVisited = 0;
+    this.runReport = null;
     this.ABECount = 0;
 	this.BinnedCount = 0;
 
@@ -93,10 +99,96 @@ function AutoCalibrateEngine() {
      */
     this.reportFailure = function (target, message) {
         if (this.isCancelled()) return;
+        if (this.runReport) this.runReport.issue(target, message, "Error", this.reportStage);
         if (this.progressDialog) this.progressDialog.updateBar_Error(message, target);
     };
 
+    // Finalize for normal completion, early return, cancellation and exceptions.
+    this.recordReportOutput = function (stage, input, output, kind) {
+        if (this.runReport && output && File.exists(output))
+            this.runReport.output(stage, input, output, kind);
+    };
+    this.installReportHooks = function () {
+        if (this.reportHooksInstalled) return;
+        this.reportHooksInstalled = true;
+        var engine = this;
+        var methods = {calibrateFITSFile: "calibrated", cosmeticFit: "cosmetized", debayerFit: "debayered",
+            ABEprocess: "abed", registerFits: "registered", localNormalization: "normalized"};
+        function wrap(name, stage) {
+            var original = engine[name];
+            engine[name] = function () {
+                var actualStage = stage || (arguments[1] ? "split" : "splitBefore");
+                var previous = this.reportStage;
+                this.reportStage = actualStage;
+                var report = this.runReport;
+                var inputs = arguments[0];
+                var active = report && report.enabled(actualStage) && inputs &&
+                    (name != "splitChannels" || !!arguments[1] == report.splitAfter);
+                if (active && this.progressDialog) this.progressDialog.updateBar_NewProcess(report.name(actualStage));
+                var before = report ? report.issues.length : 0;
+                try {
+                    var result = original.apply(this, arguments);
+                    if (active && result === false && !this.isCancelled() && report.issues.length == before)
+                        this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, "Stage did not produce a confirmed result");
+                    return result;
+                } catch (error) {
+                    if (active && !this.isCancelled() && report.issues.length == before)
+                        this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, error.message || String(error));
+                    throw error;
+                } finally {
+                    this.reportStage = previous;
+                    if (active && this.progressDialog) this.progressDialog.refreshReport();
+                }
+            };
+        }
+        for (var method in methods) if (methods.hasOwnProperty(method)) wrap(method, methods[method]);
+        wrap("splitChannels", null);
+    };
+
     this.Process = function (progressDialog) {
+        this.progressDialog = progressDialog || null;
+        this.abortRequested = false;
+        this.T = new ElapsedTime;
+        this.DirCount = this.FileTotalCount = this.DirsToProcessNum = this.FilesToProcessNum = 0;
+        this.ProcessesCompleted = this.FilesProcessed = 0;
+        this.CalibratedCount = this.CosmetizedCount = this.RegisteredCount = 0;
+        this.NormalizedCount = this.ApprovedCount = this.IntegratedCount = 0;
+        this.ABECount = this.BinnedCount = this.DebayerCount = this.SplitChannelCount = 0;
+        this.summarySourcesVisited = 0;
+        this.runReport = new AutoCalibrateRunReport(Config.InputPath);
+        this.runReport.configure(Config, isDebayerEnabled(), isSplitEnabled(), splitAfterRegistration());
+        FILEARRAY = [];
+        requestToCopy = [];
+        if (this.progressDialog) this.progressDialog.attachReport(this.runReport);
+        this.installReportHooks();
+        var succeeded = false;
+        try {
+            succeeded = this.processRun(progressDialog);
+            return succeeded;
+        } catch (error) {
+            if (!this.isCancelled()) {
+                this.runReport.issue("Run", error.message || String(error));
+                console.criticalln("AutoCalibrate: " + error);
+            }
+            return false;
+        } finally {
+            var cancelled = this.isCancelled();
+            this.runReport.complete(this, succeeded, cancelled);
+            // Allow report controls to work after a console abort.
+            console.abortEnabled = false;
+            var stamp = this.runReport.started.getTime();
+            try {
+                this.runReport.save(Config.InputPath + "/AutoCalibrate-summary-" + stamp + ".txt");
+            } catch (saveError) {
+                this.runReport.issue("Summary", "Automatic report save failed: " + saveError.message);
+                if (!cancelled) this.runReport.status = "Completed with issues";
+                console.warningln("Unable to save run summary: " + saveError);
+            }
+            if (this.progressDialog) this.progressDialog.finishRun(this.runReport);
+        }
+    };
+
+    this.processRun = function (progressDialog) {
         if (Config.Workflow == "OSC_CFA_DRIZZLE") {
             console.criticalln("OSC CFA Drizzle workflow is not implemented yet. Select MONO or OSC.");
             return false;
@@ -160,6 +252,7 @@ function AutoCalibrateEngine() {
         * Производит поиск исходных (необработанных) FITS файлов и их обработка по цепочке калибровки.
         * Также является 1ым проходом перед поиском недостающих файлов в цепочке калибровки (если включено)
         * **************************************************************************************************************/
+        if (this.progressDialog) this.progressDialog.setPhase("Processing source frames", "source frames");
         this.searchDirectory(Config.InputPath);
 
 		if (this.isCancelled()) return false;
@@ -191,6 +284,7 @@ function AutoCalibrateEngine() {
             this.FileTotalCount = 0;
             this.ProcessesCompleted = 0;
 
+            if (this.progressDialog) this.progressDialog.setPhase("Second pass: missing stages", "records");
             this.ScanArray();
 
             //Finish working
@@ -203,8 +297,10 @@ function AutoCalibrateEngine() {
         }
         // Final consumers include files completed during the second pass.
         if (this.isCancelled()) return false;
+        if (this.progressDialog && Config.NeedApproving) this.progressDialog.setPhase("SubframeSelector", "frames");
         this.runSubframeSelector();
         if (this.isCancelled()) return false;
+        if (this.progressDialog && Config.NeedIntegration) this.progressDialog.setPhase("Integration", "groups");
         var integrationSucceeded = this.runIntegration();
         if (this.isCancelled()) return false;
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
@@ -322,6 +418,7 @@ function AutoCalibrateEngine() {
                                 if (checkFileNeedCalibratation_and_PopulateArray(searchPath + '/' + objFileFind.name)) {
                                     FileCount++;
                                     this.FileTotalCount++;
+                                    ++this.summarySourcesVisited;
 									if (this.progressDialog) { this.progressDialog.updateBar_NewFile(this.FileTotalCount, objFileFind.name); }
 
                                     console.noteln("<end><cbr><br>",
@@ -331,6 +428,7 @@ function AutoCalibrateEngine() {
                                     console.noteln("  ETA: " + parseFloat(this.T.value/this.FileTotalCount*(this.FilesToProcessNum - this.FileTotalCount) / 60).toFixed(1) + " min, Elapsed: " + this.T.text +" sec");
                                     console.noteln("************************************************************");
 
+                                    if (this.runReport) this.runReport.input(searchPath + "/" + objFileFind.name);
                                     this.NeedToCopyToFinalDirFlag = true;
 
 									if (this.isCancelled()) return false;
@@ -345,6 +443,7 @@ function AutoCalibrateEngine() {
                                                             this.debayerFit(
                                                                 this.cosmeticFit(
                                                                     this.calibrateFITSFile(searchPath + '/' + objFileFind.name))), false))), true)));
+                                    if (this.progressDialog) this.progressDialog.completeItem(this.FileTotalCount);
 
 
                                 }
@@ -418,6 +517,14 @@ function AutoCalibrateEngine() {
             if (/_s_[RGB]$/i.test(signature) && !splitAfterRegistration()) continue;
             if (/_(?:p|d)_[RGB]$/i.test(signature) && (!isSplitEnabled() || splitAfterRegistration())) continue;
             if (Config.Workflow == "MONO" && /_d_RGB$/i.test(signature)) continue;
+            if (this.runReport) this.runReport.useRecord(FILEARRAY[i], function (file) {
+                var pair = getNormalizationFiles(file);
+                return !Config.NormalizationGenerateData || File.exists(pair.data);
+            });
+            if (this.progressDialog) {
+                this.progressDialog.initBar(Config.InputPath, FILEARRAY.length);
+                this.progressDialog.updateBar_NewFile(i + 1, signature);
+            }
             var stageFailed = false;
             for (var property in FILEARRAY[i]) {
                 if (property == "fits") {
@@ -574,6 +681,7 @@ function AutoCalibrateEngine() {
                 var latest = completed[getFILEARRPrecedingName("approved")];
                 if (latest) this.addFileForApproving(Array.isArray(latest) ? latest : [latest]);
             }
+            if (this.progressDialog) this.progressDialog.completeItem(i + 1);
             console.writeln();
         }
 
@@ -773,6 +881,7 @@ function AutoCalibrateEngine() {
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
             console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping calibration');
+                this.recordReportOutput("calibrated", fileName, File.exists(newFileName) ? newFileName : newFileName_old, "existing");
         } else {
 
             if (!fileData)
@@ -901,6 +1010,7 @@ function AutoCalibrateEngine() {
             if (status)
             {
                 this.CalibratedCount++;
+                this.recordReportOutput("calibrated", fileName, newFileName, "created");
                 this.ProcessesCompleted++;
 
                 console.noteln(" [" + this.FileTotalCount + "] End of calibration");
@@ -982,6 +1092,7 @@ function AutoCalibrateEngine() {
         //Проверить - существует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
             console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping cosmetic correction');
+                this.recordReportOutput("cosmetized", fileName, File.exists(newFileName) ? newFileName : newFileName_old, "existing");
         } else {
             if (!fileData)
                 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
@@ -1041,6 +1152,7 @@ function AutoCalibrateEngine() {
             if (this.isCancelled()) return false;
             this.ProcessesCompleted++;
             this.CosmetizedCount++;
+                this.recordReportOutput("cosmetized", fileName, newFileName, "created");
 
             console.noteln("<end><cbr><br>",
                 "-------------------------------------------------------------");
@@ -1125,6 +1237,7 @@ function AutoCalibrateEngine() {
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
                 console.warningln('File ' + newFileNameOnly + ' already exists, skipping ABE');
+                this.recordReportOutput("abed", files[i], newFiles[i], "existing");
             } else {
 
                 // Check if folder exists
@@ -1217,6 +1330,7 @@ function AutoCalibrateEngine() {
 
                 this.ProcessesCompleted++;
                 this.ABECount++;
+                this.recordReportOutput("abed", files[i], newFiles[i], "created");
 
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
@@ -1308,6 +1422,7 @@ function AutoCalibrateEngine() {
             }
             if (!restoreDrizzleTarget && Config.SkipExistingFiles && File.exists(newFiles[i])) {
                 console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
+                this.recordReportOutput("registered", files[i], newFiles[i], "existing");
             } else {
                 // Search for reference file
                 var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
@@ -1459,6 +1574,7 @@ function AutoCalibrateEngine() {
                     return false;
                 }
                 this.RegisteredCount++;
+                this.recordReportOutput("registered", files[i], newFiles[i], "created");
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
                 console.noteln(" [" + this.FileTotalCount + "] End of registration ");
@@ -1604,6 +1720,7 @@ function AutoCalibrateEngine() {
                 // Reuse only when all requested LN outputs are present.
                 if (dataOnly && (!Config.NormalizationGenerateData || File.exists(normalizationDataPath))) {
                     console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
+                this.recordReportOutput("normalized", files[i], newFiles[i], "existing");
                 } else {
                     // Search for reference file
                     var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
@@ -1741,6 +1858,7 @@ function AutoCalibrateEngine() {
                     incompleteOutput = null;
                     this.ProcessesCompleted++;
                     this.NormalizedCount++;
+                this.recordReportOutput("normalized", files[i], newFiles[i], "created");
 
                     console.noteln("<end><cbr><br>",
                         "-------------------------------------------------------------");
@@ -1975,6 +2093,10 @@ function AutoCalibrateEngine() {
                 for (var g = 0; g < groups.length; ++g) if (groups[g].key == key) { group = groups[g]; break; }
                 if (!group) {
                     group = {key: key, data: data, files: [], invalid: false};
+                    group.summary = {object: data.object, channel: data.filter, frames: 0,
+                        savedFrames: 0, exposure: 0, exposureKnown: true,
+                        status: "Pending", master: "", outputs: []};
+                    if (this.runReport) this.runReport.groups.push(group.summary);
                     group.directory = base + "/Integrated";
                     var stem = group.directory + "/" + pathComponent(data.object) + "_" + pathComponent(data.filter);
                     group.outputs = [stem + "_rejection_low.xisf", stem + "_rejection_high.xisf", stem + "_master.xisf"];
@@ -1994,6 +2116,10 @@ function AutoCalibrateEngine() {
                     console.criticalln("Integration: " + "Incompatible image dimensions in object/filter group" + " [" + file + "]");
                 }
                 group.files.push(file);
+                ++group.summary.frames;
+                if (isFinite(data.exposureSeconds) && data.exposureSeconds > 0)
+                    group.summary.exposure += data.exposureSeconds;
+                else group.summary.exposureKnown = false;
             } catch (error) {
                 if (this.isCancelled()) return false;
                 ++inputErrors;
@@ -2023,12 +2149,16 @@ function AutoCalibrateEngine() {
                 this.progressDialog.updateBar_NewProcess("Integration");
             }
             if (group.invalid) {
+                if (this.progressDialog) this.progressDialog.completeItem(g + 1);
+                group.summary.status = "Failed: " + group.failureReason;
                 this.reportFailure(label, "Integration failed: " + group.failureReason);
                 continue;
             }
             if (group.files.length < 3) {
                 success = false;
                 console.criticalln("Integration: " + "At least 3 frames are required; found " + group.files.length + " [" + label + "]");
+                if (this.progressDialog) this.progressDialog.completeItem(g + 1);
+                group.summary.status = "Failed: fewer than 3 frames";
                 this.reportFailure(label, "Integration failed: " + "at least 3 frames required; found " + group.files.length);
                 continue;
             }
@@ -2215,16 +2345,36 @@ function AutoCalibrateEngine() {
                 ++this.IntegratedCount;
                 console.noteln("Integration master saved: " + group.outputs[2]);
                 var displayMaster = group.outputs[2];
+                group.summary.master = displayMaster;
+                group.summary.outputs = group.outputs.slice();
+                group.summary.savedFrames = group.files.length;
+                group.summary.status = "Ordinary integration";
+                if (drizzleRequested && !useDrizzle) {
+                    group.summary.status += "; drizzle data incomplete";
+                    if (this.runReport) this.runReport.issue(label, "Drizzle data incomplete; ordinary master saved", "Warning");
+                }
+                if (useRegistered && this.runReport)
+                    this.runReport.issue(label, "LN/XNML incomplete; used registered frames with global normalization", "Warning");
                 
                 // Run drizzle integration
                 if (useDrizzle) {
                     try {
                         var drizzleMaster = this.drizzleIntegration(group, targetImages, useXNML);
-                        if (drizzleMaster) displayMaster = drizzleMaster;
+                        if (drizzleMaster) {
+                            displayMaster = drizzleMaster;
+                            group.summary.master = drizzleMaster;
+                            group.summary.outputs.push(drizzleMaster);
+                            group.summary.status = "Drizzle integration";
+                        } else {
+                            group.summary.status = "Ordinary integration; drizzle not completed";
+                            if (!this.isCancelled() && this.runReport)
+                                this.runReport.issue(label, "Drizzle did not produce a master; ordinary master saved", "Warning");
+                        }
                     } catch (error) {
                         if (this.isCancelled()) return false;
                         console.warningln("DrizzleIntegration failed; ordinary master saved: " + error.message);
-                        this.reportFailure(label, "DrizzleIntegration failed; ordinary master saved");
+                        group.summary.status = "Ordinary integration; drizzle failed";
+                        this.reportFailure(label, "DrizzleIntegration failed; ordinary master saved: " + error.message);
                     }
                 }
                 mastersToShow.push(displayMaster);
@@ -2233,8 +2383,10 @@ function AutoCalibrateEngine() {
                 if (this.isCancelled()) return false;
                 success = false;
                 console.criticalln("Integration: " + error.message + " [" + label + "]");
-                this.reportFailure(label, "Integration failed: " + failureReason);
+                group.summary.status = "Failed: " + error.message;
+                this.reportFailure(label, "Integration failed: " + failureReason + ": " + error.message);
             } finally {
+                if (this.progressDialog && !this.isCancelled()) this.progressDialog.completeItem(g + 1);
                 // Close only windows reported by this process, including on execution/save failure.
                 if (process) {
                     var ids = [process.integrationImageId, process.lowRejectionMapImageId, process.highRejectionMapImageId];
@@ -2254,6 +2406,7 @@ function AutoCalibrateEngine() {
                 var masterWindows = ImageWindow.open(mastersToShow[m]);
                 masterWindows[0].show();
             } catch (error) {
+                if (this.runReport) this.runReport.issue(mastersToShow[m], "Master saved but could not be displayed: " + error.message, "Warning");
                 console.warningln("Integration: master saved but could not be displayed: " +
                     mastersToShow[m] + ": " + error.message);
             }
@@ -2620,6 +2773,7 @@ function AutoCalibrateEngine() {
                     console.criticalln("Split channels requires RGB input; this image is monochrome and has no CFA pattern: " + fileName);
                     return false;
                 }
+                this.recordReportOutput("debayered", fileName, fileName, "existing");
                 return recordOSCOutputs(fileName, [fileName], FITS.DEBAYERED);
             }
 
@@ -2631,8 +2785,10 @@ function AutoCalibrateEngine() {
             var suffix = name.match(/_c(?:_cc)?(?:_b)?(?:_r)?$/);
             var stem = suffix ? name.substring(0, name.length - suffix[0].length) : name;
             var outputFile = outputPath + "/" + stem + "_d_RGB" + (suffix ? suffix[0] : "_c") + ".xisf";
-            if (Config.SkipExistingFiles && File.exists(outputFile))
+            if (Config.SkipExistingFiles && File.exists(outputFile)) {
+                this.recordReportOutput("debayered", fileName, outputFile, "existing");
                 return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
+            }
             if (File.exists(outputFile) && !Config.OverwriteAllFiles)
                 throw new Error("Output exists and overwrite is disabled: " + outputFile);
             if (!File.directoryExists(outputPath)) File.createDirectory(outputPath, true);
@@ -2687,6 +2843,8 @@ function AutoCalibrateEngine() {
                 console.warningln("Unable to remove Debayer staging directory: " + stagingPath + ": " + cleanupError.message);
             }
             ++this.ProcessesCompleted;
+            ++this.DebayerCount;
+            this.recordReportOutput("debayered", fileName, outputFile, "created");
             return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
         } catch (error) {
             if (this.isCancelled()) return false;
@@ -2733,7 +2891,11 @@ function AutoCalibrateEngine() {
                     channelFiles.push(outputPath + "/" + stem + (afterRegistration ? "_s_" : "_p_") + channels[i] + (suffix ? suffix[0] : "_c") + ".xisf");
                     allExist = allExist && File.exists(channelFiles[i]);
                 }
+                if (this.runReport) for (var expected = 0; expected < channelFiles.length; ++expected)
+                    this.runReport.expect(afterRegistration ? "split" : "splitBefore", fileName, channelFiles[expected]);
                 if (Config.SkipExistingFiles && allExist) {
+                    for (var reused = 0; reused < channelFiles.length; ++reused)
+                        this.recordReportOutput(afterRegistration ? "split" : "splitBefore", fileName, channelFiles[reused], "existing");
                     outputs = outputs.concat(recordOSCOutputs(fileName, channelFiles, stage));
                     continue;
                 }
@@ -2744,7 +2906,10 @@ function AutoCalibrateEngine() {
                 if (!source || source.isNull) throw new Error("Unable to open RGB image: " + fileName);
                 for (var i = 0; i < channels.length; ++i) {
                     if (this.isCancelled()) return false;
-                    if (Config.SkipExistingFiles && File.exists(channelFiles[i])) continue;
+                    if (Config.SkipExistingFiles && File.exists(channelFiles[i])) {
+                        this.recordReportOutput(afterRegistration ? "split" : "splitBefore", fileName, channelFiles[i], "existing");
+                        continue;
+                    }
                     if (File.exists(channelFiles[i]) && !Config.OverwriteAllFiles)
                         throw new Error("Output exists and overwrite is disabled: " + channelFiles[i]);
                     channel = new ImageWindow(source.mainView.image.width, source.mainView.image.height,
@@ -2756,6 +2921,8 @@ function AutoCalibrateEngine() {
                     copyOSCMetadata(source, channel, channels[i]);
                     if (!channel.saveAs(channelFiles[i], false, false, false, false))
                         throw new Error("Unable to save split channel: " + channelFiles[i]);
+                    ++this.SplitChannelCount;
+                    this.recordReportOutput(afterRegistration ? "split" : "splitBefore", fileName, channelFiles[i], "created");
                     if (this.isCancelled()) return false;
                     channel.forceClose();
                     channel = null;
@@ -3079,6 +3246,7 @@ function AutoCalibrateEngine() {
                 Preset:         headers.QPRESET,
                 USBLimit:       headers.USBLIMIT,
                 duration:       parseInt(headers.EXPTIME), // 1800
+                exposureSeconds: parseFloat(headers.EXPTIME), // Precise integration summary only.
                 exposure:       parseInt(headers.EXPTIME) // dublicate for convinience
             };
             var snapshot = {};
