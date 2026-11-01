@@ -4,7 +4,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.1beta4"
+ #define VERSION "7.1beta5"
  #define COMPILE_DATE "2026/10/31"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
@@ -24,6 +24,9 @@ TODO:
 - Добавить автозапуск NSG
 - Добавить Gradient Correction
 - добавить в диалог параметр для Absolute Path
+
+v 7.1beta5  [2026/10/31]
+- code optimization
 
 v 7.1beta4  [2026/10/31]
 - new status and result screen

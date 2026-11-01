@@ -103,48 +103,65 @@ function AutoCalibrateEngine() {
         if (this.progressDialog) this.progressDialog.updateBar_Error(message, target);
     };
 
-    // Finalize for normal completion, early return, cancellation and exceptions.
     this.recordReportOutput = function (stage, input, output, kind) {
         if (this.runReport && output && File.exists(output))
             this.runReport.output(stage, input, output, kind);
     };
-    this.installReportHooks = function () {
-        if (this.reportHooksInstalled) return;
-        this.reportHooksInstalled = true;
-        var engine = this;
-        var methods = {calibrateFITSFile: "calibrated", cosmeticFit: "cosmetized", debayerFit: "debayered",
-            ABEprocess: "abed", registerFits: "registered", localNormalization: "normalized"};
-        function wrap(name, stage) {
-            var original = engine[name];
-            engine[name] = function () {
-                var actualStage = stage || (arguments[1] ? "split" : "splitBefore");
-                var previous = this.reportStage;
-                this.reportStage = actualStage;
-                var report = this.runReport;
-                var inputs = arguments[0];
-                var active = report && report.enabled(actualStage) && inputs &&
-                    (name != "splitChannels" || !!arguments[1] == report.splitAfter);
-                if (active && this.progressDialog) this.progressDialog.updateBar_NewProcess(report.name(actualStage));
-                var before = report ? report.issues.length : 0;
-                try {
-                    var result = original.apply(this, arguments);
-                    if (active && result === false && !this.isCancelled() && report.issues.length == before)
-                        this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, "Stage did not produce a confirmed result");
-                    return result;
-                } catch (error) {
-                    if (active && !this.isCancelled() && report.issues.length == before)
-                        this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, error.message || String(error));
-                    throw error;
-                } finally {
-                    this.reportStage = previous;
-                    if (active && this.progressDialog) this.progressDialog.refreshReport();
-                }
-            };
+    /** Execute an explicit stage call with report context. The processing method is never replaced. */
+    this.runStage = function (stage, method, inputs) {
+        var args = Array.prototype.slice.call(arguments, 2);
+        var previous = this.reportStage;
+        this.reportStage = stage;
+        var report = this.runReport;
+        var active = report && report.enabled(stage) && inputs;
+        var before = report ? report.issues.length : 0;
+        try {
+            if (active && this.progressDialog) this.progressDialog.updateBar_NewProcess(report.name(stage));
+            var result = method.apply(this, args);
+            if (active && result === false && !this.isCancelled() && report.issues.length == before)
+                this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, "Stage did not produce a confirmed result");
+            return result;
+        } catch (error) {
+            if (active && !this.isCancelled() && report.issues.length == before)
+                this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, error.message || String(error));
+            throw error;
+        } finally {
+            this.reportStage = previous;
+            if (active && this.progressDialog) this.progressDialog.refreshReport();
         }
-        for (var method in methods) if (methods.hasOwnProperty(method)) wrap(method, methods[method]);
-        wrap("splitChannels", null);
     };
 
+    /** Base directory for a source folder, shared by scanning and final-file copying. */
+    this.outputBasePath = function (sourceDirectory) {
+        switch (Config.PathMode) {
+        case PATHMODE.PUT_IN_ROOT_SUBFOLDER:
+        case PATHMODE.PUT_IN_OBJECT_SUBFOLDER:
+        case PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER:
+            return Config.InputPath + "/" + Config.OutputPath;
+        case PATHMODE.RELATIVE:
+        case PATHMODE.RELATIVE_WITH_OBJECT_FOLDER:
+            return sourceDirectory;
+        default:
+            return Config.OutputPath;
+        }
+    };
+
+    /** Recover the source folder when resuming from a stage output. */
+    this.resumeOutputBasePath = function (file, originalFile) {
+        var directory = File.extractDrive(file) + File.extractDirectory(file);
+        if (file != originalFile) {
+            directory = directory.substring(0, directory.lastIndexOf("/"));
+            if (Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+                directory = directory.substring(0, directory.lastIndexOf("/"));
+        }
+        // Preserve the old second-pass fallback for unconfigured/legacy modes.
+        if (Config.PathMode != PATHMODE.PUT_IN_ROOT_SUBFOLDER && Config.PathMode != PATHMODE.PUT_IN_OBJECT_SUBFOLDER &&
+            Config.PathMode != PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && Config.PathMode != PATHMODE.ABSOLUTE)
+            return directory;
+        return this.outputBasePath(directory);
+    };
+
+    // Finalize for normal completion, early return, cancellation and exceptions.
     this.Process = function (progressDialog) {
         this.progressDialog = progressDialog || null;
         this.abortRequested = false;
@@ -160,7 +177,6 @@ function AutoCalibrateEngine() {
         FILEARRAY = [];
         requestToCopy = [];
         if (this.progressDialog) this.progressDialog.attachReport(this.runReport);
-        this.installReportHooks();
         var succeeded = false;
         try {
             succeeded = this.processRun(progressDialog);
@@ -402,16 +418,7 @@ function AutoCalibrateEngine() {
                             // if this is FIT
 							if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits' || fileExtension(objFileFind.name).toLowerCase() == 'xisf') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
 
-                                // Set output folders (depends on config)
-                                if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-                                    this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
-                                } else if (Config.PathMode == PATHMODE.ABSOLUTE) {
-                                    this.BaseCalibratedOutputPath = Config.OutputPath;
-                                } else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER) {
-                                    this.BaseCalibratedOutputPath = searchPath;
-                                } else {
-                                    this.BaseCalibratedOutputPath = Config.OutputPath;
-                                }
+                                this.BaseCalibratedOutputPath = this.outputBasePath(searchPath);
                                 debug("BaseCalibratedOutputPath: " + this.BaseCalibratedOutputPath, dbgNotice);
 
                                 // Check if file still NOT CALIBRATED and Populate Array
@@ -435,14 +442,14 @@ function AutoCalibrateEngine() {
 
                                     // Process by the selected workflow using the existing nested pipeline.
                                     this.addFileForApproving(
-                                        this.localNormalization(
-                                            this.splitChannels(
-                                                this.registerFits(
-                                                    this.ABEprocess(
-                                                        this.splitChannels(
-                                                            this.debayerFit(
-                                                                this.cosmeticFit(
-                                                                    this.calibrateFITSFile(searchPath + '/' + objFileFind.name))), false))), true)));
+                                        this.runStage("normalized", this.localNormalization,
+                                            this.runStage("split", this.splitChannels,
+                                                this.runStage("registered", this.registerFits,
+                                                    this.runStage("abed", this.ABEprocess,
+                                                        this.runStage("splitBefore", this.splitChannels,
+                                                            this.runStage("debayered", this.debayerFit,
+                                                                this.runStage("cosmetized", this.cosmeticFit,
+                                                                    this.runStage("calibrated", this.calibrateFITSFile, searchPath + '/' + objFileFind.name))), false))), true)));
                                     if (this.progressDialog) this.progressDialog.completeItem(this.FileTotalCount);
 
 
@@ -571,7 +578,7 @@ function AutoCalibrateEngine() {
                                 stageFailed = true;
                                 break;
                             }
-                            if (!this.localNormalization([normalizationFiles.image])) {
+                            if (!this.runStage("normalized", this.localNormalization, [normalizationFiles.image])) {
                                 stageFailed = true;
                                 break;
                             }
@@ -592,19 +599,7 @@ function AutoCalibrateEngine() {
                         console.noteln("missing <b>" + property + "</b>. Let's try to create it from <b>" + preceding + "</b>...");
                         console.noteln(" ************************************************************ ");
 
-                        if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
-                            this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
-                        else if (Config.PathMode == PATHMODE.ABSOLUTE)
-                            this.BaseCalibratedOutputPath = Config.OutputPath;
-                        else {
-                            var directory = File.extractDrive(filename) + File.extractDirectory(filename);
-                            if (filename != record.fullname) {
-                                directory = directory.substring(0, directory.lastIndexOf("/"));
-                                if (Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-                                    directory = directory.substring(0, directory.lastIndexOf("/"));
-                            }
-                            this.BaseCalibratedOutputPath = directory;
-                        }
+                        this.BaseCalibratedOutputPath = this.resumeOutputBasePath(filename, record.fullname);
                         debug(this.BaseCalibratedOutputPath, dbgNormal);
 
                         // if missing CALIBRATED
@@ -612,7 +607,7 @@ function AutoCalibrateEngine() {
                             this.FileTotalCount++;
 
                             // Process
-                            var res = this.calibrateFITSFile(FILEARRAY[i][preceding]);
+                            var res = this.runStage("calibrated", this.calibrateFITSFile, FILEARRAY[i][preceding]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -622,7 +617,7 @@ function AutoCalibrateEngine() {
                         if (property == getFILEARRPropertyName(FITS.COSMETIZED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.cosmeticFit(FILEARRAY[i][preceding]);
+                            var res = this.runStage("cosmetized", this.cosmeticFit, FILEARRAY[i][preceding]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -631,16 +626,16 @@ function AutoCalibrateEngine() {
                         // Debayer records source and channel outputs in FILEARRAY.
                         if (property == "debayered") {
                             this.FileTotalCount++;
-                            if (this.debayerFit(filename) === false) { stageFailed = true; break; }
+                            if (this.runStage("debayered", this.debayerFit, filename) === false) { stageFailed = true; break; }
                         }
                         if (property == "splitBefore") {
-                            if (this.splitChannels(Array.isArray(inputs) ? inputs : [inputs], false) === false) { stageFailed = true; break; }
+                            if (this.runStage("splitBefore", this.splitChannels, Array.isArray(inputs) ? inputs : [inputs], false) === false) { stageFailed = true; break; }
                         }
                         // if missing ABED
                         if (property == getFILEARRPropertyName(FITS.ABED) && inputs != null && Config.NeedABE) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.ABEprocess(Array.isArray(inputs) ? inputs : [inputs]);
+                            var res = this.runStage("abed", this.ABEprocess, Array.isArray(inputs) ? inputs : [inputs]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -650,20 +645,20 @@ function AutoCalibrateEngine() {
                         if (property == getFILEARRPropertyName(FITS.REGISTERED) && inputs != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.registerFits(Array.isArray(inputs) ? inputs : [inputs]);
+                            var res = this.runStage("registered", this.registerFits, Array.isArray(inputs) ? inputs : [inputs]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
                         }
                         if (property == "split") {
-                            if (this.splitChannels(Array.isArray(inputs) ? inputs : [inputs], true) === false) { stageFailed = true; break; }
+                            if (this.runStage("split", this.splitChannels, Array.isArray(inputs) ? inputs : [inputs], true) === false) { stageFailed = true; break; }
                         }
                         // if missing NORMALIZED
                         if (property == getFILEARRPropertyName(FITS.NORMALIZED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.localNormalization(Array.isArray(inputs) ? inputs : [inputs]);
+                            var res = this.runStage("normalized", this.localNormalization, Array.isArray(inputs) ? inputs : [inputs]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -704,51 +699,27 @@ function AutoCalibrateEngine() {
      */
     this.MoveMostAdvanced = function (searchPath) {
         if (this.isCancelled()) return false;
-        var engine = this;
-        print_array(requestToCopy);
-
-        requestToCopy.forEach(function (element) {
-
-            if (typeof element == 'string') {
-                objelement[0] = element;
-            } else {
-                objelement = element;
-            }
-
-            for (var i = 0; i < objelement.length; i++) {
-                if (engine.isCancelled()) return;
-                var fileName = objelement[i].toString();
-
-                //Get ObjFolderName
-                var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
-                fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
-
-                if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-                    this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
-                } else if (Config.PathMode == PATHMODE.ABSOLUTE) {
-                    FinalsOutputPath = this.BaseCalibratedOutputPath + "/" + Config.FinalsDirName;
-                } else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER) {
-                    this.BaseCalibratedOutputPath = searchPath;
-                } else {
-                    this.BaseCalibratedOutputPath = Config.OutputPath;
+        for (var q = 0; q < requestToCopy.length; ++q) {
+            var files = Array.isArray(requestToCopy[q]) ? requestToCopy[q] : [requestToCopy[q]];
+            for (var i = 0; i < files.length; ++i) {
+                if (this.isCancelled()) return false;
+                var fileName = String(files[i]);
+                var fileData = getFileHeaderData(fileName);
+                if (!fileData) {
+                    this.reportFailure(fileName, "Unable to read metadata for copying the final frame");
+                    continue;
                 }
-
-                FinalsOutputPath = this.BaseCalibratedOutputPath + "/" + Config.FinalsDirName + "/" + fileData.object;
-                var DestinationFileName = FinalsOutputPath + '/' + File.extractNameAndExtension(fileName);
-
-                console.writeln("Copying result file " + fileName + " to " + DestinationFileName);
-
-                if (!File.directoryExists(FinalsOutputPath))
-                    File.createDirectory(FinalsOutputPath, true);
-
-                if (!File.exists(DestinationFileName))
-                    File.copyFile(
-                        DestinationFileName,
-                        fileName);
+                var objectName = fileData.object || cfgDefObjectName;
+                var sourceDirectory = searchPath || File.extractDrive(fileName) + File.extractDirectory(fileName);
+                var outputBase = this.outputBasePath(sourceDirectory);
+                var destinationDirectory = outputBase + "/" + Config.FinalsDirName + "/" + objectName;
+                var destinationFile = destinationDirectory + "/" + File.extractNameAndExtension(fileName);
+                console.writeln("Copying result file " + fileName + " to " + destinationFile);
+                if (!File.directoryExists(destinationDirectory)) File.createDirectory(destinationDirectory, true);
+                if (!File.exists(destinationFile)) File.copyFile(destinationFile, fileName);
             }
-        })
-
-    }
+        }
+    };
 
     /**
      * Добавить файл в массив (используется во время 2го прохода)
@@ -842,6 +813,7 @@ function AutoCalibrateEngine() {
      * @return string          полное имя файла_c.fit включая путь
      */
     this.calibrateFITSFile = function (fileName) {
+        var CalibratedOutputPath;
         if (this.isCancelled()) return false;
         if (fileName == false) {
             debug("Skipping Calibration", dbgNormal);
@@ -1053,6 +1025,7 @@ function AutoCalibrateEngine() {
      * @return string          Полное имя файла_c_cc.fit включая путь
      */
     this.cosmeticFit = function (fileName) {
+        var CosmetizedOutputPath;
         if (this.isCancelled()) return false;
 
         if (fileName == false || !fileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) {
@@ -1188,6 +1161,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.ABEprocess = function (files) {
+        var ABEOutputPath;
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping ABE processing", dbgNormal);
@@ -1362,6 +1336,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.registerFits = function (files, restoreDrizzleTarget) {
+        var RegisteredOutputPath;
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping Registration", dbgNormal);
@@ -1643,11 +1618,16 @@ function AutoCalibrateEngine() {
      * @todo пачку фитов в одном процессе регистрировать
      */
     this.localNormalization = function (files) {
+        var NormalizedOutputPath;
         if (this.isCancelled()) return false;
 
-        if (!Config.NeedNormalization || files == false) {
+        if (files == false) {
             debug("Skipping Normalization", dbgNormal);
             return false;
+        }
+        if (!Config.NeedNormalization) {
+            debug("Normalization is off", dbgNormal);
+            return files;
         }
 
         // Прервый всегда будет "файлом", даже если их много
@@ -2198,7 +2178,7 @@ function AutoCalibrateEngine() {
                             continue;
                         }
                         console.noteln("Drizzle: restoring registration data for " + registeredInput);
-                        try { this.registerFits([source], registeredInput); }
+                        try { this.runStage("registered", this.registerFits, [source], registeredInput); }
                         catch (error) { if (this.isCancelled()) return false; console.warningln("Drizzle registration recovery failed: " + error.message); }
                     }
                 }
@@ -2951,6 +2931,7 @@ function AutoCalibrateEngine() {
      *
      */
     this.binFits = function (files) {
+        var BinnedOutputPath;
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping binning", dbgNormal);
