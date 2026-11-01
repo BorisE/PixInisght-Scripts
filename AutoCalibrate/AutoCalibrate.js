@@ -108,8 +108,6 @@ function main() {
 				ProcessBar.show();
 
                 Engine.Process(ProcessBar);
-                ProcessBar.hide();
-                ProcessBar.execute(); // Keep the completed report available until explicitly closed.
                 break;
             }
         } else {
