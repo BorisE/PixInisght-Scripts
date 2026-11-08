@@ -310,8 +310,12 @@ function AutocalibrationDialog() {
     };
     this.WorkflowDrizzle_Button = new PushButton(this.Workflow_GroupBox);
     this.WorkflowDrizzle_Button.text = "OSC CFA Drizzle";
-    this.WorkflowDrizzle_Button.enabled = false;
-    this.WorkflowDrizzle_Button.toolTip = "<p>CFA Drizzle workflow is planned for a future version.</p>";
+    this.WorkflowDrizzle_Button.focusStyle = FocusStyle_NoFocus;
+    this.WorkflowDrizzle_Button.toolTip = "<p>Debayer for registration and integrate the linked CFA frames with DrizzleIntegration. Disable ABE for this workflow.</p>";
+    /** Select the CFA Drizzle workflow. */
+    this.WorkflowDrizzle_Button.onClick = function () {
+        this.dialog.selectWorkflow("OSC_CFA_DRIZZLE");
+    };
 
     this.Workflow_Sizer = new HorizontalSizer;
     this.Workflow_Sizer.spacing = 8;
@@ -338,7 +342,7 @@ function AutocalibrationDialog() {
         Config.saveWorkflowSettings();
         this.dialog.updateWorkflowControls();
     };
-    this.Debayer_CheckBox.toolTip = "<p>Apply VNG Debayer to CFA frames. Enabled by default in OSC; this choice is saved.</p>";
+    this.Debayer_CheckBox.toolTip = "<p>Apply VNG Debayer to CFA frames. Required automatically for OSC CFA Drizzle. In OSC, this choice is saved.</p>";
     this.SplitChannels_CheckBox = new CheckBox(this.OSCOptions_Control);
     this.SplitChannels_CheckBox.text = "Split channels";
     this.SplitChannels_CheckBox.checked = Config.SplitChannels;
@@ -388,10 +392,14 @@ function AutocalibrationDialog() {
         this.WorkflowMono_Button.styleSheet = Config.Workflow == "MONO" ? selectedStyle : normalStyle;
         this.WorkflowOSC_Button.styleSheet = Config.Workflow == "OSC" ? selectedStyle : normalStyle;
         this.WorkflowDrizzle_Button.styleSheet = Config.Workflow == "OSC_CFA_DRIZZLE" ? selectedStyle : normalStyle;
-        if (this.ok_Button) this.ok_Button.enabled = Config.Workflow != "OSC_CFA_DRIZZLE";
+        if (Config.Workflow == "OSC_CFA_DRIZZLE") Config.NeedRegister = true;
+        if (this.ProcessRegister_CheckBox) {
+            this.ProcessRegister_CheckBox.checked = Config.NeedRegister;
+            this.ProcessRegister_CheckBox.enabled = Config.Workflow != "OSC_CFA_DRIZZLE";
+        }
         this.OSCOptions_Control.enabled = Config.Workflow == "OSC";
         this.Debayer_CheckBox.enabled = Config.Workflow == "OSC";
-        this.Debayer_CheckBox.checked = Config.Workflow == "OSC" && Config.NeedDebayer;
+        this.Debayer_CheckBox.checked = isDebayerEnabled();
         this.SplitChannels_CheckBox.enabled = Config.Workflow == "OSC";
         this.OSCSplitStage_ComboBox.enabled = Config.Workflow == "OSC" && Config.SplitChannels;
         if (this.updateIntegrationControls) this.updateIntegrationControls();
@@ -511,7 +519,7 @@ function AutocalibrationDialog() {
             Config.NeedNormalization = checked;
             this.dialog.normMethod_ComboBox.enabled = checked;
             this.dialog.normMethod_Label.enabled = checked;
-            this.dialog.normGenerateData_CheckBox.enabled = checked;
+            this.dialog.updateIntegrationControls();
         };
     }
 
@@ -867,8 +875,13 @@ function AutocalibrationDialog() {
     this.updateIntegrationControls = function () {
         var drizzleSupported = Config.Workflow == "MONO" || (Config.Workflow == "OSC" &&
             (!Config.SplitChannels || Config.OSCSplitStage == "before-registration"));
-        var drizzleEnabled = drizzleSupported && Config.IntegrationMethod == "drizzle-integration";
+        var cfaDrizzle = Config.Workflow == "OSC_CFA_DRIZZLE";
+        var drizzleEnabled = cfaDrizzle || (drizzleSupported && Config.IntegrationMethod == "drizzle-integration");
         if (drizzleEnabled) Config.NeedIntegration = true;
+        var requireXNML = Config.NeedNormalization && drizzleEnabled;
+        if (requireXNML) Config.NormalizationGenerateData = true;
+        this.normGenerateData_CheckBox.checked = Config.NormalizationGenerateData;
+        this.normGenerateData_CheckBox.enabled = Config.NeedNormalization && !requireXNML;
         this.IntegrationEnable_CheckBox.checked = Config.NeedIntegration;
         this.IntegrationEnable_CheckBox.enabled = !drizzleEnabled;
         this.DrizzleEnable_CheckBox.enabled = drizzleSupported;
@@ -954,7 +967,7 @@ function AutocalibrationDialog() {
         add(this.buttons_Sizer);
     }
 
-    this.updateWorkflowControls(); // Execute button exists now; apply the reserved-workflow guard.
+    this.updateWorkflowControls();
     this.windowTitle = TITLE + " Script";
     this.adjustToContents();
 

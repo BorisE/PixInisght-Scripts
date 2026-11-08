@@ -277,8 +277,9 @@ function AutoCalibrateEngine() {
         var succeeded = false;
         try {
         if (this.progressDialog) this.progressDialog.attachReport(this.runReport);
-        if (Config.Workflow == "OSC_CFA_DRIZZLE") {
-            console.criticalln("OSC CFA Drizzle workflow is not implemented yet. Select MONO or OSC.");
+        if (Config.Workflow == "OSC_CFA_DRIZZLE" &&
+            (!Config.NeedRegister || !Config.NeedIntegration || Config.NeedABE)) {
+            this.reportFailure("Run", "OSC CFA Drizzle requires Registration and Integration with ABE disabled.");
             return false;
         }
         // Honor current console/dialog cancellation; only the previous engine latch was reset.
@@ -2003,8 +2004,9 @@ function AutoCalibrateEngine() {
      * Read configuration only.
      */
     function isDrizzleEnabled() {
-        return Config.IntegrationMethod == "drizzle-integration" && (Config.Workflow == "MONO" ||
-            (Config.Workflow == "OSC" && (!Config.SplitChannels || Config.OSCSplitStage == "before-registration")));
+        return Config.Workflow == "OSC_CFA_DRIZZLE" ||
+            (Config.IntegrationMethod == "drizzle-integration" && (Config.Workflow == "MONO" ||
+            (Config.Workflow == "OSC" && (!Config.SplitChannels || Config.OSCSplitStage == "before-registration"))));
     }
 
     /**
@@ -2038,6 +2040,23 @@ function AutoCalibrateEngine() {
         if (File.exists(destination)) File.remove(destination);
         File.move(source, destination);
         return destination;
+    }
+
+    /**
+     * Verify that native XDRZ data links to a readable CFA source with a pattern.
+     * PixInsight performs the actual decoding and validation during integration.
+     */
+    function hasCFADrizzleSource(path) {
+        try {
+            var xml = File.readTextFile(path);
+            var source = /<CFASourceImage\s+[^>]*pattern="[^"]+"[^>]*>([^<]+)<\/CFASourceImage>/.exec(xml);
+            if (!source) return false;
+            var file = source[1].replace(/^\s+|\s+$/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+                .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+            return File.exists(file);
+        } catch (error) {
+            return false;
+        }
     }
 
     /**
@@ -2077,7 +2096,7 @@ function AutoCalibrateEngine() {
         process.inputData = targets.map(function (row) { return [true, row[2], useLN ? row[3] : ""]; });
         process.scale = Config.DrizzleScale;
         process.dropShrink = Config.DrizzleDropShrink;
-        process.enableCFA = false;
+        process.enableCFA = Config.Workflow == "OSC_CFA_DRIZZLE";
         process.enableRejection = true;
         process.enableImageWeighting = true;
         process.enableLocalNormalization = useLN;
@@ -2306,6 +2325,7 @@ function AutoCalibrateEngine() {
                     if (File.exists(pair.data) && pair.image && File.exists(pair.image)) ++dataCount;
                 }
                 var drizzleRequested = isDrizzleEnabled();
+                var cfaDrizzle = Config.Workflow == "OSC_CFA_DRIZZLE";
                 /**
                  * Count registered inputs with available drizzle companion data.
                  */
@@ -2330,6 +2350,13 @@ function AutoCalibrateEngine() {
                 var useDrizzle = drizzleRequested && normalizationPairs.every(function (pair) {
                     return pair.image && File.exists(pair.image) && File.exists(drizzlePath(pair.image));
                 });
+                if (cfaDrizzle) {
+                    for (var i = 0; i < normalizationPairs.length; ++i) {
+                        var registered = normalizationPairs[i].image;
+                        if (!registered || !File.exists(registered) || !hasCFADrizzleSource(drizzlePath(registered)))
+                            throw new Error("Missing usable CFA source in drizzle data for " + group.files[i]);
+                    }
+                }
                 if (drizzleRequested && !useDrizzle)
                     console.warningln("Drizzle: incomplete registration data; saving ordinary integration for " + label);
                 /**
@@ -2437,10 +2464,10 @@ function AutoCalibrateEngine() {
                 try { 
                     integrated = process.executeGlobal(); 
                 } catch (error) {
-                    if (this.isCancelled() || !useDrizzle) throw error;
+                    if (this.isCancelled() || !useDrizzle || cfaDrizzle) throw error;
                     console.warningln("Drizzle preparation failed: " + error.message);
                 }
-                if (!integrated && useDrizzle && !this.isCancelled()) {
+                if (!integrated && useDrizzle && !cfaDrizzle && !this.isCancelled()) {
                     
                     // As a fallback - run integration without drizzle then 
                     // (в случае, если .xdrz файлов не окажется, процесс вывалится с ошибкой, а так соберем хотя бы обычную сумму, без дриззла)
@@ -2504,8 +2531,9 @@ function AutoCalibrateEngine() {
                             displayMaster = drizzleMaster;
                             group.summary.master = drizzleMaster;
                             group.summary.outputs.push(drizzleMaster);
-                            group.summary.status = "Drizzle integration";
+                            group.summary.status = cfaDrizzle ? "CFA Drizzle integration" : "Drizzle integration";
                         } else {
+                            if (cfaDrizzle) success = false;
                             group.summary.status = "Ordinary integration; drizzle not completed";
                             if (!this.isCancelled() && this.runReport)
                                 this.runReport.issue(label, "Drizzle did not produce a master; ordinary master saved", "Warning");
@@ -2513,6 +2541,7 @@ function AutoCalibrateEngine() {
                     } catch (error) {
                         if (this.isCancelled()) return false;
                         console.warningln("DrizzleIntegration failed; ordinary master saved: " + error.message);
+                        if (cfaDrizzle) success = false;
                         group.summary.status = "Ordinary integration; drizzle failed";
                         this.reportFailure(label, "DrizzleIntegration failed; ordinary master saved: " + error.message);
                     }
@@ -2893,6 +2922,8 @@ function AutoCalibrateEngine() {
                 return [fileName];
             }
             if (!data.cfa) {
+                if (Config.Workflow == "OSC_CFA_DRIZZLE")
+                    throw new Error("OSC CFA Drizzle requires a Bayer CFA input: " + fileName);
                 if (isSplitEnabled() && !data.isColor) {
                     console.criticalln("Split channels requires RGB input; this image is monochrome and has no CFA pattern: " + fileName);
                     return false;

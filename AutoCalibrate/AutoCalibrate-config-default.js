@@ -17,7 +17,7 @@ Config.PathMode = PATHMODE.PUT_IN_ROOT_SUBFOLDER;       //КАКОЙ СПОСО�
 
 Config.NeedCalibration = true;                           // КАЛИБРОВАТЬ?
 Config.NeedCosmeticCorrection = false;                   // КОСМЕТИКА?
-Config.Workflow = "MONO";                              // MONO, OSC, OSC_CFA_DRIZZLE (reserved); null migrates legacy configs
+Config.Workflow = "MONO";                              // MONO, OSC, OSC_CFA_DRIZZLE; null migrates legacy configs
 Config.OSCSplitStage = "before-registration";          // before-registration or after-registration
 Config.NeedDebayer = true;                             // VNG demosaicing after cosmetic correction
 Config.SplitChannels = false;                           // Continue with separate R, G and B images

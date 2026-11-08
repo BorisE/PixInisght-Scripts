@@ -4,7 +4,7 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.1beta6"
+ #define VERSION "7.2beta1"
  #define COMPILE_DATE "2026/11/08"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
@@ -24,6 +24,9 @@ TODO:
 - Добавить автозапуск NSG
 - Добавить Gradient Correction
 - добавить в диалог параметр для Absolute Path
+
+v 7.2beta1  [2026/11/08]
+- CFA drizzle реализован
 
 v 7.1beta6  [2026/11/08]
 - reporting and optimization, ver2 (prev discarde)
@@ -386,7 +389,8 @@ function getFILEARRPropertyName(type) {
  * @return {Boolean} No side effects; null Workflow supports legacy configurations.
  */
 function isDebayerEnabled() {
-    return (Config.Workflow == null || Config.Workflow == "OSC") && Config.NeedDebayer;
+    return Config.Workflow == "OSC_CFA_DRIZZLE" ||
+        ((Config.Workflow == null || Config.Workflow == "OSC") && Config.NeedDebayer);
 }
 
 /** Return whether channel splitting is enabled in OSC, independently of Debayer. No side effects. */
