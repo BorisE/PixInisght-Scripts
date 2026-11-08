@@ -48,6 +48,11 @@ var Engine = new AutoCalibrateEngine();
 var ProcessBar = null;
 
 //main
+/**
+ * Load settings and show the configuration dialog; validate InputPath and start the engine when accepted.
+ * Display the final summary until closed and restore the previous console abort setting.
+ * Save settings according to the user choice.
+ */
 function main() {
     if (!DEBUG)
         console.hide();
@@ -107,7 +112,16 @@ function main() {
 				ProcessBar = new AutocalibrationProgressDialog();
 				ProcessBar.show();
 
-                Engine.Process(ProcessBar);
+                var previousAbortEnabled = console.abortEnabled;
+                try {
+                    Engine.Process(ProcessBar);
+                    ProcessBar.hide();
+                    if (ProcessBar.completed) ProcessBar.execute();
+                } finally {
+                    if (ProcessBar.timer) ProcessBar.timer.stop();
+                    ProcessBar.hide();
+                    console.abortEnabled = previousAbortEnabled;
+                }
                 break;
             }
         } else {

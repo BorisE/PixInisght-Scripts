@@ -27,6 +27,7 @@ Developed 2019 by Boris Emchenko
  #endif
 
 #include "AutoCalibrate-MastersSearch.js"
+#include "AutoCalibrate-runReport.js"
 
 #include <pjsr/DataType.jsh>
 #include <pjsr/UndoFlag.jsh>
@@ -34,6 +35,10 @@ Developed 2019 by Boris Emchenko
 // ======== # processing class ===============================================
 /// @class AutoCalibrateEngine perform AutoCalibration processing
 ///
+/**
+ * Create processing state and helpers for one reusable engine.
+ * Process() resets run-specific arrays, counters, cancellation and report data before each invocation.
+ */
 function AutoCalibrateEngine() {
 
     this.T = new ElapsedTime;
@@ -65,6 +70,9 @@ function AutoCalibrateEngine() {
     this.CameraHeaders = new ProcessCameraHeaders();
     var fileHeaderCache = {}; // Successful header reads, scoped to this processing run.
 
+    // Created per run; file paths and stage results remain in FILEARRAY.
+    this.runReport = null;
+    this.reportStage = "";
 	this.progressDialog = null;
 	this.abortRequested = false;
 
@@ -72,10 +80,8 @@ function AutoCalibrateEngine() {
     // 	Начало исполнения
     // =========================================================
     /**
-     * Check cancellation requested by PixInsight, the progress dialog or the engine.
-     * Once detected, cancellation remains latched for the current engine instance.
-     * Takes no arguments. Does not log an error or add a failed-file status.
-     * @return {Boolean} True when processing must stop.
+     * Return true after cancellation is requested by the console, dialog or engine.
+     * Latch the request until the next Process(); do not record cancellation as an error.
      */
     this.isCancelled = function () {
         if (console.abortRequested || this.abortRequested ||
@@ -85,30 +91,198 @@ function AutoCalibrateEngine() {
     };
 
     /**
-     * Report a concise failed/skipped-processing status for a file or object/channel group.
-     * Detailed diagnostics are logged by the caller. Cancellation produces no error status.
-     * @param {String} target Input file path or object/channel group label.
-     * @param {String} message Short status including the processing stage.
-     * @return {undefined} Updates the progress dialog when present; does not alter stage results.
+     * Record a file/group failure in the current stage and refresh the visible problems.
+     * target identifies the input or group; message is the diagnostic text.
+     * Ignore cancellation.
      */
     this.reportFailure = function (target, message) {
         if (this.isCancelled()) return;
+        if (this.runReport) this.runReport.issue(target, message, "Error", this.reportStage);
         if (this.progressDialog) this.progressDialog.updateBar_Error(message, target);
     };
 
+    /**
+     * Record a confirmed output and its created/existing origin in FILEARRAY.
+     * stage selects the processing column; output must exist.
+     * Preserve created when the same result is reused; channel metadata belongs to individual channel rows.
+     */
+    this.recordReportOutput = function (stage, output, kind) {
+        if (!output || !File.exists(output)) return;
+        var types = {calibrated: FITS.CALIBRATED, cosmetized: FITS.COSMETIZED,
+            debayered: FITS.DEBAYERED, splitBefore: FITS.PRESPLIT, abed: FITS.ABED,
+            registered: FITS.REGISTERED, split: FITS.SPLIT, normalized: FITS.NORMALIZED};
+        if (!types.hasOwnProperty(stage)) return;
+        var multiple = stage == "debayered" || stage == "splitBefore" || stage == "split";
+        var record = AddFileToArray(types[stage], multiple ? [output] : output,
+            imageSignature(output), File.extractDirectory(output));
+        if (!record.report) record.report = {};
+        if (!record.report[stage] || record.report[stage].kind != "created")
+            record.report[stage] = {kind: kind};
+    };
+    
+    /**
+     * Call method with this engine and all arguments after stage/method.
+     * Establish error context, mark consumed inputs, update progress and resolve prior input errors on success.
+     * Return the method result unchanged; record and rethrow exceptions; always restore the previous stage.
+     */
+    this.runStage = function (stage, method, inputs) {
+        var args = Array.prototype.slice.call(arguments, 2);
+        var previous = this.reportStage;
+        this.reportStage = stage;
+        var report = this.runReport;
+        var active = report && report.enabled(stage) && inputs;
+        var before = report ? report.issues.length : 0;
+        try {
+            if (active && this.progressDialog) this.progressDialog.updateBar_NewProcess(report.name(stage));
+        
+            // Calling the processing method
+            if (active) this.markReportUsed(inputs);
+            var result = method.apply(this, args);
+            if (active && result !== false) report.resolve(stage, inputs);
+            if (active && result === false && !this.isCancelled() && report.issues.length == before)
+                this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, "Stage did not produce a confirmed result");
+            return result;
+        
+        } catch (error) {
+            if (active && !this.isCancelled() && report.issues.length == before)
+                this.reportFailure(Array.isArray(inputs) ? inputs[0] : inputs, error.message || String(error));
+            throw error;
+        } finally {
+            this.reportStage = previous;
+            if (active && this.progressDialog && typeof this.progressDialog.refreshReport == "function")
+                this.progressDialog.refreshReport();
+        }
+    };
+
+    /**
+     * Return the output base for sourceDirectory under the configured placement mode.
+     * Compute a path only; do not create directories or modify engine state.
+     */
+    this.outputBasePath = function (sourceDirectory) {
+        switch (Config.PathMode) {
+            case PATHMODE.PUT_IN_ROOT_SUBFOLDER:
+            case PATHMODE.PUT_IN_OBJECT_SUBFOLDER:
+            case PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER:
+                return Config.InputPath + "/" + Config.OutputPath;
+            case PATHMODE.RELATIVE:
+            case PATHMODE.RELATIVE_WITH_OBJECT_FOLDER:
+                return sourceDirectory;
+            default:
+                return Config.OutputPath;
+        }
+    };
+
+    /**
+     * Recover the base output directory when resuming file relative to originalFile.
+     * Remove processing/object folders where required by PathMode; return a directory without creating it.
+     */
+    this.resumeOutputBasePath = function (file, originalFile) {
+        var directory = File.extractDrive(file) + File.extractDirectory(file);
+        if (file != originalFile) {
+            directory = directory.substring(0, directory.lastIndexOf("/"));
+            if (Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
+                directory = directory.substring(0, directory.lastIndexOf("/"));
+        }
+        // Preserve the old second-pass fallback for unconfigured/legacy modes.
+        if (Config.PathMode != PATHMODE.PUT_IN_ROOT_SUBFOLDER && Config.PathMode != PATHMODE.PUT_IN_OBJECT_SUBFOLDER &&
+            Config.PathMode != PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER && Config.PathMode != PATHMODE.ABSOLUTE)
+            return directory;
+        return this.outputBasePath(directory);
+    };
+
+    /**
+     * Complete the current report from succeeded/cancelled, save a unique text file under InputPath, and switch the dialog to its final view.
+     * Log save/display failures without replacing the original processing error.
+     */
+    this.finalizeReport = function (succeeded, cancelled) {
+        this.runReport.complete(FILEARRAY, succeeded, cancelled);
+        try {
+            this.runReport.save(Config.InputPath + "/AutoCalibrate-summary-" + this.runReport.started.getTime() + ".txt", FILEARRAY);
+        } catch (error) {
+            this.runReport.issue("Summary", "Automatic report save failed: " + error.message);
+            if (!cancelled) this.runReport.status = "Completed with issues";
+            console.warningln("Unable to save run report: " + error.message);
+        }
+        if (this.progressDialog) try { this.progressDialog.finishRun(this.runReport); }
+        catch (error) { console.warningln("Unable to display run report: " + error.message); }
+    };
+
+    /**
+     * Mark the most advanced known stage for each consumed path in files (string or array) as used.
+     * Update FILEARRAY metadata through recordReportOutput; do not count files merely found during scanning or overwrite created origin.
+     */
+    this.markReportUsed = function (files) {
+        if (!files || !this.runReport) return;
+        files = Array.isArray(files) ? files : [files];
+        for (var f = 0; f < files.length; ++f) {
+            var found = "", order = -1;
+            for (var i = 0; i < FILEARRAY.length; ++i) {
+                for (var j = 1; j < this.runReport.stageOrder.length; ++j) {
+                    var stage = this.runReport.stageOrder[j];
+                    var paths = this.runReport.paths(FILEARRAY[i][stage]);
+                    if (paths.indexOf(files[f]) >= 0 && j > order) { found = stage; order = j; }
+                }
+            }
+            if (found) this.recordReportOutput(found, files[f], "existing");
+        }
+    };
+
+    /**
+     * Execute a complete run with an optional progressDialog.
+     * Reset state, scan files, resume missing stages and run final consumers.
+     * Return success/false; always finalize the report on completion, cancellation or exception.
+     * Keep the summary responsive after console abort.
+     */
     this.Process = function (progressDialog) {
+        // Each invocation starts a new run, including after a previous cancellation.
+        this.reportStage = "";
+        this.progressDialog = progressDialog || null;
+        this.abortRequested = false;
+        this.T = new ElapsedTime;
+
+        this.DirCount = 0;
+        this.FileTotalCount = 0;
+        this.DirsToProcessNum = 0;
+        this.FilesToProcessNum = 0;
+        this.ProcessesCompleted = 0;
+        this.FilesProcessed = 0;
+        this.CalibratedCount = 0;
+        this.CosmetizedCount = 0;
+        this.RegisteredCount = 0;
+        this.NormalizedCount = 0;
+        this.ApprovedCount = 0;
+        this.IntegratedCount = 0;
+        this.ABECount = 0;
+        this.BinnedCount = 0;
+
+        this.approveFileList = [];
+        this.integrationFallbackFiles = [];
+        this.NSG_FileList = [];
+        this.BaseCalibratedOutputPath = "";
+        this.NeedToCopyToFinalDirFlag = false;
+        fileHeaderCache = {};
+        FILEARRAY = [];
+        this.runReport = new AutoCalibrateRunReport(Config.InputPath);
+        this.filesVisited = 0;
+        this.runReport.configure(Config, isDebayerEnabled(), isSplitEnabled(), splitAfterRegistration());
+        /**
+         * Check image existence and required LN data before treating a frame as a ready output.
+         */
+        this.runReport.validOutput = function (stage, file) {
+            if (!File.exists(file)) return false;
+            return stage != "normalized" || !Config.NormalizationGenerateData || File.exists(getNormalizationFiles(file).data);
+        };
+        requestToCopy = [];
+        busy = false;
+        var succeeded = false;
+        try {
+        if (this.progressDialog) this.progressDialog.attachReport(this.runReport);
         if (Config.Workflow == "OSC_CFA_DRIZZLE") {
             console.criticalln("OSC CFA Drizzle workflow is not implemented yet. Select MONO or OSC.");
             return false;
         }
-        //var T = new ElapsedTime;
-
-		this.progressDialog = progressDialog;
+        // Honor current console/dialog cancellation; only the previous engine latch was reset.
         if (this.isCancelled()) return false;
-        fileHeaderCache = {};
-        this.approveFileList = []; // Shared final-frame queue for SFS and Integration.
-        this.integrationFallbackFiles = [];
-        this.IntegratedCount = 0;
         if (Config.SkipDirs.indexOf("Integrated") < 0) Config.SkipDirs.push("Integrated");
 
         console.abortEnabled = true; // allow stop
@@ -126,12 +300,15 @@ function AutoCalibrateEngine() {
         console.noteln('  Calibrate Images: ' + Config.NeedCalibration);
         if (Config.NeedCalibration)
             console.noteln('  Masters library path: ' + Config.CalibratationMastersPath);
+        
         console.noteln('  Register Images: ' + Config.NeedRegister);
         if (Config.NeedRegister)
             console.noteln('  Registration Reference path: ' + Config.RegistrationReferencesPath);
+        
         console.noteln('  Normalize Images: ' + Config.NeedNormalization);
         if (Config.NeedNormalization)
             console.noteln('  Normalization Reference path: ' + Config.NormalizationReferencesPath);
+        
         console.noteln("  Integrate Images: " + Config.NeedIntegration);
         console.writeln();
 
@@ -146,6 +323,7 @@ function AutoCalibrateEngine() {
         console.noteln("   directories: " + this.DirsToProcessNum);
         console.noteln("   files: " + this.FilesToProcessNum);
 
+        if (this.progressDialog) this.progressDialog.setPhase("Scanning and processing files", "files visited");
 		//Show progress bar
 		if (this.progressDialog) {
 			this.progressDialog.initBar(Config.InputPath,this.FilesToProcessNum);
@@ -191,6 +369,7 @@ function AutoCalibrateEngine() {
             this.FileTotalCount = 0;
             this.ProcessesCompleted = 0;
 
+            if (this.progressDialog) this.progressDialog.setPhase("Second pass: missing stages", "records visited");
             this.ScanArray();
 
             //Finish working
@@ -203,24 +382,39 @@ function AutoCalibrateEngine() {
         }
         // Final consumers include files completed during the second pass.
         if (this.isCancelled()) return false;
+        if (this.progressDialog && Config.NeedApproving) this.progressDialog.setPhase("SubframeSelector", "frames");
         this.runSubframeSelector();
         if (this.isCancelled()) return false;
+        if (this.progressDialog && Config.NeedIntegration) this.progressDialog.setPhase("Integration", "groups");
         var integrationSucceeded = this.runIntegration();
         if (this.isCancelled()) return false;
+        var copySucceeded = true;
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
-            this.MoveMostAdvanced();
+            copySucceeded = this.MoveMostAdvanced();
         //sleep(10);
-		return integrationSucceeded;
-    }
+        succeeded = integrationSucceeded && copySucceeded;
+        return succeeded;
+        } catch (error) {
+            if (!this.isCancelled()) {
+                this.runReport.issue("Run", error.message || String(error), "Error", this.reportStage);
+                console.criticalln("AutoCalibrate: " + error);
+            }
+            return false;
+        } finally {
+            var cancelled = this.isCancelled();
+            console.abortEnabled = false;
+            this.finalizeReport(succeeded, cancelled);
+        }
+    };
 
     /* **************************************************************************************************************
      *
      * Подсчет количества файлов для обрабтки (не учитывает те, которые уже обработаны)
      *
-    /* **************************************************************************************************************
-     *
-     * @param file string
-     * @return void
+    /**
+     * Recursively count candidate image files and directories under searchPath using configured exclusions.
+     * Update FilesToProcessNum/DirsToProcessNum for scan progress; stop promptly on cancellation.
+     * No image processing or output writes.
      */
     this.calcWork = function (searchPath) {
         if (this.isCancelled()) return;
@@ -257,11 +451,10 @@ function AutoCalibrateEngine() {
         };
     };
 
-    /* **************************************************************************************************************
-     * Базовая функция для 1го прохода
-     *
-     * @param file string
-     * @return object
+    /**
+     * Scan searchPath recursively, populate FILEARRAY and process original images through the selected stages.
+     * Existing products are inventoried for the second pass.
+     * Update visited-file progress and return false on cancellation, true after traversal.
      */
     this.searchDirectory = function (searchPath) {
         if (this.isCancelled()) return false;
@@ -306,23 +499,14 @@ function AutoCalibrateEngine() {
                             // if this is FIT
 							if (fileExtension(objFileFind.name) !== false && (fileExtension(objFileFind.name).toLowerCase() == 'fit' || fileExtension(objFileFind.name).toLowerCase() == 'fits' || fileExtension(objFileFind.name).toLowerCase() == 'xisf') && FileDirNameContains(objFileFind.name, Config.SkipFilesContains) !== true) {
 
-                                // Set output folders (depends on config)
-                                if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-                                    this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
-                                } else if (Config.PathMode == PATHMODE.ABSOLUTE) {
-                                    this.BaseCalibratedOutputPath = Config.OutputPath;
-                                } else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER) {
-                                    this.BaseCalibratedOutputPath = searchPath;
-                                } else {
-                                    this.BaseCalibratedOutputPath = Config.OutputPath;
-                                }
+                                this.BaseCalibratedOutputPath = this.outputBasePath(searchPath);
                                 debug("BaseCalibratedOutputPath: " + this.BaseCalibratedOutputPath, dbgNotice);
 
+                                if (this.progressDialog) this.progressDialog.updateBar_NewFile(this.filesVisited + 1, objFileFind.name);
                                 // Check if file still NOT CALIBRATED and Populate Array
                                 if (checkFileNeedCalibratation_and_PopulateArray(searchPath + '/' + objFileFind.name)) {
                                     FileCount++;
                                     this.FileTotalCount++;
-									if (this.progressDialog) { this.progressDialog.updateBar_NewFile(this.FileTotalCount, objFileFind.name); }
 
                                     console.noteln("<end><cbr><br>",
                                         "************************************************************");
@@ -337,14 +521,14 @@ function AutoCalibrateEngine() {
 
                                     // Process by the selected workflow using the existing nested pipeline.
                                     this.addFileForApproving(
-                                        this.localNormalization(
-                                            this.splitChannels(
-                                                this.registerFits(
-                                                    this.ABEprocess(
-                                                        this.splitChannels(
-                                                            this.debayerFit(
-                                                                this.cosmeticFit(
-                                                                    this.calibrateFITSFile(searchPath + '/' + objFileFind.name))), false))), true)));
+                                        this.runStage("normalized", this.localNormalization,
+                                            this.runStage("split", this.splitChannels,
+                                                this.runStage("registered", this.registerFits,
+                                                    this.runStage("abed", this.ABEprocess,
+                                                        this.runStage("splitBefore", this.splitChannels,
+                                                            this.runStage("debayered", this.debayerFit,
+                                                                this.runStage("cosmetized", this.cosmeticFit,
+                                                                    this.runStage("calibrated", this.calibrateFITSFile, searchPath + '/' + objFileFind.name))), false))), true)));
 
 
                                 }
@@ -352,6 +536,8 @@ function AutoCalibrateEngine() {
                                 {
                                     debug('Skipping any actions on file found: ' + searchPath + '/' + objFileFind.name, dbgNotice);
                                 }
+                                ++this.filesVisited;
+                                if (this.progressDialog) this.progressDialog.completeItem(this.filesVisited);
                             }
                         }
                     }
@@ -365,11 +551,9 @@ function AutoCalibrateEngine() {
 
 
     /**
-     * Resume missing stages in FILEARRAY using the existing processing order.
-     * DEBAYERED, PRESPLIT and SPLIT store output paths. Source records link
-     * their products; each product resumes after the stage that created it.
-     * Updates stage records, output paths and the SubframeSelector queue.
-     * @return {undefined} Stops early on abort and sets abortRequested.
+     * Resume missing enabled stages in FILEARRAY, including independent RGB channel rows.
+     * Skip report metadata and incompatible workflow records; queue completed outputs for final consumers.
+     * May append newly produced records; stop on cancellation.
      */
     this.ScanArray = function () {
         if (this.isCancelled()) return;
@@ -384,6 +568,7 @@ function AutoCalibrateEngine() {
         for (var i = 0; i < FILEARRAY.length; i++) {
 
             for (var property in FILEARRAY[i]) {
+                if (!FILEARRAY[i].hasOwnProperty(property) || property == "report") continue;
                 if (property == "fits")
                     console.note("<b>", FILEARRAY[i].fits, "</b> | ");
                 else
@@ -414,12 +599,18 @@ function AutoCalibrateEngine() {
             }
 
             // Ignore saved products belonging to another split order/workflow.
+            if (this.progressDialog) {
+                this.progressDialog.initBar(Config.InputPath, FILEARRAY.length);
+                this.progressDialog.completeItem(i);
+                this.progressDialog.updateBar_NewFile(i + 1, FILEARRAY[i].fits);
+            }
             var signature = FILEARRAY[i].fits;
             if (/_s_[RGB]$/i.test(signature) && !splitAfterRegistration()) continue;
             if (/_(?:p|d)_[RGB]$/i.test(signature) && (!isSplitEnabled() || splitAfterRegistration())) continue;
             if (Config.Workflow == "MONO" && /_d_RGB$/i.test(signature)) continue;
             var stageFailed = false;
             for (var property in FILEARRAY[i]) {
+                if (!FILEARRAY[i].hasOwnProperty(property) || property == "report") continue;
                 if (property == "fits") {
                     console.noteln(" ************************************************************ ");
                     console.note("Fits from array <b>", FILEARRAY[i].fits, "</b> is ");
@@ -464,7 +655,7 @@ function AutoCalibrateEngine() {
                                 stageFailed = true;
                                 break;
                             }
-                            if (!this.localNormalization([normalizationFiles.image])) {
+                            if (!this.runStage("normalized", this.localNormalization, [normalizationFiles.image])) {
                                 stageFailed = true;
                                 break;
                             }
@@ -485,19 +676,7 @@ function AutoCalibrateEngine() {
                         console.noteln("missing <b>" + property + "</b>. Let's try to create it from <b>" + preceding + "</b>...");
                         console.noteln(" ************************************************************ ");
 
-                        if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER)
-                            this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
-                        else if (Config.PathMode == PATHMODE.ABSOLUTE)
-                            this.BaseCalibratedOutputPath = Config.OutputPath;
-                        else {
-                            var directory = File.extractDrive(filename) + File.extractDirectory(filename);
-                            if (filename != record.fullname) {
-                                directory = directory.substring(0, directory.lastIndexOf("/"));
-                                if (Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER)
-                                    directory = directory.substring(0, directory.lastIndexOf("/"));
-                            }
-                            this.BaseCalibratedOutputPath = directory;
-                        }
+                        this.BaseCalibratedOutputPath = this.resumeOutputBasePath(filename, record.fullname);
                         debug(this.BaseCalibratedOutputPath, dbgNormal);
 
                         // if missing CALIBRATED
@@ -505,7 +684,7 @@ function AutoCalibrateEngine() {
                             this.FileTotalCount++;
 
                             // Process
-                            var res = this.calibrateFITSFile(FILEARRAY[i][preceding]);
+                            var res = this.runStage("calibrated", this.calibrateFITSFile, FILEARRAY[i][preceding]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -515,7 +694,7 @@ function AutoCalibrateEngine() {
                         if (property == getFILEARRPropertyName(FITS.COSMETIZED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.cosmeticFit(FILEARRAY[i][preceding]);
+                            var res = this.runStage("cosmetized", this.cosmeticFit, FILEARRAY[i][preceding]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -524,16 +703,16 @@ function AutoCalibrateEngine() {
                         // Debayer records source and channel outputs in FILEARRAY.
                         if (property == "debayered") {
                             this.FileTotalCount++;
-                            if (this.debayerFit(filename) === false) { stageFailed = true; break; }
+                            if (this.runStage("debayered", this.debayerFit, filename) === false) { stageFailed = true; break; }
                         }
                         if (property == "splitBefore") {
-                            if (this.splitChannels(Array.isArray(inputs) ? inputs : [inputs], false) === false) { stageFailed = true; break; }
+                            if (this.runStage("splitBefore", this.splitChannels, Array.isArray(inputs) ? inputs : [inputs], false) === false) { stageFailed = true; break; }
                         }
                         // if missing ABED
                         if (property == getFILEARRPropertyName(FITS.ABED) && inputs != null && Config.NeedABE) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.ABEprocess(Array.isArray(inputs) ? inputs : [inputs]);
+                            var res = this.runStage("abed", this.ABEprocess, Array.isArray(inputs) ? inputs : [inputs]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -543,20 +722,20 @@ function AutoCalibrateEngine() {
                         if (property == getFILEARRPropertyName(FITS.REGISTERED) && inputs != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.registerFits(Array.isArray(inputs) ? inputs : [inputs]);
+                            var res = this.runStage("registered", this.registerFits, Array.isArray(inputs) ? inputs : [inputs]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
                                 debug("Produced and added [" + property + "] for " + FILEARRAY[i].fits);
                         }
                         if (property == "split") {
-                            if (this.splitChannels(Array.isArray(inputs) ? inputs : [inputs], true) === false) { stageFailed = true; break; }
+                            if (this.runStage("split", this.splitChannels, Array.isArray(inputs) ? inputs : [inputs], true) === false) { stageFailed = true; break; }
                         }
                         // if missing NORMALIZED
                         if (property == getFILEARRPropertyName(FITS.NORMALIZED) && FILEARRAY[i][preceding] != null) {
                             this.FileTotalCount++;
                             // Process
-                            var res = this.localNormalization(Array.isArray(inputs) ? inputs : [inputs]);
+                            var res = this.runStage("normalized", this.localNormalization, Array.isArray(inputs) ? inputs : [inputs]);
                             if (res === false) { stageFailed = true; break; }
                             // Check and modify array
                             if (checkFileNeedCalibratation_and_PopulateArray(res))
@@ -577,11 +756,13 @@ function AutoCalibrateEngine() {
             console.writeln();
         }
 
+        if (this.progressDialog) this.progressDialog.completeItem(FILEARRAY.length);
         // Print array in the end
         console.writeln("What we have after processing " + FILEARRAY.length + " records:");
         for (var i = 0; i < FILEARRAY.length; i++) {
 
             for (var property in FILEARRAY[i]) {
+                if (!FILEARRAY[i].hasOwnProperty(property) || property == "report") continue;
                 if (property == "fits")
                     console.noteln("<b>", FILEARRAY[i].fits, "</b> | ");
                 else
@@ -591,65 +772,57 @@ function AutoCalibrateEngine() {
         }
     }
 
-    /************************************************************************************************************
-     * Перемешение наиболее "верхних" в конвейре файлов из папок
+    /**
+     * Copy queued final frames for PUT_FINALS_IN_OBJECT_SUBFOLDER into InputPath/OutputPath/FinalsDirName/Object.
+     * Preserve existing destination files and source images.
+     * Continue after per-file errors, report them, and return false on any failure or cancellation.
      */
-    this.MoveMostAdvanced = function (searchPath) {
+    this.MoveMostAdvanced = function () {
         if (this.isCancelled()) return false;
-        var engine = this;
-        print_array(requestToCopy);
-
-        requestToCopy.forEach(function (element) {
-
-            if (typeof element == 'string') {
-                objelement[0] = element;
-            } else {
-                objelement = element;
-            }
-
-            for (var i = 0; i < objelement.length; i++) {
-                if (engine.isCancelled()) return;
-                var fileName = objelement[i].toString();
-
-                //Get ObjFolderName
-                var fileData = getFileHeaderData(fileName); // Get FITS HEADER data to know object name
-                fileData.object = (fileData.object == "" ? cfgDefObjectName : fileData.object);
-
-                if (Config.PathMode == PATHMODE.PUT_IN_ROOT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_IN_OBJECT_SUBFOLDER || Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
-                    this.BaseCalibratedOutputPath = Config.InputPath + "/" + Config.OutputPath;
-                } else if (Config.PathMode == PATHMODE.ABSOLUTE) {
-                    FinalsOutputPath = this.BaseCalibratedOutputPath + "/" + Config.FinalsDirName;
-                } else if (Config.PathMode == PATHMODE.RELATIVE || Config.PathMode == PATHMODE.RELATIVE_WITH_OBJECT_FOLDER) {
-                    this.BaseCalibratedOutputPath = searchPath;
-                } else {
-                    this.BaseCalibratedOutputPath = Config.OutputPath;
+        var success = true, total = 0, done = 0;
+        for (var q = 0; q < requestToCopy.length; ++q)
+            total += Array.isArray(requestToCopy[q]) ? requestToCopy[q].length : 1;
+        if (this.progressDialog) {
+            this.progressDialog.setPhase("Copying final frames", "files");
+            this.progressDialog.initBar(Config.InputPath, total);
+        }
+        for (var q = 0; q < requestToCopy.length; ++q) {
+            var files = Array.isArray(requestToCopy[q]) ? requestToCopy[q] : [requestToCopy[q]];
+            for (var i = 0; i < files.length; ++i) {
+                if (this.isCancelled()) return false;
+                var fileName = String(files[i]);
+                if (this.progressDialog) this.progressDialog.updateBar_NewFile(done + 1, fileName);
+                try {
+                    if (!File.exists(fileName)) throw new Error("Source file does not exist");
+                    var fileData = getFileHeaderData(fileName);
+                    if (!fileData) throw new Error("Unable to read metadata for copying the final frame");
+                    var objectName = fileData.object || cfgDefObjectName;
+                    var directory = Config.InputPath + "/" + Config.OutputPath + "/" + Config.FinalsDirName + "/" + objectName;
+                    var destination = directory + "/" + File.extractNameAndExtension(fileName);
+                    if (!File.directoryExists(directory)) File.createDirectory(directory, true);
+                    if (!File.exists(destination)) {
+                        console.writeln("Copying result file " + fileName + " to " + destination);
+                        File.copyFile(destination, fileName);
+                    } else console.writeln("Keeping existing final file: " + destination);
+                    this.markReportUsed(fileName);
+                } catch (error) {
+                    if (this.isCancelled()) return false;
+                    success = false;
+                    this.runReport.issue(fileName, error.message || String(error), "Error", "Copy finals");
+                    if (this.progressDialog) this.progressDialog.updateBar_Error();
                 }
-
-                FinalsOutputPath = this.BaseCalibratedOutputPath + "/" + Config.FinalsDirName + "/" + fileData.object;
-                var DestinationFileName = FinalsOutputPath + '/' + File.extractNameAndExtension(fileName);
-
-                console.writeln("Copying result file " + fileName + " to " + DestinationFileName);
-
-                if (!File.directoryExists(FinalsOutputPath))
-                    File.createDirectory(FinalsOutputPath, true);
-
-                if (!File.exists(DestinationFileName))
-                    File.copyFile(
-                        DestinationFileName,
-                        fileName);
+                ++done;
+                if (this.progressDialog) this.progressDialog.completeItem(done);
             }
-        })
-
-    }
+        }
+        return success;
+    };
 
     /**
-     * Добавить файл в массив (используется во время 2го прохода)
-     *
-     * @param type          string   тип файла (FITS.ORIGINAL,FITS.CALIBRATED, .... )
-     * @param fullname      String|Array   путь файла; для DEBAYERED — массив путей результатов
-     * @param signaturename string   имя оригинального fits файла, соответветствующее рассматриваемому (без расширения)
-     * @param pathtofile    string   путь к файлу
-     * @return object
+     * Find or create the row identified by signaturename and store fullname (string/array) in the column for type.
+     * Return that row.
+     * Preserve origin on rescans of identical paths; clear stale stage metadata when paths change.
+     * pathtofile is retained for call compatibility.
      */
     function AddFileToArray(type, fullname, signaturename, pathtofile) {
         // search - is there is such file line?
@@ -664,7 +837,15 @@ function AutoCalibrateEngine() {
         }
         //if found - add info to line
         if (fnd) {
-            FILEARRAY[fndpos][getFILEARRPropertyName(type)] = fullname;
+            var record = FILEARRAY[fndpos], property = getFILEARRPropertyName(type);
+            // A replacement path must not inherit the previous result's origin.
+            var previous = Array.isArray(record[property]) ? record[property] : [record[property]];
+            var next = Array.isArray(fullname) ? fullname : [fullname];
+            var same = previous.length == next.length;
+            for (var j = 0; same && j < previous.length; ++j) same = previous[j] == next[j];
+            if (!same && record.report) delete record.report[property];
+            record[property] = fullname;
+            return record;
         } else {
             //no line, add data
             FILEARRAY.push({
@@ -678,16 +859,16 @@ function AutoCalibrateEngine() {
                 registered:     (type == FITS.REGISTERED ? fullname : null),
                 split:          (type == FITS.SPLIT ? fullname : null),
                 normalized:     (type == FITS.NORMALIZED ? fullname : null),
+                report: {} // Per-stage origin for this run; never a processing stage.
             });
+            return FILEARRAY[FILEARRAY.length - 1];
         }
     }
 
     /**
-     * Этот фит нужно калибровать? Нет ли уже готового такого?
-     * + Добавить  массив для второго прохода
-     *
-     * @param file string Имя пути/файла
-     * @return bool
+     * Classify file paths by processing suffix and add them to FILEARRAY.
+     * Accept one path, an array, or a previous-stage false.
+     * Return true only for an original image; inventory processed products without requesting first-pass calibration.
      */
     function checkFileNeedCalibratation_and_PopulateArray(file) {
 
@@ -726,14 +907,13 @@ function AutoCalibrateEngine() {
         return true;
     }
 
-    /************************************************************************************************************
-     * Калибровка фита с доступными мастерами bias, dark и flat.
-     * Отсутствующие типы отключаются; если нет ни одного мастера, возвращается исходный файл.
-     *
-     * @param fileName string  полное имя файла.fit включая путь
-     * @return string          полное имя файла_c.fit включая путь
+    /**
+     * Calibrate fileName using matching bias/dark/flat masters.
+     * Reuse permitted existing results; return the calibrated path, the original path when calibration is disabled/unneeded, or false on failure/cancellation.
+     * Update counters and FILEARRAY.
      */
     this.calibrateFITSFile = function (fileName) {
+        var CalibratedOutputPath;
         if (this.isCancelled()) return false;
         if (fileName == false) {
             debug("Skipping Calibration", dbgNormal);
@@ -744,7 +924,6 @@ function AutoCalibrateEngine() {
             debug("Calibration is off", dbgNormal);
             return fileName;
         }
-
 
         // Start calibration
         console.noteln("<end><cbr><br>",
@@ -773,6 +952,7 @@ function AutoCalibrateEngine() {
         //Проверить - сущетсвует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
             console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping calibration');
+            this.recordReportOutput("calibrated", File.exists(newFileName) ? newFileName : newFileName_old, "existing");
         } else {
 
             if (!fileData)
@@ -895,12 +1075,12 @@ function AutoCalibrateEngine() {
             }
             if (this.isCancelled()) return false;
 
-            console.noteln("<end><cbr><br>",
-                "-------------------------------------------------------------");
+            console.noteln("<end><cbr><br>", "-------------------------------------------------------------");
 
             if (status)
             {
                 this.CalibratedCount++;
+                this.recordReportOutput("calibrated", newFileName, "created");
                 this.ProcessesCompleted++;
 
                 console.noteln(" [" + this.FileTotalCount + "] End of calibration");
@@ -936,13 +1116,13 @@ function AutoCalibrateEngine() {
 
     }
 
-    /************************************************************************************************************
-     * Косметика фита
-     *
-     * @param fileName string  Полное Имя файла_c.fit включая путь
-     * @return string          Полное имя файла_c_cc.fit включая путь
+    /**
+     * Apply cosmetic correction to fileName with the configured process instance.
+     * Reuse permitted existing output and return its path; pass input through when disabled.
+     * Record confirmed products and return false on cancellation or unrecoverable setup failure.
      */
     this.cosmeticFit = function (fileName) {
+        var CosmetizedOutputPath;
         if (this.isCancelled()) return false;
 
         if (fileName == false || !fileName.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i)) {
@@ -982,6 +1162,7 @@ function AutoCalibrateEngine() {
         //Проверить - существует ли файл и стоит ли перезаписывать его
         if (Config.SkipExistingFiles && (File.exists(newFileName) || File.exists(newFileName_old))) {
             console.warningln('File ' + (File.exists(newFileName)? newFileName : newFileName_old) + ' already exists, skipping cosmetic correction');
+            this.recordReportOutput("cosmetized", File.exists(newFileName) ? newFileName : newFileName_old, "existing");
         } else {
             if (!fileData)
                 var fileData = getFileHeaderData(fileName); // Get FITS HEADER data if not got earlier
@@ -1041,6 +1222,7 @@ function AutoCalibrateEngine() {
             if (this.isCancelled()) return false;
             this.ProcessesCompleted++;
             this.CosmetizedCount++;
+            this.recordReportOutput("cosmetized", newFileName, "created");
 
             console.noteln("<end><cbr><br>",
                 "-------------------------------------------------------------");
@@ -1068,14 +1250,13 @@ function AutoCalibrateEngine() {
 
     }
 
-    /************************************************************************************************************
-     * Выравнивание фона через ABE у фитов на входе (1-3 в зависимости от был ли чб или цвет)
-     *
-     * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
-     * @return string | array of strings        полное имя файла_c_сс_b.fit включая путь
-     *
+    /**
+     * Apply AutomaticBackgroundExtractor to each path in files.
+     * Reuse accepted existing results, update FILEARRAY and counters, and return output paths.
+     * Pass inputs through when disabled; return false on failure/cancellation.
      */
     this.ABEprocess = function (files) {
+        var ABEOutputPath;
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping ABE processing", dbgNormal);
@@ -1125,6 +1306,7 @@ function AutoCalibrateEngine() {
             //Проверить - существует ли файл и стоит ли перезаписывать его
             if (Config.SkipExistingFiles && File.exists(newFiles[i])) {
                 console.warningln('File ' + newFileNameOnly + ' already exists, skipping ABE');
+                this.recordReportOutput("abed", newFiles[i], "existing");
             } else {
 
                 // Check if folder exists
@@ -1217,6 +1399,7 @@ function AutoCalibrateEngine() {
 
                 this.ProcessesCompleted++;
                 this.ABECount++;
+                this.recordReportOutput("abed", newFiles[i], "created");
 
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
@@ -1236,18 +1419,13 @@ function AutoCalibrateEngine() {
         return newFiles;
     }
 
-    /************************************************************************************************************
-     * Register each input with mode 1, optionally retrying unsuccessful frames once with mode 2.
-     * Mode 1: sensitivity 0.50 and distortion correction; mode 2: 0.75 without it.
-     * Confirms executeGlobal, outputData and the expected file before recording success.
-     * Stops on abort; logs the successful mode and reports an error after all enabled attempts fail.
-     *
-     * @param {Array|Boolean} files Input paths or a failed previous stage.
-     * @param {String} restoreDrizzleTarget Optional existing registered path to regenerate with XDRZ.
-     * @return {Array|Boolean} Confirmed/reused registered paths, or false.
-     *
+    /**
+     * Register files to their matching reference.
+     * Optional restoreDrizzleTarget regenerates registration/drizzle data for that target.
+     * Try configured fallback alignment, record only confirmed products, and return paths or false on failure/cancellation.
      */
     this.registerFits = function (files, restoreDrizzleTarget) {
+        var RegisteredOutputPath;
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping Registration", dbgNormal);
@@ -1308,6 +1486,7 @@ function AutoCalibrateEngine() {
             }
             if (!restoreDrizzleTarget && Config.SkipExistingFiles && File.exists(newFiles[i])) {
                 console.warningln('File ' + newFileNameOnly + '.' + getCorrectExtension(files[i]) + ' already exists, skipping Registration');
+                this.recordReportOutput("registered", newFiles[i], "existing");
             } else {
                 // Search for reference file
                 var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
@@ -1458,7 +1637,9 @@ function AutoCalibrateEngine() {
                     this.reportFailure(files[i], registrationError);
                     return false;
                 }
+                if (isDrizzleEnabled()) storeDrizzleData(newFiles[i]);
                 this.RegisteredCount++;
+                this.recordReportOutput("registered", newFiles[i], "created");
                 console.noteln("<end><cbr><br>",
                     "-------------------------------------------------------------");
                 console.noteln(" [" + this.FileTotalCount + "] End of registration ");
@@ -1480,11 +1661,8 @@ function AutoCalibrateEngine() {
     }
 
     /**
-     * Locate the registered source and canonical XNML path for a registered/normalized frame.
-     * Normalized outputs retain their source basename plus _n. FILEARRAY supplies the source
-     * when available; sibling registered/split folders cover ready files from earlier runs.
-     * @param {String} file Registered (_r) or normalized (_r_n) image path.
-     * @return {Object} image is the registered source (or empty if absent); data is its XNML path.
+     * Resolve the normalized image, registered source and XNML path for file.
+     * Use FILEARRAY and filename conventions to find the source; return path information without running normalization.
      */
     function getNormalizationFiles(file) {
         var directory = (File.extractDrive(file) + File.extractDirectory(file)).replace(/\\/g, "/");
@@ -1517,21 +1695,22 @@ function AutoCalibrateEngine() {
         return {image: source, data: normDirectory + "/xnml/" + sourceName + ".xnml"};
     }
 
-    /************************************************************************************************************
-     * Normalize registered RGB or individual channels and report failures in the progress dialog.
-     *
-     * @param {Array|Boolean} files Registered paths or a failed upstream stage.
-     * @return {Array|Boolean} Confirmed/reused normalized paths, or false on failure/abort.
-     * Records only valid completed outputs. On LN failure, retains registered inputs for Integration.
-     * Removes newly created unconfirmed files to allow a clean second-pass retry.
-     * @todo пачку фитов в одном процессе регистрировать
+    /**
+     * Normalize registered files and/or generate XNML according to configuration.
+     * Return confirmed output paths, pass inputs through when disabled, or false on failure/cancellation.
+     * Retain registered fallback inputs for integration and remove unconfirmed new outputs.
      */
     this.localNormalization = function (files) {
+        var NormalizedOutputPath;
         if (this.isCancelled()) return false;
 
-        if (!Config.NeedNormalization || files == false) {
+        if (files == false) {
             debug("Skipping Normalization", dbgNormal);
             return false;
+        }
+        if (!Config.NeedNormalization) {
+            debug("Normalization is off", dbgNormal);
+            return files;
         }
 
         // Прервый всегда будет "файлом", даже если их много
@@ -1539,10 +1718,8 @@ function AutoCalibrateEngine() {
         var engine = this, incompleteOutput = null;
         
         /**
-         * Report one failed normalization input to the console and progress dialog.
-         * @param {String} message Failure reason.
-         * @param {String} currentFile Input path shown beside the message.
-         * @return {Boolean} False stops the LN branch; registered inputs are retained separately for Integration.
+         * Record message for currentFile and retain its registered input as an integration fallback where possible.
+         * Return false so the current normalization stage stops; cancellation does not create an error event.
          */
         function normalizationError(message, currentFile) {
             console.criticalln("LocalNormalization: " + message + ": " + currentFile);
@@ -1604,6 +1781,7 @@ function AutoCalibrateEngine() {
                 // Reuse only when all requested LN outputs are present.
                 if (dataOnly && (!Config.NormalizationGenerateData || File.exists(normalizationDataPath))) {
                     console.warningln('File ' + newFiles[i] + ' already exists, skipping normalization');
+                    this.recordReportOutput("normalized", newFiles[i], "existing");
                 } else {
                     // Search for reference file
                     var fileData = getFileHeaderData(files[i]); // Read each channel FILTER independently.
@@ -1741,6 +1919,7 @@ function AutoCalibrateEngine() {
                     incompleteOutput = null;
                     this.ProcessesCompleted++;
                     this.NormalizedCount++;
+                    this.recordReportOutput("normalized", newFiles[i], "created");
 
                     console.noteln("<end><cbr><br>",
                         "-------------------------------------------------------------");
@@ -1769,14 +1948,11 @@ function AutoCalibrateEngine() {
     }
 
 
-    /************************************************************************************************************
-     * Сохранить файл в список для последующей обработки SubframeSelector
-     *
-     * @param {Array|Boolean} files Completed pipeline outputs or failure.
-     * @return {Boolean} True when outputs are accepted; false on failure/abort.
-     * Queues unique final paths for copying and the shared SubframeSelector/Integration consumers.
-     */
-
+	/**
+	 * Accept completed files for final copying and enabled SubframeSelector/Integration consumers.
+	 * Mark accepted outputs as used and deduplicate queues.
+	 * Return false for cancellation/failed input, otherwise true.
+	 */
 	this.addFileForApproving = function (files)
 	{
         if (this.isCancelled()) return false;
@@ -1785,6 +1961,7 @@ function AutoCalibrateEngine() {
             return false;
         }
 
+        this.markReportUsed(files);
         if (Config.PathMode == PATHMODE.PUT_FINALS_IN_OBJECT_SUBFOLDER) {
             for (var f = 0; f < files.length; ++f) {
                 var queued = false;
@@ -1821,22 +1998,57 @@ function AutoCalibrateEngine() {
      * Saves a master and both rejection maps per group; continues after a group failure.
      * @return {Boolean} True when every group succeeded; false on errors/abort.
      */
-    /** Return whether ordinary (non-CFA) Drizzle is requested for a supported workflow. */
+    /**
+     * Return whether the selected workflow and configuration request drizzle integration.
+     * Read configuration only.
+     */
     function isDrizzleEnabled() {
         return Config.IntegrationMethod == "drizzle-integration" && (Config.Workflow == "MONO" ||
             (Config.Workflow == "OSC" && (!Config.SplitChannels || Config.OSCSplitStage == "before-registration")));
     }
 
-    /** Return the XDRZ sidecar path corresponding to a registered image. */
+    /**
+     * Find drizzle data for a registered image, preferring its xdrz subfolder.
+     * Accept legacy companions beside the image; if neither exists, return the new path.
+     * Read paths only; do not move existing data during lookup.
+     */
     function drizzlePath(file) {
-        return File.extractDrive(file) + File.extractDirectory(file) + "/" + File.extractName(file) + ".xdrz";
+        var directory = File.extractDrive(file) + File.extractDirectory(file);
+        var name = File.extractName(file) + ".xdrz";
+        var preferred = directory + "/xdrz/" + name;
+        if (File.exists(preferred)) return preferred;
+        var legacy = directory + "/" + name;
+        return File.exists(legacy) ? legacy : preferred;
     }
 
-    /** Locate the pre-registration input among recorded processing products. Never align an _r image again. */
+    /**
+     * Move the native StarAlignment companion into the registered image's xdrz folder.
+     * Call only after successful fresh registration. Replace an older companion there
+     * with the newly generated one; leave the image and the XDRZ contents unchanged.
+     * Return the resolved path, or propagate filesystem errors to the stage caller.
+     */
+    function storeDrizzleData(file) {
+        var directory = File.extractDrive(file) + File.extractDirectory(file);
+        var name = File.extractName(file) + ".xdrz";
+        var source = directory + "/" + name;
+        if (!File.exists(source)) return drizzlePath(file);
+        var destinationDirectory = directory + "/xdrz";
+        if (!File.directoryExists(destinationDirectory)) File.createDirectory(destinationDirectory, true);
+        var destination = destinationDirectory + "/" + name;
+        if (File.exists(destination)) File.remove(destination);
+        File.move(source, destination);
+        return destination;
+    }
+
+    /**
+     * Find the pre-registration source of registered in FILEARRAY by filename convention.
+     * Ignore report metadata and already registered images; return an existing path or an empty string.
+     */
     function registrationSource(registered) {
         var name = File.extractName(registered).replace(/_r$/i, "");
         for (var i = 0; i < FILEARRAY.length; ++i) {
             for (var key in FILEARRAY[i]) {
+                if (!FILEARRAY[i].hasOwnProperty(key) || key == "report") continue;
                 var values = FILEARRAY[i][key];
                 if (!Array.isArray(values)) values = [values];
                 for (var j = 0; j < values.length; ++j) {
@@ -1851,12 +2063,17 @@ function AutoCalibrateEngine() {
         return "";
     }
 
-    /** Execute Drizzle for one prepared group and save a master plus coverage map under a free index.
-     * @return {String} Saved master path. Native/save errors propagate to the group's fallback handler.
+    /**
+     * Integrate prepared targets for group with DrizzleIntegration and optional LN data.
+     * Save master/coverage products using unused names and return the master path.
+     * Close owned windows; propagate native or save errors to the caller.
      */
     this.drizzleIntegration = function (group, targets, useLN) {
         
         var process = new DrizzleIntegration;
+        /**
+         * Convert integration target rows into DrizzleIntegration input tuples.
+         */
         process.inputData = targets.map(function (row) { return [true, row[2], useLN ? row[3] : ""]; });
         process.scale = Config.DrizzleScale;
         process.dropShrink = Config.DrizzleDropShrink;
@@ -1870,6 +2087,9 @@ function AutoCalibrateEngine() {
             var suffix = index ? "_" + index : "";
             paths = [stem + "_master" + suffix + ".xisf", stem + "_weights" + suffix + ".xisf"];
             ++index;
+        /**
+         * Check whether any proposed drizzle output already exists before choosing a free name.
+         */
         } while (paths.some(function (file) { return File.exists(file); }));
         try {
             if (this.isCancelled()) return "";
@@ -1884,6 +2104,9 @@ function AutoCalibrateEngine() {
                 var window = ImageWindow.windowById(ids[i]);
                 if (!window || window.isNull) throw new Error("Drizzle output is unavailable");
                 if (!i) {
+                    /**
+                     * Remove stale OBJECT/FILTER keywords before writing group metadata.
+                     */
                     window.keywords = window.keywords.filter(function (k) { return k.name != "OBJECT" && k.name != "FILTER"; });
                     var keywords = window.keywords;
                     keywords.push(new FITSKeyword("OBJECT", "'" + group.data.object.replace(/'/g, "''") + "'", "Integration object"));
@@ -1903,6 +2126,11 @@ function AutoCalibrateEngine() {
         }
     };
 
+    /**
+     * Group accepted frames by object/channel and integrate compatible groups.
+     * Save ordinary masters, optionally run drizzle, and update group summaries/exposure.
+     * Preserve ordinary masters on drizzle failure; return overall success or false on cancellation/failure.
+     */
     this.runIntegration = function () {
         if (this.isCancelled()) return false;
         if (!Config.NeedIntegration) return true;
@@ -1912,7 +2140,10 @@ function AutoCalibrateEngine() {
         var success = true, inputErrors = 0;
         this.IntegratedCount = 0;
 
-        /** Return a safe filename component; collisions are checked before processing groups. */
+        /**
+         * Sanitize value for an output filename component, including Windows reserved names.
+         * Return a nonempty component; group-level code detects resulting name collisions.
+         */
         function pathComponent(value) {
             var result = value.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/[. ]+$/g, "_");
             if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(result)) result = "_" + result;
@@ -1975,6 +2206,10 @@ function AutoCalibrateEngine() {
                 for (var g = 0; g < groups.length; ++g) if (groups[g].key == key) { group = groups[g]; break; }
                 if (!group) {
                     group = {key: key, data: data, files: [], invalid: false};
+                    group.summary = {object: data.object, channel: data.filter, frames: 0,
+                        savedFrames: 0, exposure: 0, exposureKnown: true,
+                        status: "Pending", master: "", outputs: []};
+                    if (this.runReport) this.runReport.groups.push(group.summary);
                     group.directory = base + "/Integrated";
                     var stem = group.directory + "/" + pathComponent(data.object) + "_" + pathComponent(data.filter);
                     group.outputs = [stem + "_rejection_low.xisf", stem + "_rejection_high.xisf", stem + "_master.xisf"];
@@ -1994,6 +2229,10 @@ function AutoCalibrateEngine() {
                     console.criticalln("Integration: " + "Incompatible image dimensions in object/filter group" + " [" + file + "]");
                 }
                 group.files.push(file);
+                ++group.summary.frames;
+                if (isFinite(data.exposureSeconds) && data.exposureSeconds > 0)
+                    group.summary.exposure += data.exposureSeconds;
+                else group.summary.exposureKnown = false;
             } catch (error) {
                 if (this.isCancelled()) return false;
                 ++inputErrors;
@@ -2023,21 +2262,31 @@ function AutoCalibrateEngine() {
                 this.progressDialog.updateBar_NewProcess("Integration");
             }
             if (group.invalid) {
+                if (this.progressDialog) this.progressDialog.completeItem(g + 1);
+                group.summary.status = "Failed: " + group.failureReason;
                 this.reportFailure(label, "Integration failed: " + group.failureReason);
                 continue;
             }
             if (group.files.length < 3) {
                 success = false;
                 console.criticalln("Integration: " + "At least 3 frames are required; found " + group.files.length + " [" + label + "]");
+                if (this.progressDialog) this.progressDialog.completeItem(g + 1);
+                group.summary.status = "Failed: fewer than 3 frames";
                 this.reportFailure(label, "Integration failed: " + "at least 3 frames required; found " + group.files.length);
                 continue;
             }
             try {
                 // Reserve one free index for the master and both maps; never reuse/overwrite older sums.
                 var originalOutputs = group.outputs.slice(), outputIndex = 0;
+                /**
+                 * Detect occupied integration output paths before generating a unique suffix.
+                 */
                 while (group.outputs.some(function (file) { return File.exists(file); })) {
                     if (this.isCancelled()) return false;
                     ++outputIndex;
+                    /**
+                     * Apply the current uniqueness suffix to each proposed integration output.
+                     */
                     group.outputs = originalOutputs.map(function (file) {
                         return file.replace(/\.xisf$/i, "_" + outputIndex + ".xisf");
                     });
@@ -2057,6 +2306,9 @@ function AutoCalibrateEngine() {
                     if (File.exists(pair.data) && pair.image && File.exists(pair.image)) ++dataCount;
                 }
                 var drizzleRequested = isDrizzleEnabled();
+                /**
+                 * Count registered inputs with available drizzle companion data.
+                 */
                 var drizzleCount = normalizationPairs.filter(function (pair) { return pair.image && File.exists(drizzlePath(pair.image)); }).length;
                 if (drizzleRequested && drizzleCount == 0) {
                     for (var i = 0; i < normalizationPairs.length; ++i) {
@@ -2068,20 +2320,29 @@ function AutoCalibrateEngine() {
                             continue;
                         }
                         console.noteln("Drizzle: restoring registration data for " + registeredInput);
-                        try { this.registerFits([source], registeredInput); }
+                        try { this.runStage("registered", this.registerFits, [source], registeredInput); }
                         catch (error) { if (this.isCancelled()) return false; console.warningln("Drizzle registration recovery failed: " + error.message); }
                     }
                 }
+                /**
+                 * Require drizzle companions for every integration input.
+                 */
                 var useDrizzle = drizzleRequested && normalizationPairs.every(function (pair) {
                     return pair.image && File.exists(pair.image) && File.exists(drizzlePath(pair.image));
                 });
                 if (drizzleRequested && !useDrizzle)
                     console.warningln("Drizzle: incomplete registration data; saving ordinary integration for " + label);
+                /**
+                 * Detect whether any group input required normalization fallback.
+                 */
                 var normalizationFailed = group.files.some(function (file) {
                     return fallbackFiles.indexOf(file) >= 0;
                 });
                 // Complete XNML/source pairs take priority, even when normalized-image generation failed.
                 var useXNML = dataCount == group.files.length;
+                /**
+                 * Detect available LN companion data when choosing registered inputs.
+                 */
                 var useRegistered = !useXNML && (normalizationFailed || normalizationPairs.some(function (pair) { return File.exists(pair.data); }));
                 if (useRegistered)
                     console.warningln("Integration: " + label + ": LN/XNML is incomplete; using available registered frames with global normalization (no XNML).");
@@ -2113,6 +2374,9 @@ function AutoCalibrateEngine() {
                     Config.IntegrationWeightMode == "noise-evaluation" ? "Noise evaluation" : "PSF Signal Weight"));
                 
                 // how to normalize (images and rejection)
+                /**
+                 * Check whether all inputs were passed through LN without a normalized-image suffix.
+                 */
                 var passedThroughLN = group.files.every(function (file) {
                     return /_r_n$/i.test(File.extractName(file));
                 });
@@ -2188,6 +2452,9 @@ function AutoCalibrateEngine() {
                     }
                     useDrizzle = false;
                     process.generateDrizzleData = false;
+                    /**
+                     * Convert selected targets into ImageIntegration image rows.
+                     */
                     process.images = targetImages.map(function (row) { return [row[0], row[1], "", row[3]]; });
                     
                     integrated = process.executeGlobal();
@@ -2203,6 +2470,9 @@ function AutoCalibrateEngine() {
                     var output = ImageWindow.windowById(ids[o]);
                     if (!output || output.isNull) throw new Error("ImageIntegration output is unavailable: " + ids[o]);
                     if (o == 2) {
+                        /**
+                         * Remove prior OBJECT/FILTER values before writing integration group metadata.
+                         */
                         var keywords = output.keywords.filter(function (keyword) { return keyword.name != "OBJECT" && keyword.name != "FILTER"; });
                         keywords.push(new FITSKeyword("OBJECT", "'" + group.data.object.replace(/'/g, "''") + "'", "Integration object"));
                         keywords.push(new FITSKeyword("FILTER", "'" + group.data.filter.replace(/'/g, "''") + "'", "Integration filter/channel"));
@@ -2215,16 +2485,36 @@ function AutoCalibrateEngine() {
                 ++this.IntegratedCount;
                 console.noteln("Integration master saved: " + group.outputs[2]);
                 var displayMaster = group.outputs[2];
+                group.summary.master = displayMaster;
+                group.summary.outputs = group.outputs.slice();
+                group.summary.savedFrames = group.files.length;
+                group.summary.status = "Ordinary integration";
+                if (drizzleRequested && !useDrizzle) {
+                    group.summary.status += "; drizzle data incomplete";
+                    if (this.runReport) this.runReport.issue(label, "Drizzle data incomplete; ordinary master saved", "Warning");
+                }
+                if (useRegistered && this.runReport)
+                    this.runReport.issue(label, "LN/XNML incomplete; used registered frames with global normalization", "Warning");
                 
                 // Run drizzle integration
                 if (useDrizzle) {
                     try {
                         var drizzleMaster = this.drizzleIntegration(group, targetImages, useXNML);
-                        if (drizzleMaster) displayMaster = drizzleMaster;
+                        if (drizzleMaster) {
+                            displayMaster = drizzleMaster;
+                            group.summary.master = drizzleMaster;
+                            group.summary.outputs.push(drizzleMaster);
+                            group.summary.status = "Drizzle integration";
+                        } else {
+                            group.summary.status = "Ordinary integration; drizzle not completed";
+                            if (!this.isCancelled() && this.runReport)
+                                this.runReport.issue(label, "Drizzle did not produce a master; ordinary master saved", "Warning");
+                        }
                     } catch (error) {
                         if (this.isCancelled()) return false;
                         console.warningln("DrizzleIntegration failed; ordinary master saved: " + error.message);
-                        this.reportFailure(label, "DrizzleIntegration failed; ordinary master saved");
+                        group.summary.status = "Ordinary integration; drizzle failed";
+                        this.reportFailure(label, "DrizzleIntegration failed; ordinary master saved: " + error.message);
                     }
                 }
                 mastersToShow.push(displayMaster);
@@ -2233,8 +2523,10 @@ function AutoCalibrateEngine() {
                 if (this.isCancelled()) return false;
                 success = false;
                 console.criticalln("Integration: " + error.message + " [" + label + "]");
-                this.reportFailure(label, "Integration failed: " + failureReason);
+                group.summary.status = "Failed: " + error.message;
+                this.reportFailure(label, "Integration failed: " + failureReason + ": " + error.message);
             } finally {
+                if (this.progressDialog && !this.isCancelled()) this.progressDialog.completeItem(g + 1);
                 // Close only windows reported by this process, including on execution/save failure.
                 if (process) {
                     var ids = [process.integrationImageId, process.lowRejectionMapImageId, process.highRejectionMapImageId];
@@ -2254,6 +2546,7 @@ function AutoCalibrateEngine() {
                 var masterWindows = ImageWindow.open(mastersToShow[m]);
                 masterWindows[0].show();
             } catch (error) {
+                if (this.runReport) this.runReport.issue(mastersToShow[m], "Master saved but could not be displayed: " + error.message, "Warning");
                 console.warningln("Integration: master saved but could not be displayed: " +
                     mastersToShow[m] + ": " + error.message);
             }
@@ -2263,11 +2556,10 @@ function AutoCalibrateEngine() {
         return success;
     };
 
-    /************************************************************************************************************
-     * Запуск SubframeSelector с сохранением результатов в processIcon
-     *
-     * @param
-     * @return
+    /**
+     * Run the configured SubframeSelector consumer on approveFileList when enabled.
+     * Configure measurements/outputs, update approval counters and log diagnostics.
+     * Stop without processing when disabled or cancelled.
      */
     this.runSubframeSelector = function ()
 	{
@@ -2312,13 +2604,13 @@ function AutoCalibrateEngine() {
 
 
 		// Create filelist
-		let filelist = [];
+		var filelist = [];
         for (var i = 0; i < this.approveFileList.length; i++) {
 			/* P.subframes = [ // subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath
 				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""],
 				[true, "D:/DSlrRemote/+M104/Calibrated/cosmetized/M104_20180317_B_600s_1x1_-30degC_0.0degN_000006524_c_cc.fit", "", ""]
 			] */
-			let fileArr = [true, this.approveFileList[i], "", ""];
+			var fileArr = [true, this.approveFileList[i], "", ""];
 			debug(fileArr, dbgNotice);
             filelist.push(fileArr);
 		}
@@ -2392,7 +2684,7 @@ function AutoCalibrateEngine() {
 		debug("SF execute status: " + status, dbgNotice);
 
 		// Get Icon Name based on received file
-		let iconName = "";
+		var iconName = "";
         if (file.match(/(.+)\/(.+)_c\.(fit|fits|xisf)$/i) != null || file.match(/(.+)\/(.+)_c_cc\.(fit|fits|xisf)$/i) != null) {
 			iconName = Config.SF_IconName_beforeRegistration;
 		} else if ( file.match(/(.+)\/(.+)_c_cc_b_r\.(fit|fits|xisf)$/i) != null || file.match(/(.+)\/(.+)_c_cc_r\.(fit|fits|xisf)$/i) != null) {
@@ -2411,13 +2703,10 @@ function AutoCalibrateEngine() {
 		return status;
     }
 
-    /************************************************************************************************************
-     * Сохранить файл в список для последующей обработки SubframeSelector
-     *
-     * @param
-     * @return
-     */
-
+	/**
+	 * Append supplied files to the NSG input list when that workflow is enabled.
+	 * Return the existing pass-through/queue result; do not execute NSG here.
+	 */
 	this.addFileForNSG = function (files)
 	{
         if (this.isCancelled()) return false;
@@ -2446,11 +2735,9 @@ function AutoCalibrateEngine() {
 		return true;
 	}
 
-    /************************************************************************************************************
-     * Запуск SubframeSelector с сохранением результатов в processIcon
-     *
-     * @param
-     * @return
+    /**
+     * Prepare and execute the configured NSG workflow for filterName using queued files.
+     * Log workflow diagnostics and honor cancellation; this optional consumer is separate from the normal integration report.
      */
     this.runNSG = function (filterName)
 	{
@@ -2490,14 +2777,14 @@ function AutoCalibrateEngine() {
 
 
 		// Create filelist
-		let filelist = [];
+		var filelist = [];
         for (var i = 0; i < this.approveFileList.length; i++) {
 			/* P.subframes = [ // subframeEnabled, subframePath, localNormalizationDataPath, drizzlePath
             ["file0", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200831_Red_300s_1x1_-25degC_0.0degN_000020225+++_c_cc_r.fit¬1689062234000¬0.000011519755741154521¬MRS¬32.1415¬1.8646119489991¬300¬2020-08-31T20:10:10¬Red¬"],
             ["file1", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200831_Red_300s_1x1_-25degC_0.0degN_000020226+++_c_cc_r.fit¬1689062237000.0002¬0.000011646760821512618¬MRS¬31.9331¬1.87407410000989¬300¬2020-08-31T20:16:02¬Red¬"],
             ["file2", "E:/DSlrRemote/+M72/Calibrated/registered/R/M72_20200831_Red_300s_1x1_-25degC_0.0degN_000020227+++_c_cc_r.fit¬1689062240000¬0.000011764867900663195¬MRS¬31.6944¬1.88529425292196¬300¬2020-08-31T20:21:55¬Red¬"],
 			] */
-			let fileArr = ["file" + i, this.approveFileList[i]];
+			var fileArr = ["file" + i, this.approveFileList[i]];
 			debug(fileArr, dbgNotice);
             filelist.push(fileArr);
 		}
@@ -2538,23 +2825,17 @@ function AutoCalibrateEngine() {
     }
 
     /**
-     * Get a FILEARRAY signature, retaining the Debayer RGB/R/G/B marker.
-     * @param {String} file Image path with an optional processing suffix.
-     * @return {String} Basename without extension or processing suffix.
+     * Return the basename of file with processing suffixes removed, retaining Debayer/RGB/channel markers.
+     * This signature identifies a FILEARRAY row.
      */
     function imageSignature(file) {
         return File.extractName(file).replace(/_c(?:_cc)?(?:_b)?(?:_r)?(?:_n)?(?:_a)?$/i, "");
     }
 
     /**
-     * Record a Debayer or channel-split stage in FILEARRAY for source and outputs.
-     * The source stage holds all output paths; each channel record holds its own
-     * one-element array. Later stages use the channel's independent signature.
-     * @param {String} source Input image path.
-     * @param {Array} outputs Successfully saved, reused or passed-through paths.
-     * @param {Number} stage FITS.DEBAYERED, FITS.PRESPLIT or FITS.SPLIT.
-     * @return {Array} The same output paths for the next pipeline stage.
-     * Updates FILEARRAY only; does not write image files.
+     * Store source-to-output stage paths and independent output rows for confirmed Debayer/split results.
+     * Return outputs unchanged.
+     * Mark the source split complete only when called with the complete channel set.
      */
     function recordOSCOutputs(source, outputs, stage) {
         AddFileToArray(stage, outputs, imageSignature(source), File.extractDirectory(source));
@@ -2565,13 +2846,14 @@ function AutoCalibrateEngine() {
     }
 
     /**
-     * Copy acquisition metadata to an RGB or extracted-channel image.
-     * @param {ImageWindow} source Source image; remains open and unchanged.
-     * @param {ImageWindow} output Destination image; remains open, not saved here.
-     * @param {String} filter RGB, R, G or B for the output FILTER.
-     * @return {undefined} Copies non-CFA properties/keywords, removes CFA tags.
+     * Copy acquisition metadata from source to output while removing CFA-only properties.
+     * Set FILTER to filter for the RGB/channel result.
+     * Modify the output window only; do not save it.
      */
     function copyOSCMetadata(source, output, filter) {
+        /**
+         * Drop CFA-specific keywords when copying metadata to RGB/channel images.
+         */
         var keywords = source.keywords.filter(function (k) {
             return !/^(FILTER|BAYERPAT|XBAYROFF|YBAYROFF|CFA.*)$/i.test(k.name);
         });
@@ -2590,14 +2872,9 @@ function AutoCalibrateEngine() {
     }
 
     /**
-     * Run file-based VNG in global context; pass ready RGB/mono through.
-     * @param {String|Boolean} fileName Input path or a failed previous stage.
-     * @return {Array|Boolean} RGB/pass-through paths, or false on failure/abort.
-     * Debayer loads/saves RGB via targetItems, using metadata Auto or a legacy
-     * FILTER Bayer pattern. Moves its generated XISF to the pipeline filename
-     * and records DEBAYERED only after successful execution and file checks.
-     * Header inspection still uses getFileHeaderData; no processing view is opened.
-     * Rejects non-RGB input intended for Split when Debayer cannot convert it.
+     * Convert a CFA fileName to RGB with the selected workflow, or reuse/pass through an eligible RGB image.
+     * Stage native output before placing the final file; update FILEARRAY and return an array of paths or false.
+     * Clean up owned windows/staging on exit.
      */
     this.debayerFit = function (fileName) {
         if (this.isCancelled()) return false;
@@ -2620,6 +2897,7 @@ function AutoCalibrateEngine() {
                     console.criticalln("Split channels requires RGB input; this image is monochrome and has no CFA pattern: " + fileName);
                     return false;
                 }
+                this.recordReportOutput("debayered", fileName, "existing");
                 return recordOSCOutputs(fileName, [fileName], FITS.DEBAYERED);
             }
 
@@ -2631,8 +2909,10 @@ function AutoCalibrateEngine() {
             var suffix = name.match(/_c(?:_cc)?(?:_b)?(?:_r)?$/);
             var stem = suffix ? name.substring(0, name.length - suffix[0].length) : name;
             var outputFile = outputPath + "/" + stem + "_d_RGB" + (suffix ? suffix[0] : "_c") + ".xisf";
-            if (Config.SkipExistingFiles && File.exists(outputFile))
+            if (Config.SkipExistingFiles && File.exists(outputFile)) {
+                this.recordReportOutput("debayered", outputFile, "existing");
                 return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
+            }
             if (File.exists(outputFile) && !Config.OverwriteAllFiles)
                 throw new Error("Output exists and overwrite is disabled: " + outputFile);
             if (!File.directoryExists(outputPath)) File.createDirectory(outputPath, true);
@@ -2687,6 +2967,7 @@ function AutoCalibrateEngine() {
                 console.warningln("Unable to remove Debayer staging directory: " + stagingPath + ": " + cleanupError.message);
             }
             ++this.ProcessesCompleted;
+            this.recordReportOutput("debayered", outputFile, "created");
             return recordOSCOutputs(fileName, [outputFile], FITS.DEBAYERED);
         } catch (error) {
             if (this.isCancelled()) return false;
@@ -2698,12 +2979,9 @@ function AutoCalibrateEngine() {
     };
 
     /**
-     * Extract R/G/B directly at the selected split position, independently of Debayer.
-     * @param {Array|Boolean} files Input paths or a failed previous stage.
-     * @param {Boolean} afterRegistration True before LN, false before ABE.
-     * @return {Array|Boolean} Saved/reused channel paths, pass-through inputs, or false.
-     * Saves XISF in SplitFolderName, preserving precision and acquisition metadata.
-     * Records PRESPLIT/SPLIT only for complete output sets; closes owned windows.
+     * Split files into R/G/B at the configured before/after-registration position.
+     * Record each confirmed channel immediately; complete the source stage only after all channels succeed.
+     * Return output paths or false and close owned windows on every exit.
      */
     this.splitChannels = function (files, afterRegistration) {
         if (this.isCancelled()) return false;
@@ -2734,6 +3012,8 @@ function AutoCalibrateEngine() {
                     allExist = allExist && File.exists(channelFiles[i]);
                 }
                 if (Config.SkipExistingFiles && allExist) {
+                    for (var reused = 0; reused < channelFiles.length; ++reused)
+                        this.recordReportOutput(afterRegistration ? "split" : "splitBefore", channelFiles[reused], "existing");
                     outputs = outputs.concat(recordOSCOutputs(fileName, channelFiles, stage));
                     continue;
                 }
@@ -2744,7 +3024,10 @@ function AutoCalibrateEngine() {
                 if (!source || source.isNull) throw new Error("Unable to open RGB image: " + fileName);
                 for (var i = 0; i < channels.length; ++i) {
                     if (this.isCancelled()) return false;
-                    if (Config.SkipExistingFiles && File.exists(channelFiles[i])) continue;
+                    if (Config.SkipExistingFiles && File.exists(channelFiles[i])) {
+                        this.recordReportOutput(afterRegistration ? "split" : "splitBefore", channelFiles[i], "existing");
+                        continue;
+                    }
                     if (File.exists(channelFiles[i]) && !Config.OverwriteAllFiles)
                         throw new Error("Output exists and overwrite is disabled: " + channelFiles[i]);
                     channel = new ImageWindow(source.mainView.image.width, source.mainView.image.height,
@@ -2756,6 +3039,7 @@ function AutoCalibrateEngine() {
                     copyOSCMetadata(source, channel, channels[i]);
                     if (!channel.saveAs(channelFiles[i], false, false, false, false))
                         throw new Error("Unable to save split channel: " + channelFiles[i]);
+                    this.recordReportOutput(afterRegistration ? "split" : "splitBefore", channelFiles[i], "created");
                     if (this.isCancelled()) return false;
                     channel.forceClose();
                     channel = null;
@@ -2776,14 +3060,13 @@ function AutoCalibrateEngine() {
         return outputs;
     };
 
-    /************************************************************************************************************
-     * Биннинг файлов
-     *
-     * @param files   string | array of strings полное имя файла.fit включая путь (или массив файлов)
-     * @return string | array of strings        полное имя файла_c_сс_r.fit включая путь
-     *
+    /**
+     * Apply optional software binning to files, saving results under the configured output folder.
+     * Pass inputs through when disabled and maintain final-copy queue as required.
+     * Return result paths or false on failure/cancellation.
      */
     this.binFits = function (files) {
+        var BinnedOutputPath;
         if (this.isCancelled()) return false;
         if (files == false) {
             debug("Skipping binning", dbgNormal);
@@ -2937,12 +3220,9 @@ function AutoCalibrateEngine() {
 
 
     /**
-     * Read acquisition metadata and image geometry through the shared header reader.
-     * Successful reads are cached for Integration; normal processing still reads the current file.
-     * @param {String} fileName Input image path.
-     * @param {Boolean} forIntegration Optional: reuse cached data and omit calibration-only requirements.
-     * Integration validates its own object/filter/channel requirements at the call site.
-     * @return {Object|Boolean} Independent metadata snapshot, or false; owned windows always close.
+     * Read and normalize metadata for fileName, caching successful reads during this run.
+     * forIntegration relaxes calibration-only requirements.
+     * Return a fresh metadata object or false; close temporary image windows and preserve fractional exposure for summaries.
      */
     function getFileHeaderData(fileName, forIntegration) {
         var cacheKey = "$" + fileName.replace(/\\/g, "/").toLowerCase();
@@ -3078,6 +3358,7 @@ function AutoCalibrateEngine() {
                 Overscan:       headers.QOVERSCN,
                 Preset:         headers.QPRESET,
                 USBLimit:       headers.USBLIMIT,
+                exposureSeconds: parseFloat(headers.EXPTIME), // Summary only; master selection keeps integer exposure.
                 duration:       parseInt(headers.EXPTIME), // 1800
                 exposure:       parseInt(headers.EXPTIME) // dublicate for convinience
             };

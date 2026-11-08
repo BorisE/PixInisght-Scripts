@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.1beta3"
- #define COMPILE_DATE "2026/10/30"
+ #define VERSION "7.1beta6"
+ #define COMPILE_DATE "2026/11/08"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2026 Boris Emchenko<br/>"
@@ -24,6 +24,9 @@ TODO:
 - Добавить автозапуск NSG
 - Добавить Gradient Correction
 - добавить в диалог параметр для Absolute Path
+
+v 7.1beta6  [2026/11/08]
+- reporting and optimization, ver2 (prev discarde)
 
 v 7.1beta3  [2026/10/30]
 - drizzle integration
