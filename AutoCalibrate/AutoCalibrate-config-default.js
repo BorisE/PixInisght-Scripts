@@ -61,28 +61,41 @@ Config.UseSecnodPass = true; //Зачем нужен второй проход.
 
 Config.CalibratedFolderName = 'calibrated';         // без финального "/"  //Подпапка с калиброванными фитами
 Config.CosmetizedFolderName = 'cosmetized';         // без финального "/"  //Подпапка с фитами после косметики
-Config.CosmetizedProcessName = 'Cosmetic';          // Префикс названия процесса косметики
 Config.SplitFolderName = "split";                      // Channels extracted after registration
 Config.DebayerdFolderName = "debayered";            // без финального "/" //Подпапка с фитами после дебайеризации
 Config.ABEFolderName = "dABE";                      // без финального "/" //Подпапка с результатом ABE
 Config.RegisteredFolderName = "registered";         // без финального "/" 	//Подпапка с фитами после выравнивания
 Config.NormilizedFolderName = "rnormilized";        // без финального "/" 	//Подпапка с фитами после нормализации
 Config.BinnedFolderName = "zbinning"
-
+Config.IntegratedFolderName = "Integrated";            // Output subfolder name, without trailing slash
 Config.ApprovedFolderName = "approved";             // без финального "/"   //Подпапка с отобранными фитами
-
 
 //Для режима PUT_FINALS_IN_OBJECT_SUBFOLDER
 Config.FinalsDirName = "Results";
+
+Config.CosmetizedProcessName = 'Cosmetic';          // Префикс названия процесса косметики
+
+// Integrations suffix
+Config.IntegrationMasterPostfix = "_master";
+Config.DrizzleMasterPostfix = "_drizzle_master";
+Config.CFADrizzleMasterPostfix = "_cfa_drizzle_master";
+
+// Other suffix
+Config.IntegrationRejectionLowPostfix = "_rejection_low";
+Config.IntegrationRejectionHighPostfix = "_rejection_high";
+Config.DrizzleWeightsPostfix = "_drizzle_weights";
+Config.CFADrizzleWeightsPostfix = "_cfa_drizzle_weights";
+
 
 
 //Пропускать каталоги, начинающиеся с ...
 Config.SkipDirsBeginWith = "_";
 // Пропустить каталоги, если имя каталога полностью совпадает
-Config.SkipDirs = [Config.SplitFolderName, Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
+Config.SkipDirs = [Config.SplitFolderName, Config.CalibratedFolderName, Config.CosmetizedFolderName, Config.DebayerdFolderName, Config.ABEFolderName, Config.RegisteredFolderName, Config.NormilizedFolderName, Config.ApprovedFolderName, Config.IntegratedFolderName, Config.OutputPath, Config.FinalsDirName]; //стандартные каталоги
 Config.SkipDirs.push('asteroids', 'bad', 'Bad', 'Aligned'); //User (чувствительно к регистру)
+
 // Пропустить каталоги, если имя каталога содержит одну из строк
-Config.SkipDirsContains = ['.data', '.pxiproject', '_old', 'Attempt'];
+Config.SkipDirsContains = ['.data', '.pxiproject', '_old', 'Attempt', 'Processing'];
 
 //Пропускать файлы, содержащние
 Config.SkipFilesContains = ['---', '+--'];
@@ -116,6 +129,7 @@ Config.OutputFormatIC = ImageCalibration.prototype.i16; //default - .f32, .i16
 Config.NeedIntegration = false;
 // Ordinary Drizzle integration preferences (MONO and debayered OSC).
 Config.IntegrationMethod = "image-integration"; // image-integration, drizzle-integration
+// Output postfixes are appended after OBJECT_FILTER and before .xisf.
 Config.DrizzleScale = 2.0;
 Config.DrizzleDropShrink = 0.9;
 Config.IntegrationWeightMode = "psf-signal"; // psf-signal, noise-evaluation, fits-keyword

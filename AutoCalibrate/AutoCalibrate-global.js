@@ -4,8 +4,8 @@
  #endif
 
  #define TITLE "AutoCalibrate"
- #define VERSION "7.2beta1"
- #define COMPILE_DATE "2026/11/08"
+ #define VERSION "7.2.1"
+ #define COMPILE_DATE "2026/11/11"
 
  #define INFO_STRING "A script to perform all calibration routines in fully automatic manner"
  #define COPYRIGHT_STRING "Copyright &copy; 2016 Oleg Milantiev, 2019 - 2026 Boris Emchenko<br/>"
@@ -24,6 +24,9 @@ TODO:
 - Добавить автозапуск NSG
 - Добавить Gradient Correction
 - добавить в диалог параметр для Absolute Path
+
+v 7.2.1  [2026/11/11]
+- Minor optimizations
 
 v 7.2beta1  [2026/11/08]
 - CFA drizzle реализован

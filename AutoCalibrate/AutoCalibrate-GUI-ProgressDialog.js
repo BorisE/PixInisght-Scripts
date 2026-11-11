@@ -98,6 +98,7 @@ function AutocalibrationProgressDialog() {
     }
     this.heading = label(TITLE + " v" + VERSION);
     this.pathLabel = label(Config.InputPath || "");
+    this.workflowLabel = label("Workflow: ");
     this.phaseLabel = label(this.phase);
     this.CurrentFileName_Edit = new Edit(this);
     this.CurrentFileName_Edit.readOnly = true;
@@ -285,6 +286,7 @@ function AutocalibrationProgressDialog() {
     this.sizer.spacing = 6;
     this.sizer.add(this.heading);
     this.sizer.add(this.pathLabel);
+    this.sizer.add(this.workflowLabel);
     this.sizer.add(this.phaseLabel);
     this.sizer.add(this.CurrentFileName_Edit);
     this.sizer.add(this.CurrentFileStage_Edit);
@@ -309,6 +311,7 @@ function AutocalibrationProgressDialog() {
      */
     this.attachReport = function (report) {
         this.runReport = report;
+        this.workflowLabel.text = "Workflow: " + report.workflowName;
         this.started = report.started;
         this.integrationLabel.visible = report.integrationEnabled;
         this.mastersTree.visible = report.integrationEnabled;

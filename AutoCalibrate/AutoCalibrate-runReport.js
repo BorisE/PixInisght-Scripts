@@ -41,6 +41,7 @@ function AutoCalibrateRunReport(inputPath) {
      */
     this.configure = function (config, debayer, split, after) {
         this.workflow = config.Workflow;
+        this.workflowName = {MONO: "MONO", OSC: "OSC", OSC_CFA_DRIZZLE: "OSC CFA Drizzle"}[this.workflow] || this.workflow || "Unknown";
         this.integrationEnabled = !!config.NeedIntegration;
         this.splitEnabled = split;
         this.splitAfter = after;
@@ -244,7 +245,7 @@ function AutoCalibrateRunReport(inputPath) {
         var lines = ["AutoCalibrate - run summary", this.status, this.overview(records),
             "Started: " + this.started.toString(), "Finished: " + (this.finished ? this.finished.toString() : "Running"),
             "Elapsed: " + Math.round(((this.finished || new Date()).getTime() - this.started.getTime()) / 1000) + " s",
-            "Input: " + this.inputPath, "Report: " + (this.reportPath || "Not saved"),
+            "Input: " + this.inputPath, "Workflow: " + this.workflowName, "Report: " + (this.reportPath || "Not saved"),
             "",
             "Stage\tNew output files\tExisting outputs used\tFound only\tError events"];
         var stats = this.statistics(records);

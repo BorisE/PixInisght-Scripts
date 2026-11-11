@@ -284,7 +284,8 @@ function AutoCalibrateEngine() {
         }
         // Honor current console/dialog cancellation; only the previous engine latch was reset.
         if (this.isCancelled()) return false;
-        if (Config.SkipDirs.indexOf("Integrated") < 0) Config.SkipDirs.push("Integrated");
+        if (Config.SkipDirs.indexOf(Config.IntegratedFolderName) < 0)
+            Config.SkipDirs.push(Config.IntegratedFolderName);
 
         console.abortEnabled = true; // allow stop
         console.show();
@@ -2100,11 +2101,13 @@ function AutoCalibrateEngine() {
         process.enableRejection = true;
         process.enableImageWeighting = true;
         process.enableLocalNormalization = useLN;
-        var stem = group.outputs[2].replace(/_master(?:_\d+)?\.xisf$/i, "_drizzle");
+        var stem = group.stem;
+        var masterPostfix = process.enableCFA ? Config.CFADrizzleMasterPostfix : Config.DrizzleMasterPostfix;
+        var weightsPostfix = process.enableCFA ? Config.CFADrizzleWeightsPostfix : Config.DrizzleWeightsPostfix;
         var index = 0, paths;
         do {
             var suffix = index ? "_" + index : "";
-            paths = [stem + "_master" + suffix + ".xisf", stem + "_weights" + suffix + ".xisf"];
+            paths = [stem + masterPostfix + suffix + ".xisf", stem + weightsPostfix + suffix + ".xisf"];
             ++index;
         /**
          * Check whether any proposed drizzle output already exists before choosing a free name.
@@ -2229,9 +2232,12 @@ function AutoCalibrateEngine() {
                         savedFrames: 0, exposure: 0, exposureKnown: true,
                         status: "Pending", master: "", outputs: []};
                     if (this.runReport) this.runReport.groups.push(group.summary);
-                    group.directory = base + "/Integrated";
+                    group.directory = base + "/" + Config.IntegratedFolderName;
                     var stem = group.directory + "/" + pathComponent(data.object) + "_" + pathComponent(data.filter);
-                    group.outputs = [stem + "_rejection_low.xisf", stem + "_rejection_high.xisf", stem + "_master.xisf"];
+                    group.stem = stem;
+                    group.outputs = [stem + Config.IntegrationRejectionLowPostfix + ".xisf",
+                        stem + Config.IntegrationRejectionHighPostfix + ".xisf",
+                        stem + Config.IntegrationMasterPostfix + ".xisf"];
                     var outputKey = "$" + stem.toLowerCase();
                     if (outputOwners[outputKey]) {
                         group.invalid = outputOwners[outputKey].invalid = true;
