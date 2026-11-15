@@ -3,13 +3,26 @@
    Author: Boris Emchenko
 
 #define TITLE "DBE Sample Tool"
-#define VERSION "0.1.6"
+#define VERSION "0.1.10"
 #define COMPILE_DATE "2026/11/16"
 #define INFO_STRING "Prepare sample points for DynamicBackgroundExtraction."
 #define COPYRIGHT_STRING "Copyright &copy; 2026 Boris Emchenko"
 
 /*
 Version History
+
+v 0.1.10 [2026/11/16]
+- Add a manual output option that always opens DBE with the calculated samples.
+
+v 0.1.9 [2026/11/16]
+- Add controls for rejection significance and minimum connected bright area.
+
+v 0.1.8 [2026/11/16]
+- Reject extended structures by their coverage of a regular-grid sample box.
+- Remove the native generator handoff.
+
+v 0.1.7 [2026/11/16]
+- Add a handoff to the native DBE sample generator with configurable rejection settings.
 
 v 0.1.6 [2026/11/16]
 - Move script settings and parameter persistence into a separate file.
