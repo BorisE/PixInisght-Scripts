@@ -1,9 +1,10 @@
-function DBESampleToolEngine()
+function DBESampleToolEngine( samplesPerRow, sampleRadius )
 {
-   this.samplesPerRow = 12;
-   this.sampleRadius = 10;
+   this.samplesPerRow = samplesPerRow;
+   this.sampleRadius = sampleRadius;
 }
 
+// Center one sample per cell and cap the density so complete sample boxes fit.
 DBESampleToolEngine.prototype.generateRegularGrid = function( image )
 {
    var width = image.width;
@@ -34,9 +35,17 @@ DBESampleToolEngine.prototype.generateRegularGrid = function( image )
    return points;
 };
 
+/**
+ * Measure the grid on the current image and populate a native DBE instance.
+ * Return null after updating an existing icon, or return the prepared instance
+ * so the dialog can open DBE for first-time icon creation.
+ */
 DBESampleToolEngine.prototype.saveProcessIcon = function( view, iconId )
 {
+   iconId = iconId || view.id + "_DBE";
    var image = view.image;
+   console.noteln( "Target: ", view.id, " (", image.width, " x ", image.height, ")" );
+   console.writeln( "Regular grid: ", this.samplesPerRow, " requested samples per row, radius ", this.sampleRadius, " px." );
    var points = this.generateRegularGrid( image );
    if ( points.length === 0 )
       throw new Error( "The sample radius is too large for the target image." );
@@ -62,6 +71,8 @@ DBESampleToolEngine.prototype.saveProcessIcon = function( view, iconId )
          values[2 * channel + 1] = 1;
       }
 
+      // DBE fits the model from normalized coordinates in data. The interface
+      // displays the editable pixel coordinates and radius from samples.
       data.push( [point.x / image.width, point.y / image.height].concat( values ) );
       // No symmetry, six axial positions if enabled, and editable samples.
       samples.push( [point.x, point.y, radius, 0, 6, 0].concat( values ) );
@@ -76,13 +87,17 @@ DBESampleToolEngine.prototype.saveProcessIcon = function( view, iconId )
    process.data = data;
    process.samples = samples;
 
-   iconId = iconId || view.id + "_DBE";
+   console.writeln( "Generated ", points.length, " samples." );
    // writeIcon() replaces an existing icon. Return the instance for first-time creation.
    if ( ProcessInstance.iconsByProcessId( "DynamicBackgroundExtraction" ).indexOf( iconId ) < 0 )
+   {
+      console.writeln( "Opening DBE to create process icon: ", iconId );
       return process;
+   }
 
    if ( !process.writeIcon( iconId ) )
       throw new Error( "PixInsight could not update the DBE process icon." );
 
+   console.noteln( "Updated DBE process icon: ", iconId );
    return null;
 };

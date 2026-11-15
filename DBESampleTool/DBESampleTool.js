@@ -3,13 +3,19 @@
    Author: Boris Emchenko
 
 #define TITLE "DBE Sample Tool"
-#define VERSION "0.1.4"
+#define VERSION "0.1.6"
 #define COMPILE_DATE "2026/11/16"
 #define INFO_STRING "Prepare sample points for DynamicBackgroundExtraction."
 #define COPYRIGHT_STRING "Copyright &copy; 2026 Boris Emchenko"
 
 /*
 Version History
+
+v 0.1.6 [2026/11/16]
+- Move script settings and parameter persistence into a separate file.
+
+v 0.1.5 [2026/11/16]
+- Add script instances, console reporting and persistent dialog settings.
 
 v 0.1.4 [2026/11/16]
 - Remove the experimental sample rejection mode.
@@ -27,16 +33,32 @@ v 0.1.0 [2026/11/15]
 - Initial PJSR scaffold with entry point, engine settings and dialog.
 */
 
+#include "DBESampleTool-settings.js"
 #include "DBESampleTool-engine.js"
 #include "DBESampleTool-UI.js"
 
+/**
+ * Restore the last dialog settings, then apply any parameters from a script icon.
+ * A script icon dropped on a view selects that image in the dialog.
+ * Persist the final selection when the dialog closes, even if no DBE icon was saved.
+ */
 function main()
 {
    console.noteln( TITLE, " script started. Version: ", VERSION, " Date: ", COMPILE_DATE );
 
-   var engine = new DBESampleToolEngine;
-   var dialog = new DBESampleToolDialog( engine );
-   if ( dialog.execute() && dialog.finish )
+   var settings = new DBESampleToolSettings;
+   settings.loadSettings();
+   if ( Parameters.isGlobalTarget || Parameters.isViewTarget )
+      settings.importParameters();
+   if ( Parameters.isViewTarget )
+      settings.targetViewId = Parameters.targetView.window.mainView.id;
+
+   var dialog = new DBESampleToolDialog( settings );
+   var accepted = dialog.execute();
+   dialog.storeSelection();
+   settings.saveSettings();
+   // Open the native DBE interface after the modal script dialog has closed.
+   if ( accepted && dialog.finish )
       dialog.finish();
 }
 

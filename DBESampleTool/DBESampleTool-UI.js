@@ -3,7 +3,7 @@
 #include <pjsr/StdIcon.jsh>
 #include <pjsr/TextAlign.jsh>
 
-function DBESampleToolDialog( engine )
+function DBESampleToolDialog( settings )
 {
    this.__base__ = Dialog;
    this.__base__();
@@ -26,9 +26,16 @@ function DBESampleToolDialog( engine )
 
    var targetList = new ViewList( this );
    targetList.getMainViews();
-   var activeWindow = ImageWindow.activeWindow;
-   if ( !activeWindow.isNull )
-      targetList.currentView = activeWindow.mainView;
+   // A stored view identifier may no longer refer to an open image.
+   var savedView = settings.targetViewId ? View.viewById( settings.targetViewId ) : null;
+   if ( savedView && savedView.isMainView )
+      targetList.currentView = savedView;
+   else
+   {
+      var activeWindow = ImageWindow.activeWindow;
+      if ( !activeWindow.isNull )
+         targetList.currentView = activeWindow.mainView;
+   }
 
    var targetSizer = new HorizontalSizer;
    targetSizer.spacing = 6;
@@ -47,7 +54,8 @@ function DBESampleToolDialog( engine )
    var iconIds = ProcessInstance.iconsByProcessId( "DynamicBackgroundExtraction" ).sort();
    for ( var i = 0; i < iconIds.length; ++i )
       iconList.addItem( iconIds[i] );
-   iconList.currentItem = 0;
+   // A missing icon maps to item 0, the Automatic naming option.
+   iconList.currentItem = iconIds.indexOf( settings.processIconId ) + 1;
 
    var iconSizer = new HorizontalSizer;
    iconSizer.spacing = 6;
@@ -65,10 +73,10 @@ function DBESampleToolDialog( engine )
    var samplesSpinBox = new SpinBox( sampleGroup );
    samplesSpinBox.minValue = 2;
    samplesSpinBox.maxValue = 50;
-   samplesSpinBox.value = engine.samplesPerRow;
+   samplesSpinBox.value = settings.samplesPerRow;
    samplesSpinBox.onValueUpdated = function( value )
    {
-      engine.samplesPerRow = value;
+      settings.samplesPerRow = value;
    };
 
    var samplesSizer = new HorizontalSizer;
@@ -85,10 +93,10 @@ function DBESampleToolDialog( engine )
    var radiusSpinBox = new SpinBox( sampleGroup );
    radiusSpinBox.minValue = 1;
    radiusSpinBox.maxValue = 100;
-   radiusSpinBox.value = engine.sampleRadius;
+   radiusSpinBox.value = settings.sampleRadius;
    radiusSpinBox.onValueUpdated = function( value )
    {
-      engine.sampleRadius = value;
+      settings.sampleRadius = value;
    };
 
    var radiusSizer = new HorizontalSizer;
@@ -103,6 +111,29 @@ function DBESampleToolDialog( engine )
    sampleGroup.sizer.add( samplesSizer );
    sampleGroup.sizer.add( radiusSizer );
 
+   // Capture the selectors for both the script instance and the last-used settings.
+   // An empty icon identifier represents Automatic naming.
+   this.storeSelection = function()
+   {
+      var view = targetList.currentView;
+      settings.targetViewId = view.isNull ? "" : view.id;
+      settings.processIconId = iconList.currentItem === 0 ? "" : iconList.itemText( iconList.currentItem );
+   };
+
+   var newInstanceButton = new ToolButton( this );
+   newInstanceButton.icon = this.scaledResource( ":/process-interface/new-instance.png" );
+   newInstanceButton.setScaledFixedSize( 24, 24 );
+   newInstanceButton.toolTip = "Drag to the workspace to save a DBE Sample Tool instance.";
+   newInstanceButton.onMousePress = function()
+   {
+      this.hasFocus = true;
+      this.dialog.storeSelection();
+      // PixInsight reads the exported parameters when the triangle is dragged.
+      settings.exportParameters();
+      this.pushed = false;
+      this.dialog.newInstance();
+   };
+
    this.finish = null;
 
    var saveButton = new PushButton( this );
@@ -112,9 +143,13 @@ function DBESampleToolDialog( engine )
    saveButton.onClick = function()
    {
       var view = targetList.currentView;
-      var iconId = iconList.currentItem === 0 ? view.id + "_DBE" : iconList.itemText( iconList.currentItem );
+      this.dialog.storeSelection();
+      var iconId = settings.processIconId || view.id + "_DBE";
+      // Show the process console when the user starts saving a DBE icon.
+      console.show();
       try
       {
+         var engine = new DBESampleToolEngine( settings.samplesPerRow, settings.sampleRadius );
          var process = engine.saveProcessIcon( view, iconId );
          if ( process )
             this.dialog.finish = function()
@@ -127,6 +162,7 @@ function DBESampleToolDialog( engine )
                }
                catch ( error )
                {
+                  console.criticalln( error.message );
                   (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Ok )).execute();
                   return;
                }
@@ -138,6 +174,7 @@ function DBESampleToolDialog( engine )
       }
       catch ( error )
       {
+         console.criticalln( error.message );
          (new MessageBox( error.message, TITLE, StdIcon_Error, StdButton_Ok )).execute();
          return;
       }
@@ -159,6 +196,7 @@ function DBESampleToolDialog( engine )
    };
 
    var buttonSizer = new HorizontalSizer;
+   buttonSizer.add( newInstanceButton );
    buttonSizer.addStretch();
    buttonSizer.spacing = 6;
    buttonSizer.add( saveButton );
