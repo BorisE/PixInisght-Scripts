@@ -2084,11 +2084,66 @@ function AutoCalibrateEngine() {
     }
 
     /**
+     * Record the settings of the successful integration processes in a saved master.
+     */
+    function writeIntegrationKeywords(window, group, integration, drizzle) {
+        var percentile = integration.rejection == ImageIntegration.prototype.PercentileClip;
+        var keywordWeight = integration.weightMode == ImageIntegration.prototype.KeywordWeight;
+        var weightMode = "PSF Signal Weight";
+        if (keywordWeight)
+            weightMode = "FITS Keyword";
+        else if (integration.weightMode == ImageIntegration.prototype.SNREstimate)
+            weightMode = "Noise Evaluation";
+        var parameters = [
+            ["OBJECT", group.data.object, "Integration object"],
+            ["FILTER", group.data.filter, "Integration filter/channel"],
+            ["ACWFLOW", Config.Workflow, "AutoCalibrate workflow"],
+            ["ACPROC", drizzle ? "DrizzleIntegration" : "ImageIntegration", "Master creation process"],
+            ["ACNFRMS", integration.numberOfImages, "ImageIntegration frame count"],
+            ["ACCOMB", "Average", "ImageIntegration combination"],
+            ["ACWEIGHT", weightMode, "ImageIntegration weighting method"],
+            ["ACWKEY", keywordWeight ? integration.weightKeyword : null, "FITS weight keyword"],
+            ["ACNORM", integration.normalization == ImageIntegration.prototype.LocalNormalization ?
+                "LocalNormalization (XNML)" : "Additive with scaling", "ImageIntegration normalization"],
+            ["ACREJN", integration.rejectionNormalization == ImageIntegration.prototype.LocalRejectionNormalization ?
+                "LocalNormalization (XNML)" : "Scale", "Rejection normalization"],
+            ["ACREJECT", percentile ? "Percentile Clipping" : "Winsorized Sigma Clipping", "Rejection algorithm"],
+            ["ACREJLOW", percentile ? integration.pcClipLow : integration.sigmaLow, "Low rejection threshold"],
+            ["ACREJHI", percentile ? integration.pcClipHigh : integration.sigmaHigh, "High rejection threshold"],
+            ["ACWINSOR", percentile ? null : integration.winsorizationCutoff, "Winsorization cutoff"],
+            ["ACRNGLOW", integration.rangeClipLow ? integration.rangeLow : null, "Low range clipping limit"],
+            ["ACRNGHI", integration.rangeClipHigh ? integration.rangeHigh : null, "High range clipping limit"],
+            ["ACXDRZ", integration.generateDrizzleData, "ImageIntegration wrote drizzle data"],
+            ["ACDRSCL", drizzle ? drizzle.scale : null, "Drizzle scale"],
+            ["ACDRDROP", drizzle ? drizzle.dropShrink : null, "Drizzle drop shrink"],
+            ["ACDRCFA", drizzle ? drizzle.enableCFA : null, "CFA drizzle enabled"],
+            ["ACDRREJ", drizzle ? drizzle.enableRejection : null, "Drizzle pixel rejection enabled"],
+            ["ACDRWGHT", drizzle ? drizzle.enableImageWeighting : null, "Drizzle image weighting enabled"],
+            ["ACDRLN", drizzle ? drizzle.enableLocalNormalization : null, "Drizzle local normalization enabled"]
+        ];
+        var keywords = window.keywords.filter(function (keyword) {
+            return !parameters.some(function (parameter) { return keyword.name == parameter[0]; });
+        });
+        parameters.forEach(function (parameter) {
+            var value = parameter[1];
+            if (value == null) return;
+            if (typeof value == "string")
+                value = "'" + value.replace(/'/g, "''") + "'";
+            else if (typeof value == "boolean")
+                value = value ? "T" : "F";
+            else
+                value = String(value).toUpperCase();
+            keywords.push(new FITSKeyword(parameter[0], value, parameter[2]));
+        });
+        window.keywords = keywords;
+    }
+
+    /**
      * Integrate prepared targets for group with DrizzleIntegration and optional LN data.
      * Save master/coverage products using unused names and return the master path.
      * Close owned windows; propagate native or save errors to the caller.
      */
-    this.drizzleIntegration = function (group, targets, useLN) {
+    this.drizzleIntegration = function (group, targets, useLN, integration) {
         
         var process = new DrizzleIntegration;
         /**
@@ -2125,16 +2180,7 @@ function AutoCalibrateEngine() {
             for (var i = 0; i < ids.length; ++i) {
                 var window = ImageWindow.windowById(ids[i]);
                 if (!window || window.isNull) throw new Error("Drizzle output is unavailable");
-                if (!i) {
-                    /**
-                     * Remove stale OBJECT/FILTER keywords before writing group metadata.
-                     */
-                    window.keywords = window.keywords.filter(function (k) { return k.name != "OBJECT" && k.name != "FILTER"; });
-                    var keywords = window.keywords;
-                    keywords.push(new FITSKeyword("OBJECT", "'" + group.data.object.replace(/'/g, "''") + "'", "Integration object"));
-                    keywords.push(new FITSKeyword("FILTER", "'" + group.data.filter.replace(/'/g, "''") + "'", "Integration filter"));
-                    window.keywords = keywords;
-                }
+                if (!i) writeIntegrationKeywords(window, group, integration, process);
                 if (!window.saveAs(paths[i], false, false, false, false)) throw new Error("Unable to save " + paths[i]);
             }
             console.noteln("Drizzle master saved: " + paths[0]);
@@ -2502,15 +2548,7 @@ function AutoCalibrateEngine() {
                 for (var o = 0; o < ids.length; ++o) {
                     var output = ImageWindow.windowById(ids[o]);
                     if (!output || output.isNull) throw new Error("ImageIntegration output is unavailable: " + ids[o]);
-                    if (o == 2) {
-                        /**
-                         * Remove prior OBJECT/FILTER values before writing integration group metadata.
-                         */
-                        var keywords = output.keywords.filter(function (keyword) { return keyword.name != "OBJECT" && keyword.name != "FILTER"; });
-                        keywords.push(new FITSKeyword("OBJECT", "'" + group.data.object.replace(/'/g, "''") + "'", "Integration object"));
-                        keywords.push(new FITSKeyword("FILTER", "'" + group.data.filter.replace(/'/g, "''") + "'", "Integration filter/channel"));
-                        output.keywords = keywords;
-                    }
+                    if (o == 2) writeIntegrationKeywords(output, group, process);
                     if (!output.saveAs(group.outputs[o], false, false, false, false))
                         throw new Error("Unable to save integration output: " + group.outputs[o]);
                 }
@@ -2532,7 +2570,7 @@ function AutoCalibrateEngine() {
                 // Run drizzle integration
                 if (useDrizzle) {
                     try {
-                        var drizzleMaster = this.drizzleIntegration(group, targetImages, useXNML);
+                        var drizzleMaster = this.drizzleIntegration(group, targetImages, useXNML, process);
                         if (drizzleMaster) {
                             displayMaster = drizzleMaster;
                             group.summary.master = drizzleMaster;
